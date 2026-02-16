@@ -21,13 +21,11 @@ export default async function ManagerLayout({
         .eq('id', user.id)
         .single()
 
-    // STRICTER CHECK THIS TIME:
-    // If role is NOT manager (and not admin), kick them out. 
-    // Allowing admin to view manager view is useful.
-    if (profile && profile.role !== 'manager' && profile.role !== 'admin') {
+    // Allow manager, admin, and superuser (for testing)
+    if (profile && profile.role !== 'manager' && profile.role !== 'admin' && profile.role !== 'superuser') {
         console.log('Unauthorized access to manager area by:', profile.role)
         // redirect('/') 
-        // For demo purposes, I'll allow it but warn. In prod, uncomment redirect.
+        // For demo purposes, allowing it but logging. In prod, uncomment redirect.
     }
 
     return (
