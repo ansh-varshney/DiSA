@@ -2,6 +2,8 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { generateCourtId } from '@/lib/sports'
+import { generateEquipmentId } from '@/lib/sports'
 
 /**
  * Admin Actions - Server actions for admin dashboard
@@ -26,7 +28,7 @@ async function verifyAdmin() {
         .eq('id', user.id)
         .single()
 
-    if (!profile || profile.role !== 'admin') {
+    if (!profile || (profile.role !== 'admin' && profile.role !== 'superuser')) {
         throw new Error('Forbidden: Admin access required')
     }
 
@@ -62,6 +64,9 @@ export async function getEquipmentList(sport?: string) {
 export async function createEquipment(formData: FormData) {
     const { supabase } = await verifyAdmin()
 
+    // Get image files from formData
+    const imageFiles = formData.getAll('images') as File[]
+
     const equipmentData = {
         name: formData.get('name') as string,
         sport: formData.get('sport') as string,
@@ -69,30 +74,156 @@ export async function createEquipment(formData: FormData) {
         vendor_name: formData.get('vendor_name') as string || null,
         cost: formData.get('cost') ? parseFloat(formData.get('cost') as string) : null,
         purchase_date: formData.get('purchase_date') as string || null,
-        expected_lifespan_days: formData.get('expected_lifespan_days')
-            ? parseInt(formData.get('expected_lifespan_days') as string)
-            : 365,
+        expected_lifespan_days: 365, // Default value, will be synced later
         is_available: true,
-        total_usage_count: 0
+        total_usage_count: 0,
+        pictures: [] as string[],
+        notes: formData.get('notes') as string || ''
     }
 
-    const { data, error } = await supabase
+    // Validate sport is provided
+    if (!equipmentData.sport) {
+        throw new Error('Sport is required')
+    }
+
+    // Generate equipment ID based on sport and current count
+    const { count } = await supabase
         .from('equipment')
-        .insert(equipmentData)
+        .select('*', { count: 'exact', head: true })
+        .eq('sport', equipmentData.sport)
+
+    const equipmentId = generateEquipmentId(equipmentData.sport, count || 0)
+
+    // First, create the equipment to get an ID
+    const { data: equipment, error: insertError } = await supabase
+        .from('equipment')
+        .insert({
+            ...equipmentData,
+            equipment_id: equipmentId
+        })
         .select()
         .single()
 
-    if (error) {
-        console.error('Error creating equipment:', error)
+    if (insertError) {
+        console.error('Error creating equipment:', insertError)
         throw new Error('Failed to create equipment')
     }
 
+    // Upload images if any
+    if (imageFiles.length > 0) {
+        const uploadedUrls: string[] = []
+
+        for (const file of imageFiles) {
+            if (file.size === 0) continue // Skip empty files
+
+            // Generate unique filename
+            const timestamp = Date.now()
+            const filename = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+            const filePath = `${equipmentData.sport}/${equipment.id}/${filename}`
+
+            // Upload to Supabase Storage
+            const { error: uploadError } = await supabase.storage
+                .from('equipment-images')
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: false
+                })
+
+            if (uploadError) {
+                console.error('Error uploading image:', uploadError)
+                continue // Skip this file but continue with others
+            }
+
+            // Get public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from('equipment-images')
+                .getPublicUrl(filePath)
+
+            uploadedUrls.push(publicUrl)
+        }
+
+        // Update equipment with image URLs
+        if (uploadedUrls.length > 0) {
+            const { error: updateError } = await supabase
+                .from('equipment')
+                .update({ pictures: uploadedUrls })
+                .eq('id', equipment.id)
+
+            if (updateError) {
+                console.error('Error updating equipment with images:', updateError)
+            }
+        }
+    }
+
     revalidatePath('/admin/equipment')
-    return data
+    return equipment
 }
 
 export async function updateEquipment(id: string, formData: FormData) {
     const { supabase } = await verifyAdmin()
+
+    // Get existing equipment to check current images
+    const { data: existingEquipment } = await supabase
+        .from('equipment')
+        .select('pictures, sport')
+        .eq('id', id)
+        .single()
+
+    // Get existing images that should be kept
+    const existingImagesJson = formData.get('existingImages') as string || '[]'
+    const existingImages = JSON.parse(existingImagesJson) as string[]
+
+    // Get new image files
+    const newImageFiles = formData.getAll('images') as File[]
+    const uploadedUrls: string[] = [...existingImages]
+
+    // Upload new images
+    if (newImageFiles.length > 0) {
+        for (const file of newImageFiles) {
+            if (file.size === 0) continue
+
+            const timestamp = Date.now()
+            const filename = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+            const filePath = `${existingEquipment?.sport || 'unknown'}/${id}/${filename}`
+
+            const { error: uploadError } = await supabase.storage
+                .from('equipment-images')
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: false
+                })
+
+            if (uploadError) {
+                console.error('Error uploading image:', uploadError)
+                continue
+            }
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('equipment-images')
+                .getPublicUrl(filePath)
+
+            uploadedUrls.push(publicUrl)
+        }
+    }
+
+    // Delete removed images from storage
+    const removedImages = (existingEquipment?.pictures || []).filter(
+        (url: string) => !existingImages.includes(url)
+    )
+
+    for (const url of removedImages) {
+        try {
+            const urlParts = url.split('/storage/v1/object/public/equipment-images/')
+            if (urlParts.length >= 2) {
+                const filePath = urlParts[1]
+                await supabase.storage
+                    .from('equipment-images')
+                    .remove([filePath])
+            }
+        } catch (err) {
+            console.error('Error deleting image:', err)
+        }
+    }
 
     const updates = {
         name: formData.get('name') as string,
@@ -101,9 +232,9 @@ export async function updateEquipment(id: string, formData: FormData) {
         vendor_name: formData.get('vendor_name') as string || null,
         cost: formData.get('cost') ? parseFloat(formData.get('cost') as string) : null,
         purchase_date: formData.get('purchase_date') as string || null,
-        expected_lifespan_days: formData.get('expected_lifespan_days')
-            ? parseInt(formData.get('expected_lifespan_days') as string)
-            : 365,
+        pictures: uploadedUrls,
+        notes: formData.get('notes') as string || ''
+        // Note: usage_count and expected_lifespan_days are NOT updated here (read-only)
     }
 
     const { data, error } = await supabase
@@ -125,6 +256,14 @@ export async function updateEquipment(id: string, formData: FormData) {
 export async function deleteEquipment(id: string) {
     const { supabase } = await verifyAdmin()
 
+    // Get equipment images before deleting
+    const { data: equipment } = await supabase
+        .from('equipment')
+        .select('pictures')
+        .eq('id', id)
+        .single()
+
+    // Delete equipment record
     const { error } = await supabase
         .from('equipment')
         .delete()
@@ -133,6 +272,23 @@ export async function deleteEquipment(id: string) {
     if (error) {
         console.error('Error deleting equipment:', error)
         throw new Error('Failed to delete equipment')
+    }
+
+    // Delete associated images from storage
+    if (equipment?.pictures && equipment.pictures.length > 0) {
+        for (const url of equipment.pictures) {
+            try {
+                const urlParts = url.split('/storage/v1/object/public/equipment-images/')
+                if (urlParts.length >= 2) {
+                    const filePath = urlParts[1]
+                    await supabase.storage
+                        .from('equipment-images')
+                        .remove([filePath])
+                }
+            } catch (err) {
+                console.error('Error deleting image:', err)
+            }
+        }
     }
 
     revalidatePath('/admin/equipment')
@@ -168,44 +324,171 @@ export async function getCourtsList(sport?: string) {
 export async function createCourt(formData: FormData) {
     const { supabase } = await verifyAdmin()
 
+    // Get image files from formData
+    const imageFiles = formData.getAll('images') as File[]
+
     const courtData = {
         name: formData.get('name') as string,
         sport: formData.get('sport') as string,
-        type: formData.get('type') as string || null,
-        capacity: formData.get('capacity') ? parseInt(formData.get('capacity') as string) : 4,
         condition: formData.get('condition') as string || 'good',
-        maintenance_notes: formData.get('maintenance_notes') as string || null,
         last_maintenance_date: formData.get('last_maintenance_date') as string || null,
+        next_check_date: formData.get('next_check_date') as string || null,
         is_active: true,
-        usage_count: 0
+        usage_count: 0,
+        pictures: [] as string[],
+        notes: formData.get('notes') as string || ''
     }
 
-    const { data, error } = await supabase
+    // Validate sport is provided
+    if (!courtData.sport) {
+        throw new Error('Sport is required')
+    }
+
+    // Generate court ID based on sport and current count
+    const { count } = await supabase
         .from('courts')
-        .insert(courtData)
+        .select('*', { count: 'exact', head: true })
+        .eq('sport', courtData.sport)
+
+    const courtId = generateCourtId(courtData.sport, count || 0)
+
+    // First, create the court to get an ID
+    const { data: court, error: insertError } = await supabase
+        .from('courts')
+        .insert({
+            ...courtData,
+            court_id: courtId
+        })
         .select()
         .single()
 
-    if (error) {
-        console.error('Error creating court:', error)
-        throw new Error('Failed to create court')
+    if (insertError) {
+        console.error('Error creating court:', insertError)
+        throw new Error(`Failed to create court: ${insertError.message || JSON.stringify(insertError)}`)
+    }
+
+    // Upload images if any
+    if (imageFiles.length > 0) {
+        const uploadedUrls: string[] = []
+
+        for (const file of imageFiles) {
+            if (file.size === 0) continue // Skip empty files
+
+            // Generate unique filename
+            const timestamp = Date.now()
+            const filename = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+            const filePath = `${courtData.sport}/${court.id}/${filename}`
+
+            // Upload to Supabase Storage
+            const { error: uploadError } = await supabase.storage
+                .from('court-images')
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: false
+                })
+
+            if (uploadError) {
+                console.error('Error uploading image:', uploadError)
+                continue // Skip this file but continue with others
+            }
+
+            // Get public URL
+            const { data: { publicUrl } } = supabase.storage
+                .from('court-images')
+                .getPublicUrl(filePath)
+
+            uploadedUrls.push(publicUrl)
+        }
+
+        // Update court with image URLs
+        if (uploadedUrls.length > 0) {
+            const { error: updateError } = await supabase
+                .from('courts')
+                .update({ pictures: uploadedUrls })
+                .eq('id', court.id)
+
+            if (updateError) {
+                console.error('Error updating court with images:', updateError)
+            }
+        }
     }
 
     revalidatePath('/admin/courts')
-    return data
+    return court
 }
 
 export async function updateCourt(id: string, formData: FormData) {
     const { supabase } = await verifyAdmin()
 
+    // Get existing court data
+    const { data: existingCourt } = await supabase
+        .from('courts')
+        .select('pictures, sport')
+        .eq('id', id)
+        .single()
+
+    // Get existing images that user wants to keep
+    const existingImagesJson = formData.get('existingImages') as string || '[]'
+    const existingImages = JSON.parse(existingImagesJson) as string[]
+
+    const newImageFiles = formData.getAll('images') as File[]
+    const uploadedUrls: string[] = [...existingImages]
+
+    // Upload new images if any
+    if (newImageFiles.length > 0) {
+        for (const file of newImageFiles) {
+            if (file.size === 0) continue
+
+            const timestamp = Date.now()
+            const filename = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+            const filePath = `${existingCourt?.sport || 'unknown'}/${id}/${filename}`
+
+            const { error: uploadError } = await supabase.storage
+                .from('court-images')
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: false
+                })
+
+            if (uploadError) {
+                console.error('Error uploading image:', uploadError)
+                continue
+            }
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('court-images')
+                .getPublicUrl(filePath)
+
+            uploadedUrls.push(publicUrl)
+        }
+    }
+
+    // Delete removed images from storage
+    const removedImages = (existingCourt?.pictures || []).filter(
+        (url: string) => !existingImages.includes(url)
+    )
+
+    for (const url of removedImages) {
+        try {
+            const urlParts = url.split('/storage/v1/object/public/court-images/')
+            if (urlParts.length >= 2) {
+                const filePath = urlParts[1]
+                await supabase.storage
+                    .from('court-images')
+                    .remove([filePath])
+            }
+        } catch (err) {
+            console.error('Error deleting image:', err)
+        }
+    }
+
     const updates = {
         name: formData.get('name') as string,
-        sport: formData.get('sport') as string,
-        type: formData.get('type') as string || null,
-        capacity: formData.get('capacity') ? parseInt(formData.get('capacity') as string) : 4,
         condition: formData.get('condition') as string,
-        maintenance_notes: formData.get('maintenance_notes') as string || null,
         last_maintenance_date: formData.get('last_maintenance_date') as string || null,
+        next_check_date: formData.get('next_check_date') as string || null,
+        pictures: uploadedUrls,
+        notes: formData.get('notes') as string || ''
     }
 
     const { data, error } = await supabase
@@ -227,10 +510,34 @@ export async function updateCourt(id: string, formData: FormData) {
 export async function deleteCourt(id: string) {
     const { supabase } = await verifyAdmin()
 
-    // Soft delete - set is_active to false
+    // Get court data to delete images
+    const { data: court } = await supabase
+        .from('courts')
+        .select('pictures')
+        .eq('id', id)
+        .single()
+
+    // Delete associated images from storage
+    if (court?.pictures && court.pictures.length > 0) {
+        for (const url of court.pictures) {
+            try {
+                const urlParts = url.split('/storage/v1/object/public/court-images/')
+                if (urlParts.length >= 2) {
+                    const filePath = urlParts[1]
+                    await supabase.storage
+                        .from('court-images')
+                        .remove([filePath])
+                }
+            } catch (err) {
+                console.error('Error deleting image:', err)
+            }
+        }
+    }
+
+    // Hard delete the court record
     const { data, error } = await supabase
         .from('courts')
-        .update({ is_active: false })
+        .delete()
         .eq('id', id)
         .select()
         .single()

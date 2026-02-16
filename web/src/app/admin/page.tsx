@@ -40,22 +40,7 @@ export default async function AdminHome() {
                 </div>
             </header>
 
-            {/* Global Sport Filter - Placeholder for future implementation */}
-            <div className="flex items-center gap-3">
-                <label htmlFor="sport-filter" className="text-sm font-medium text-gray-700">
-                    Filter by Sport:
-                </label>
-                <select
-                    id="sport-filter"
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#004d40] focus:border-transparent"
-                >
-                    <option value="all">All Sports</option>
-                    <option value="badminton">Badminton</option>
-                    <option value="tennis">Tennis</option>
-                    <option value="basketball">Basketball</option>
-                    <option value="football">Football</option>
-                </select>
-            </div>
+
 
             {/* Core Management Modules */}
             <section>
@@ -190,10 +175,10 @@ export default async function AdminHome() {
                                             <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center group-hover:bg-green-100 transition-colors">
                                                 <Users className="w-5 h-5 text-green-600" />
                                             </div>
-                                            <h3 className="font-bold text-gray-900">Coordinator Info</h3>
+                                            <h3 className="font-bold text-gray-900">Sport Info</h3>
                                         </div>
                                         <p className="text-sm text-gray-500">
-                                            View coach and team coordinator details
+                                            View sport details and information
                                         </p>
                                     </div>
                                 </div>
