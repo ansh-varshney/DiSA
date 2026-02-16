@@ -23,10 +23,10 @@ export default async function StudentLayout({
         .eq('id', user.id)
         .single()
 
-    if (profile && profile.role !== 'student') {
-        // If they are manager/admin trying to access student pages, we might want to redirect
-        // Or just let them view it (often useful for testing).
-        // For strictness:
+    if (profile && profile.role !== 'student' && profile.role !== 'superuser') {
+        // If they are manager/admin trying to access student pages
+        // Superuser is allowed for testing purposes
+        // Uncomment below for strict role enforcement:
         // redirect('/')
     }
 
