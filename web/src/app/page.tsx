@@ -21,9 +21,15 @@ export default async function Home() {
 
     console.log('Home Page Debug: Profile Role:', profile?.role)
 
-    if (profile?.role === 'student') redirect('/student')
-    if (profile?.role === 'manager') redirect('/manager')
-    if (profile?.role === 'admin') redirect('/admin')
+    // Superuser gets to choose their portal (for testing)
+    if (profile?.role === 'superuser') {
+      // Don't redirect - show portal selector below
+    } else {
+      // Normal role-based redirects
+      if (profile?.role === 'student') redirect('/student')
+      if (profile?.role === 'manager') redirect('/manager')
+      if (profile?.role === 'admin') redirect('/admin')
+    }
 
     // If we are here, profile might be missing (e.g. sign up didn't run trigger/action correctly)
     if (!profile) {
@@ -65,25 +71,31 @@ export default async function Home() {
             </p>
           </div>
         </CardHeader>
+        {user?.user_metadata?.role === 'superuser' && (
+          <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+            <p className="text-sm text-yellow-800 font-medium">🔧 Superuser Mode Active</p>
+            <p className="text-xs text-yellow-600">Choose which portal to access for testing</p>
+          </div>
+        )}
         <CardContent className="space-y-4">
-          <Link href="/login?role=student" className="w-full block">
+          <Link href="/student" className="w-full block">
             <Button className="w-full h-12 text-lg font-medium bg-[#004d40] hover:bg-[#004d40]/90 transition-all shadow-sm hover:shadow-md" size="lg">
               <GraduationCap className="w-5 h-5 mr-3" />
               Student Portal
             </Button>
           </Link>
 
-          <Link href="/login?role=manager" className="w-full block">
+          <Link href="/manager" className="w-full block">
             <Button variant="outline" className="w-full h-12 text-lg font-medium border-2 hover:bg-gray-50 transition-all text-[#004d40] border-[#004d40]/20" size="lg">
               <Users className="w-5 h-5 mr-3" />
               Manager Access
             </Button>
           </Link>
 
-          <Link href="/login?role=admin" className="w-full block">
-            <Button variant="ghost" className="w-full text-gray-500 hover:text-gray-900" size="sm">
-              <User className="w-4 h-4 mr-2" />
-              Admin Login
+          <Link href="/admin" className="w-full block">
+            <Button variant="outline" className="w-full h-12 text-lg font-medium border-2 hover:bg-gray-50 transition-all text-[#004d40] border-[#004d40]/20" size="lg">
+              <User className="w-5 h-5 mr-3" />
+              Admin Portal
             </Button>
           </Link>
         </CardContent>
