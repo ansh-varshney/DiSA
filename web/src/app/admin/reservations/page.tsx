@@ -1,107 +1,78 @@
-import { getReservations } from '@/actions/admin'
+import { getReservationsByDate, getCourtsList } from '@/actions/admin'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import { ReservationActions } from '@/components/reservation-actions'
-import { format } from 'date-fns'
+import { SportFilter } from '@/components/sport-filter'
+import { DatePicker } from '@/components/date-picker'
+import { ReservationCalendar } from '@/components/reservation-calendar'
+import { Calendar } from 'lucide-react'
 
-export default async function ReservationsManagement() {
-    const reservations = await getReservations(3) // 3-day view
+export default async function ReservationsManagement({ searchParams }: { searchParams: Promise<{ sport?: string, date?: string }> }) {
+    const params = await searchParams
+    const sport = params.sport || ''
+    const selectedDate = params.date || ''
 
-    const statusVariants: Record<string, "info" | "success" | "warning" | "danger" | "secondary"> = {
-        pending_confirmation: 'warning',
-        confirmed: 'success',
-        waiting_manager: 'info',
-        active: 'info',
-        completed: 'secondary',
-        cancelled: 'danger',
-        rejected: 'danger'
-    }
+    // Fetch courts for the selected sport (use existing getCourtsList that accepts optional param)
+    const courts = sport && sport !== 'all' ? await getCourtsList(sport) : []
+
+    // Fetch reservations for the selected date and sport
+    const reservations = sport && selectedDate ? await getReservationsByDate(sport, selectedDate) : []
 
     return (
         <div className="p-6 space-y-6">
             <header>
-                <h1 className="text-2xl font-bold text-gray-900">Reservations Viewing</h1>
-                <p className="text-gray-500 text-sm">Monitor and manage court reservations (3-day view)</p>
+                <h1 className="text-2xl font-bold text-gray-900">Reservations Management</h1>
+                <p className="text-gray-500 text-sm">View and manage court reservations</p>
             </header>
 
-            {/* Reservations Table */}
+            {/* Filters */}
             <Card>
-                <CardHeader>
-                    <CardTitle className="text-lg">Upcoming Reservations ({reservations.length})</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {reservations.length === 0 ? (
-                        <div className="text-center py-12 text-gray-500">
-                            <p>No reservations found for the next 3 days.</p>
-                        </div>
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Date & Time</TableHead>
-                                    <TableHead>Court</TableHead>
-                                    <TableHead>Student</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Players</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {reservations.map((booking) => (
-                                    <TableRow key={booking.id}>
-                                        <TableCell>
-                                            <div>
-                                                <div className="font-medium">
-                                                    {format(new Date(booking.start_time), 'MMM d, yyyy')}
-                                                </div>
-                                                <div className="text-xs text-gray-500">
-                                                    {format(new Date(booking.start_time), 'h:mm a')} -{' '}
-                                                    {format(new Date(booking.end_time), 'h:mm a')}
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div>
-                                                <div className="font-medium">{booking.courts?.name}</div>
-                                                <div className="text-xs text-gray-500 capitalize">
-                                                    {booking.courts?.sport}
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div>
-                                                <div className="font-medium">{booking.profiles?.full_name}</div>
-                                                <div className="text-xs text-gray-500">
-                                                    {booking.profiles?.student_id}
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant={statusVariants[booking.status] || 'info'}>
-                                                {booking.status.replace('_', ' ')}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-gray-600">
-                                            {booking.players_list
-                                                ? (Array.isArray(booking.players_list)
-                                                    ? booking.players_list.length
-                                                    : '1')
-                                                : '1'} player(s)
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <ReservationActions
-                                                bookingId={booking.id}
-                                                currentStatus={booking.status}
-                                            />
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
+                <CardContent className="p-4">
+                    <div className="flex items-center gap-4 flex-wrap">
+                        <SportFilter />
+
+                        {sport && sport !== 'all' && (
+                            <DatePicker />
+                        )}
+                    </div>
                 </CardContent>
             </Card>
+
+            {/* Main Content */}
+            {!sport || sport === 'all' ? (
+                <Card>
+                    <CardContent className="p-12">
+                        <div className="text-center space-y-3">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                                <Calendar className="w-8 h-8 text-gray-400" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900">Please Select a Sport</h3>
+                            <p className="text-gray-500 text-sm max-w-md mx-auto">
+                                Choose a sport from the dropdown above to view reservations for that sport's courts.
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            ) : !selectedDate ? (
+                <Card>
+                    <CardContent className="p-12">
+                        <div className="text-center space-y-3">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                                <Calendar className="w-8 h-8 text-gray-400" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900">Please Select a Date</h3>
+                            <p className="text-gray-500 text-sm max-w-md mx-auto">
+                                Choose a date from the date picker above to view reservations for that day.
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            ) : (
+                <ReservationCalendar
+                    courts={courts}
+                    reservations={reservations}
+                    selectedDate={selectedDate}
+                    sport={sport}
+                />
+            )}
         </div>
     )
 }

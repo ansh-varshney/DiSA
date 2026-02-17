@@ -99,7 +99,7 @@ export function AnnouncementForm({ mode, announcement, children }: AnnouncementF
                                         value={title}
                                         onChange={(e) => setTitle(e.target.value)}
                                         required
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40] text-gray-900 placeholder:text-gray-500"
                                         placeholder="e.g., Tennis Court Maintenance"
                                     />
                                 </div>
@@ -114,7 +114,7 @@ export function AnnouncementForm({ mode, announcement, children }: AnnouncementF
                                         onChange={(e) => setContent(e.target.value)}
                                         required
                                         rows={5}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40] text-gray-900 placeholder:text-gray-500"
                                         placeholder="Write your announcement details..."
                                     />
                                 </div>

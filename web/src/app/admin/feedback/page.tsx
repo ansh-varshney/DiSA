@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { FeedbackActions } from '@/components/feedback-actions'
+import { StatusFilter } from '@/components/status-filter'
 import { format } from 'date-fns'
 
 export default async function FeedbackManagement({ searchParams }: { searchParams: { status?: string } }) {
@@ -24,20 +25,7 @@ export default async function FeedbackManagement({ searchParams }: { searchParam
 
             {/* Filters */}
             <div className="flex items-center gap-4">
-                <label htmlFor="status-filter" className="text-sm font-medium text-gray-700">
-                    Filter by Status:
-                </label>
-                <select
-                    id="status-filter"
-                    defaultValue={statusFilter}
-                    onChange={(e) => window.location.href = `/admin/feedback?status=${e.target.value}`}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#004d40] focus:border-transparent"
-                >
-                    <option value="all">All Status</option>
-                    <option value="open">Open</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="resolved">Resolved</option>
-                </select>
+                <StatusFilter />
 
                 <div className="ml-auto flex gap-2 text-sm">
                     <span className="text-gray-600">Total: <strong>{feedback.length}</strong></span>
@@ -47,7 +35,7 @@ export default async function FeedbackManagement({ searchParams }: { searchParam
             {/* Feedback Table */}
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg">Complaints List</CardTitle>
+                    <CardTitle className="text-lg text-gray-900">Complaints List</CardTitle>
                 </CardHeader>
                 <CardContent>
                     {feedback.length === 0 ? (
@@ -58,12 +46,12 @@ export default async function FeedbackManagement({ searchParams }: { searchParam
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Student</TableHead>
-                                    <TableHead>Title</TableHead>
-                                    <TableHead className="w-96">Description</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
+                                    <TableHead className="text-gray-900 font-semibold">Student</TableHead>
+                                    <TableHead className="text-gray-900 font-semibold">Title</TableHead>
+                                    <TableHead className="w-96 text-gray-900 font-semibold">Description</TableHead>
+                                    <TableHead className="text-gray-900 font-semibold">Status</TableHead>
+                                    <TableHead className="text-gray-900 font-semibold">Date</TableHead>
+                                    <TableHead className="text-right text-gray-900 font-semibold">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -71,12 +59,12 @@ export default async function FeedbackManagement({ searchParams }: { searchParam
                                     <TableRow key={item.id}>
                                         <TableCell>
                                             <div>
-                                                <div className="font-medium">{item.profiles?.full_name || 'Unknown'}</div>
-                                                <div className="text-xs text-gray-500">{item.profiles?.student_id || '-'}</div>
+                                                <div className="font-semibold text-gray-900">{item.profiles?.full_name || 'Unknown'}</div>
+                                                <div className="text-xs text-gray-600">{item.profiles?.student_id || '-'}</div>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="font-medium">{item.title}</TableCell>
-                                        <TableCell className="text-gray-600 text-sm">
+                                        <TableCell className="font-semibold text-gray-900">{item.title}</TableCell>
+                                        <TableCell className="text-gray-800 text-sm">
                                             {item.description.length > 100
                                                 ? item.description.substring(0, 100) + '...'
                                                 : item.description}
@@ -86,7 +74,7 @@ export default async function FeedbackManagement({ searchParams }: { searchParam
                                                 {item.status.replace('_', ' ')}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-gray-600 text-sm">
+                                        <TableCell className="text-gray-800 text-sm">
                                             {format(new Date(item.created_at), 'MMM d, yyyy')}
                                         </TableCell>
                                         <TableCell className="text-right">

@@ -657,6 +657,175 @@ export async function getReservations(days: number = 3) {
     return data || []
 }
 
+/**
+ * Get reservations for a specific sport and date (for calendar view)
+ */
+export async function getReservationsByDate(sport: string, date: string) {
+    const supabase = await createClient()
+
+    // Parse the date and get start/end of day
+    const startOfDay = new Date(date)
+    startOfDay.setHours(0, 0, 0, 0)
+
+    const endOfDay = new Date(date)
+    endOfDay.setHours(23, 59, 59, 999)
+
+    const { data, error } = await supabase
+        .from('bookings')
+        .select('*, courts(*), profiles(full_name, student_id)')
+        .eq('courts.sport', sport)
+        .gte('start_time', startOfDay.toISOString())
+        .lte('start_time', endOfDay.toISOString())
+        .order('start_time', { ascending: true })
+
+    if (error) {
+        console.error('Error fetching reservations by date:', error)
+        return []
+    }
+
+
+    return data || []
+}
+
+
+/**
+ * Cancel a reservation
+ */
+export async function cancelReservation(bookingId: string) {
+    const { supabase } = await verifyAdmin()
+
+    // First, get the booking to send notifications later
+    const { data: booking } = await supabase
+        .from('bookings')
+        .select('*, profiles(full_name, email), courts(name, sport)')
+        .eq('id', bookingId)
+        .single()
+
+    // Cancel the booking by updating status
+    const { data, error } = await supabase
+        .from('bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', bookingId)
+        .select()
+        .single()
+
+    if (error) {
+        console.error('Error cancelling reservation:', error)
+        throw new Error(`Failed to cancel reservation: ${error.message}`)
+    }
+
+    // TODO: Send notifications to student and manager
+    // This will be implemented when student/manager pipelines are built
+
+    revalidatePath('/admin/reservations')
+    return data
+}
+
+/**
+ * Create a priority reservation (admin booking)
+ */
+export async function priorityReserveSlot(
+    courtId: string,
+    date: string,
+    startTime: string,
+    endTime: string
+) {
+    const { supabase, user } = await verifyAdmin()
+
+    // Create datetime strings
+    const startDateTime = new Date(`${date}T${startTime}:00`)
+    const endDateTime = new Date(`${date}T${endTime}:00`)
+
+    // Check if slot is already booked
+    const { data: existingBooking } = await supabase
+        .from('bookings')
+        .select('id')
+        .eq('court_id', courtId)
+        .gte('start_time', startDateTime.toISOString())
+        .lt('start_time', endDateTime.toISOString())
+        .neq('status', 'cancelled')
+        .single()
+
+    if (existingBooking) {
+        throw new Error('This slot is already reserved')
+    }
+
+    // Create priority reservation
+    const { data, error } = await supabase
+        .from('bookings')
+        .insert({
+            court_id: courtId,
+            user_id: user.id,
+            start_time: startDateTime.toISOString(),
+            end_time: endDateTime.toISOString(),
+            status: 'confirmed',
+            is_priority: true
+        })
+        .select()
+        .single()
+
+    if (error) {
+        console.error('Error creating priority reservation:', error)
+        throw new Error(`Failed to create priority reservation: ${error.message}`)
+    }
+
+    revalidatePath('/admin/reservations')
+    return data
+}
+
+/**
+ * Reserve slot for maintenance (admin)
+ */
+export async function reserveForMaintenance(
+    courtId: string,
+    date: string,
+    startTime: string,
+    endTime: string
+) {
+    const { supabase, user } = await verifyAdmin()
+
+    // Create datetime strings
+    const startDateTime = new Date(`${date}T${startTime}:00`)
+    const endDateTime = new Date(`${date}T${endTime}:00`)
+
+    // Check if slot is already booked
+    const { data: existingBooking } = await supabase
+        .from('bookings')
+        .select('id')
+        .eq('court_id', courtId)
+        .gte('start_time', startDateTime.toISOString())
+        .lt('start_time', endDateTime.toISOString())
+        .neq('status', 'cancelled')
+        .single()
+
+    if (existingBooking) {
+        throw new Error('This slot is already reserved')
+    }
+
+    // Create maintenance reservation
+    const { data, error } = await supabase
+        .from('bookings')
+        .insert({
+            court_id: courtId,
+            user_id: user.id,
+            start_time: startDateTime.toISOString(),
+            end_time: endDateTime.toISOString(),
+            status: 'confirmed',
+            is_maintenance: true
+        })
+        .select()
+        .single()
+
+    if (error) {
+        console.error('Error creating maintenance reservation:', error)
+        throw new Error(`Failed to create maintenance reservation: ${error.message}`)
+    }
+
+    revalidatePath('/admin/reservations')
+    return data
+}
+
+
 export async function forceCancelBooking(bookingId: string) {
     const { supabase } = await verifyAdmin()
 
@@ -685,7 +854,7 @@ export async function getFeedback(statusFilter?: string) {
 
     let query = supabase
         .from('feedback_complaints')
-        .select('*, profiles(full_name, student_id)')
+        .select('*, profiles!feedback_complaints_student_id_fkey(full_name, student_id)')
         .order('created_at', { ascending: false })
 
     if (statusFilter && statusFilter !== 'all') {
@@ -700,6 +869,26 @@ export async function getFeedback(statusFilter?: string) {
     }
 
     return data || []
+}
+
+/**
+ * Mark feedback as read (delete from database)
+ */
+export async function markFeedbackAsRead(feedbackId: string) {
+    const { supabase } = await verifyAdmin()
+
+    const { error } = await supabase
+        .from('feedback_complaints')
+        .delete()
+        .eq('id', feedbackId)
+
+    if (error) {
+        console.error('Error deleting feedback:', error)
+        throw new Error(`Failed to mark feedback as read: ${error.message}`)
+    }
+
+    revalidatePath('/admin/feedback')
+    return { success: true }
 }
 
 export async function updateComplaintStatus(id: string, status: string) {
@@ -854,6 +1043,89 @@ export async function getViolations(filters?: { severity?: string; violationType
     }
 
     return data || []
+}
+
+/**
+ * Get defaulter students (grouped violations by student)
+ */
+export async function getDefaulterStudents() {
+    const supabase = await createClient()
+
+    // Fetch all violations with student details
+    const { data: violations, error } = await supabase
+        .from('student_violations')
+        .select('*, profiles!student_violations_student_id_fkey(full_name, student_id, email), reported_by_profile:profiles!student_violations_reported_by_fkey(full_name)')
+        .order('created_at', { ascending: false })
+
+    if (error) {
+        console.error('Error fetching violations:', error)
+        return []
+    }
+
+    if (!violations || violations.length === 0) {
+        return []
+    }
+
+    // Group violations by student
+    const studentMap = new Map<string, {
+        student_id: string
+        student_name: string
+        student_roll: string
+        student_email: string
+        total_violations: number
+        latest_reason: string
+        latest_source: 'system' | 'manager'
+        latest_date: string
+        violations: any[]
+    }>()
+
+    violations.forEach(violation => {
+        const studentId = violation.student_id
+        const profile = violation.profiles
+
+        if (!studentMap.has(studentId)) {
+            studentMap.set(studentId, {
+                student_id: studentId,
+                student_name: profile?.full_name || 'Unknown',
+                student_roll: profile?.student_id || '-',
+                student_email: profile?.email || '',
+                total_violations: 0,
+                latest_reason: violation.reason || 'No reason provided',
+                latest_source: violation.reported_by ? 'manager' : 'system',
+                latest_date: violation.created_at,
+                violations: []
+            })
+        }
+
+        const student = studentMap.get(studentId)!
+        student.total_violations++
+        student.violations.push(violation)
+    })
+
+    return Array.from(studentMap.values()).sort((a, b) =>
+        new Date(b.latest_date).getTime() - new Date(a.latest_date).getTime()
+    )
+}
+
+/**
+ * Remove student from defaulters list (clear all violations)
+ */
+export async function removeStudentFromDefaulters(studentId: string) {
+    const { supabase } = await verifyAdmin()
+
+    // Delete all violations for this student
+    const { error } = await supabase
+        .from('student_violations')
+        .delete()
+        .eq('student_id', studentId)
+
+    if (error) {
+        console.error('Error removing student from defaulters:', error)
+        throw new Error(`Failed to remove student from defaulters: ${error.message}`)
+    }
+
+    revalidatePath('/admin/defaulters')
+    return { success: true }
 }
 
 export async function getStudentViolationHistory(studentId: string) {
