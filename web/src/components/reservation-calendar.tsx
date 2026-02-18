@@ -10,6 +10,14 @@ interface Court {
     court_id: string
 }
 
+interface Equipment {
+    id: string
+    name: string
+    equipment_id: string
+    sport: string
+    condition: string
+}
+
 interface Reservation {
     id: string
     court_id: string
@@ -18,6 +26,8 @@ interface Reservation {
     user_id: string
     is_priority: boolean
     is_maintenance?: boolean
+    num_players?: number
+    equipment_ids?: string[] | null
     profiles?: {
         full_name: string
         student_id: string
@@ -29,6 +39,7 @@ interface ReservationCalendarProps {
     reservations: Reservation[]
     selectedDate: string
     sport: string
+    equipment: Equipment[]
 }
 
 // Generate 30-minute time slots for full 24-hour day (12 AM to 11:30 PM)
@@ -51,7 +62,7 @@ const formatTime = (time: string) => {
     return `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`
 }
 
-export function ReservationCalendar({ courts, reservations, selectedDate, sport }: ReservationCalendarProps) {
+export function ReservationCalendar({ courts, reservations, selectedDate, sport, equipment }: ReservationCalendarProps) {
     const [selectedSlot, setSelectedSlot] = useState<{
         courtId: string
         courtName: string
@@ -196,6 +207,7 @@ export function ReservationCalendar({ courts, reservations, selectedDate, sport 
             </Card>
 
             {/* Slot Action Dialog */}
+            {/* Slot Action Dialog */}
             {selectedSlot && (
                 <ReservationSlotDialog
                     open={!!selectedSlot}
@@ -204,8 +216,32 @@ export function ReservationCalendar({ courts, reservations, selectedDate, sport 
                     time={selectedSlot.time}
                     date={selectedDate}
                     courtId={selectedSlot.courtId}
-                    reservation={selectedSlot.reservation}
+                    reservation={selectedSlot.reservation ? {
+                        ...selectedSlot.reservation,
+                        equipment_ids: selectedSlot.reservation.equipment_ids || []
+                    } : undefined}
                     sport={sport}
+                    equipment={equipment}
+                    unavailableEquipmentIds={(() => {
+                        // Find all reservations that overlap with this time slot across ALL courts
+                        // Simple 30 min slot logic: start times match
+                        const concurrentReservations = reservations.filter(res => {
+                            const resStartTime = new Date(res.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+                            return resStartTime === selectedSlot.time
+                        })
+
+                        // Collect all equipment IDs from these reservations (excluding current reservation if editing)
+                        const ids = new Set<string>()
+                        concurrentReservations.forEach(res => {
+                            // If we were editing, we'd exclude current res. But here we just want to know what's TAKEN.
+                            // If I am viewing my own reservation, my equipment is "taken" by me, which is fine.
+                            // But for a NEW reservation (selectedSlot.reservation is undefined), we need to know what's taken by others.
+                            if (res.equipment_ids) {
+                                res.equipment_ids.forEach(id => ids.add(id))
+                            }
+                        })
+                        return Array.from(ids)
+                    })()}
                 />
             )}
         </>
