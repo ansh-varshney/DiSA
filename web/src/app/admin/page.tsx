@@ -40,22 +40,7 @@ export default async function AdminHome() {
                 </div>
             </header>
 
-            {/* Global Sport Filter - Placeholder for future implementation */}
-            <div className="flex items-center gap-3">
-                <label htmlFor="sport-filter" className="text-sm font-medium text-gray-700">
-                    Filter by Sport:
-                </label>
-                <select
-                    id="sport-filter"
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#004d40] focus:border-transparent"
-                >
-                    <option value="all">All Sports</option>
-                    <option value="badminton">Badminton</option>
-                    <option value="tennis">Tennis</option>
-                    <option value="basketball">Basketball</option>
-                    <option value="football">Football</option>
-                </select>
-            </div>
+
 
             {/* Core Management Modules */}
             <section>
@@ -101,26 +86,6 @@ export default async function AdminHome() {
                         </Card>
                     </Link>
 
-                    <Link href="/admin/reservations">
-                        <Card className="hover:shadow-lg transition-all border-l-4 border-l-purple-600 cursor-pointer group">
-                            <CardContent className="p-6">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center group-hover:bg-purple-100 transition-colors">
-                                                <Calendar className="w-5 h-5 text-purple-600" />
-                                            </div>
-                                            <h3 className="font-bold text-gray-900">Reservation Viewing</h3>
-                                        </div>
-                                        <p className="text-sm text-gray-500">
-                                            View bookings, force cancel, priority reserve
-                                        </p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </Link>
-
                     <Link href="/admin/defaulters">
                         <Card className="hover:shadow-lg transition-all border-l-4 border-l-red-600 cursor-pointer group">
                             <CardContent className="p-6">
@@ -134,6 +99,26 @@ export default async function AdminHome() {
                                         </div>
                                         <p className="text-sm text-gray-500">
                                             View flagged students and violation history
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </Link>
+
+                    <Link href="/admin/reservations">
+                        <Card className="hover:shadow-lg transition-all border-l-4 border-l-purple-600 cursor-pointer group">
+                            <CardContent className="p-6">
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center group-hover:bg-purple-100 transition-colors">
+                                                <Calendar className="w-5 h-5 text-purple-600" />
+                                            </div>
+                                            <h3 className="font-bold text-gray-900">Reservations</h3>
+                                        </div>
+                                        <p className="text-sm text-gray-500">
+                                            View and manage court reservations
                                         </p>
                                     </div>
                                 </div>
@@ -190,10 +175,10 @@ export default async function AdminHome() {
                                             <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center group-hover:bg-green-100 transition-colors">
                                                 <Users className="w-5 h-5 text-green-600" />
                                             </div>
-                                            <h3 className="font-bold text-gray-900">Coordinator Info</h3>
+                                            <h3 className="font-bold text-gray-900">Sport Info</h3>
                                         </div>
                                         <p className="text-sm text-gray-500">
-                                            View coach and team coordinator details
+                                            View sport details and information
                                         </p>
                                     </div>
                                 </div>

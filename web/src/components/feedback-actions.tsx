@@ -1,9 +1,10 @@
 'use client'
 
 import { Button } from './ui/button'
-import { updateComplaintStatus } from '@/actions/admin'
+import { updateComplaintStatus, markFeedbackAsRead } from '@/actions/admin'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { X } from 'lucide-react'
 
 interface FeedbackActionsProps {
     feedbackId: string
@@ -23,6 +24,21 @@ export function FeedbackActions({ feedbackId, currentStatus }: FeedbackActionsPr
             } catch (error) {
                 console.error('Error updating status:', error)
                 alert(error instanceof Error ? error.message : 'Failed to update status')
+            } finally {
+                setLoading(false)
+            }
+        }
+    }
+
+    const handleMarkAsRead = async () => {
+        if (confirm('Mark this feedback as read? This will permanently remove it.')) {
+            setLoading(true)
+            try {
+                await markFeedbackAsRead(feedbackId)
+                router.refresh()
+            } catch (error) {
+                console.error('Error marking as read:', error)
+                alert(error instanceof Error ? error.message : 'Failed to mark as read')
             } finally {
                 setLoading(false)
             }
@@ -51,6 +67,15 @@ export function FeedbackActions({ feedbackId, currentStatus }: FeedbackActionsPr
                     Mark Resolved
                 </Button>
             )}
+            <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleMarkAsRead}
+                disabled={loading}
+                title="Mark as Read (Remove)"
+            >
+                <X className="w-4 h-4" />
+            </Button>
         </div>
     )
 }

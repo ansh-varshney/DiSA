@@ -27,7 +27,7 @@ export default async function AnnouncementsManagement() {
             {/* Announcements List */}
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg">All Announcements ({announcements.length})</CardTitle>
+                    <CardTitle className="text-lg text-gray-900">All Announcements ({announcements.length})</CardTitle>
                 </CardHeader>
                 <CardContent>
                     {announcements.length === 0 ? (
@@ -44,26 +44,26 @@ export default async function AnnouncementsManagement() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="w-1/4">Title</TableHead>
-                                    <TableHead className="w-1/2">Content</TableHead>
-                                    <TableHead>Created By</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
+                                    <TableHead className="w-1/4 text-gray-900 font-semibold">Title</TableHead>
+                                    <TableHead className="w-1/2 text-gray-900 font-semibold">Content</TableHead>
+                                    <TableHead className="text-gray-900 font-semibold">Created By</TableHead>
+                                    <TableHead className="text-gray-900 font-semibold">Date</TableHead>
+                                    <TableHead className="text-right text-gray-900 font-semibold">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {announcements.map((announcement) => (
                                     <TableRow key={announcement.id}>
-                                        <TableCell className="font-medium">{announcement.title}</TableCell>
-                                        <TableCell className="text-gray-600">
+                                        <TableCell className="font-semibold text-gray-900">{announcement.title}</TableCell>
+                                        <TableCell className="text-gray-800">
                                             {announcement.content.length > 100
                                                 ? announcement.content.substring(0, 100) + '...'
                                                 : announcement.content}
                                         </TableCell>
-                                        <TableCell className="text-gray-600">
+                                        <TableCell className="text-gray-800">
                                             {announcement.profiles?.full_name || 'Unknown'}
                                         </TableCell>
-                                        <TableCell className="text-gray-600">
+                                        <TableCell className="text-gray-800">
                                             {format(new Date(announcement.created_at), 'MMM d, yyyy')}
                                         </TableCell>
                                         <TableCell className="text-right">

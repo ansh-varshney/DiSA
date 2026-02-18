@@ -1,103 +1,115 @@
-import { getViolations } from '@/actions/admin'
+import { getDefaulterStudents, removeStudentFromDefaulters } from '@/actions/admin'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { X, Bot, User } from 'lucide-react'
 import { format } from 'date-fns'
 
-export default async function DefaulterStudents({ searchParams }: { searchParams: { severity?: string } }) {
-    const severityFilter = searchParams.severity
-    const violations = await getViolations({ severity: severityFilter })
+async function handleRemoveStudent(studentId: string) {
+    'use server'
+    await removeStudentFromDefaulters(studentId)
+}
 
-    const severityVariants: Record<string, "info" | "warning" | "danger"> = {
-        minor: 'info',
-        moderate: 'warning',
-        severe: 'danger'
-    }
+export default async function DefaulterStudents() {
+    const defaulters = await getDefaulterStudents()
 
     return (
         <div className="p-6 space-y-6">
             <header>
                 <h1 className="text-2xl font-bold text-gray-900">Defaulter Students</h1>
-                <p className="text-gray-500 text-sm">Track student violations and warnings</p>
+                <p className="text-gray-500 text-sm">Students flagged for violations</p>
             </header>
 
-            {/* Filters */}
+            {/* Summary Stats */}
             <div className="flex items-center gap-4">
-                <label htmlFor="severity-filter" className="text-sm font-medium text-gray-700">
-                    Filter by Severity:
-                </label>
-                <select
-                    id="severity-filter"
-                    defaultValue={severityFilter || 'all'}
-                    onChange={(e) => window.location.href = `/admin/defaulters?severity=${e.target.value}`}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#004d40] focus:border-transparent"
-                >
-                    <option value="all">All Severities</option>
-                    <option value="minor">Minor</option>
-                    <option value="moderate">Moderate</option>
-                    <option value="severe">Severe</option>
-                </select>
-
-                <div className="ml-auto flex gap-2 text-sm">
-                    <span className="text-gray-600">Total Violations: <strong>{violations.length}</strong></span>
-                </div>
+                <Card className="flex-1">
+                    <CardContent className="p-4">
+                        <div className="text-sm text-gray-600">Total Defaulters</div>
+                        <div className="text-2xl font-bold text-red-600">{defaulters.length}</div>
+                    </CardContent>
+                </Card>
             </div>
 
-            {/* Violations Table */}
+            {/* Defaulters List */}
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg">Violations List</CardTitle>
+                    <CardTitle className="text-lg">Flagged Students</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {violations.length === 0 ? (
+                    {defaulters.length === 0 ? (
                         <div className="text-center py-12 text-gray-500">
-                            <p>No violations found for this filter.</p>
+                            <p className="text-lg font-medium">No defaulter students</p>
+                            <p className="text-sm mt-1">All students are in good standing!</p>
                         </div>
                     ) : (
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Student</TableHead>
-                                    <TableHead>Violation Type</TableHead>
-                                    <TableHead>Severity</TableHead>
-                                    <TableHead className="w-96">Reason</TableHead>
-                                    <TableHead>Reported By</TableHead>
-                                    <TableHead>Points Deducted</TableHead>
-                                    <TableHead>Date</TableHead>
+                                    <TableHead>Flagging Reason</TableHead>
+                                    <TableHead>Source</TableHead>
+                                    <TableHead>Violations</TableHead>
+                                    <TableHead>Latest Date</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {violations.map((violation) => (
-                                    <TableRow key={violation.id}>
+                                {defaulters.map((student) => (
+                                    <TableRow key={student.student_id}>
                                         <TableCell>
                                             <div>
-                                                <div className="font-medium">
-                                                    {violation.profiles?.full_name || 'Unknown'}
+                                                <div className="font-medium text-gray-900">
+                                                    {student.student_name}
                                                 </div>
                                                 <div className="text-xs text-gray-500">
-                                                    {violation.profiles?.student_id || '-'}
+                                                    {student.student_roll}
                                                 </div>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="font-medium capitalize">
-                                            {violation.violation_type.replace('_', ' ')}
+                                        <TableCell className="max-w-md">
+                                            <div className="text-sm text-gray-700 truncate">
+                                                {student.latest_reason}
+                                            </div>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant={severityVariants[violation.severity] || 'info'}>
-                                                {violation.severity}
+                                            <Badge
+                                                variant={student.latest_source === 'system' ? 'info' : 'warning'}
+                                                className="gap-1"
+                                            >
+                                                {student.latest_source === 'system' ? (
+                                                    <>
+                                                        <Bot className="w-3 h-3" />
+                                                        System
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <User className="w-3 h-3" />
+                                                        Manager
+                                                    </>
+                                                )}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-gray-600 text-sm">
-                                            {violation.reason}
+                                        <TableCell>
+                                            <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded-full">
+                                                {student.total_violations}
+                                            </span>
                                         </TableCell>
-                                        <TableCell className="text-gray-600">
-                                            {violation.reported_by_profile?.full_name || 'System'}
+                                        <TableCell className="text-sm text-gray-600">
+                                            {format(new Date(student.latest_date), 'MMM d, yyyy')}
                                         </TableCell>
-                                        <TableCell className="text-red-600 font-semibold">
-                                            -{violation.points_deducted || 0}
-                                        </TableCell>
-                                        <TableCell className="text-gray-600 text-sm">
-                                            {format(new Date(violation.created_at), 'MMM d, yyyy')}
+                                        <TableCell className="text-right">
+                                            <form action={handleRemoveStudent.bind(null, student.student_id)}>
+                                                <Button
+                                                    type="submit"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                    title="Remove from defaulters"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </Button>
+                                            </form>
                                         </TableCell>
                                     </TableRow>
                                 ))}

@@ -1,15 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import { 
-    LayoutDashboard, 
-    Package, 
-    MapPin, 
-    Calendar, 
-    AlertTriangle, 
-    Bell, 
-    MessageSquare, 
-    Users 
+import {
+    LayoutDashboard,
+    Package,
+    MapPin,
+    Calendar,
+    AlertTriangle,
+    Bell,
+    MessageSquare,
+    Users
 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -25,7 +25,7 @@ export function AdminNav() {
         { href: '/admin/defaulters', label: 'Defaulters', icon: AlertTriangle },
         { href: '/admin/announcements', label: 'Announcements', icon: Bell },
         { href: '/admin/feedback', label: 'Feedback', icon: MessageSquare },
-        { href: '/admin/coordinators', label: 'Coordinators', icon: Users },
+        { href: '/admin/coordinators', label: 'Sport Info', icon: Users },
     ]
 
     return (
