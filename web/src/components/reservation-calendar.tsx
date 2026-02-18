@@ -61,6 +61,24 @@ export function ReservationCalendar({ courts, reservations, selectedDate, sport 
 
     const timeSlots = generateTimeSlots()
 
+    // Check if a time slot is in the past (only matters for today)
+    const isToday = (() => {
+        const now = new Date()
+        const selected = new Date(selectedDate)
+        return now.getFullYear() === selected.getFullYear() &&
+            now.getMonth() === selected.getMonth() &&
+            now.getDate() === selected.getDate()
+    })()
+
+    const isSlotInPast = (slotTime: string): boolean => {
+        if (!isToday) return false
+        const now = new Date()
+        const [hour, minute] = slotTime.split(':').map(Number)
+        const slotDate = new Date()
+        slotDate.setHours(hour, minute, 0, 0)
+        return slotDate <= now
+    }
+
     // Find reservation for specific court and time slot
     const getReservationForSlot = (courtId: string, slotTime: string): Reservation | undefined => {
         return reservations.find(res => {
@@ -70,6 +88,7 @@ export function ReservationCalendar({ courts, reservations, selectedDate, sport 
     }
 
     const handleSlotClick = (court: Court, time: string, reservation?: Reservation) => {
+        if (isSlotInPast(time)) return
         setSelectedSlot({
             courtId: court.id,
             courtName: court.name,
@@ -125,24 +144,29 @@ export function ReservationCalendar({ courts, reservations, selectedDate, sport 
                                             const isReserved = !!reservation
                                             const isPriority = reservation?.is_priority
                                             const isMaintenance = reservation?.is_maintenance
+                                            const isPast = isSlotInPast(time)
 
                                             return (
                                                 <div
                                                     key={`${court.id}-${time}`}
                                                     onClick={() => handleSlotClick(court, time, reservation)}
                                                     className={`
-                                                        border-r border-b border-gray-200 p-2 min-h-[50px] cursor-pointer transition-colors
-                                                        ${isReserved
-                                                            ? isMaintenance
-                                                                ? 'bg-orange-50 hover:bg-orange-100 border-l-4 border-l-orange-500'
-                                                                : isPriority
-                                                                    ? 'bg-purple-50 hover:bg-purple-100 border-l-4 border-l-purple-500'
-                                                                    : 'bg-blue-50 hover:bg-blue-100 border-l-4 border-l-blue-500'
-                                                            : 'bg-white hover:bg-gray-50'
+                                                        border-r border-b border-gray-200 p-2 min-h-[50px] transition-colors
+                                                        ${isPast
+                                                            ? 'bg-gray-100 cursor-not-allowed opacity-60'
+                                                            : isReserved
+                                                                ? isMaintenance
+                                                                    ? 'bg-orange-50 hover:bg-orange-100 border-l-4 border-l-orange-500 cursor-pointer'
+                                                                    : isPriority
+                                                                        ? 'bg-purple-50 hover:bg-purple-100 border-l-4 border-l-purple-500 cursor-pointer'
+                                                                        : 'bg-blue-50 hover:bg-blue-100 border-l-4 border-l-blue-500 cursor-pointer'
+                                                                : 'bg-white hover:bg-gray-50 cursor-pointer'
                                                         }
                                                     `}
                                                 >
-                                                    {reservation && (
+                                                    {isPast && !isReserved ? (
+                                                        <div className="text-[10px] text-gray-400 italic">Passed</div>
+                                                    ) : reservation ? (
                                                         <div className="text-xs">
                                                             {isMaintenance ? (
                                                                 <div className="font-semibold text-orange-700">🔧 Maintenance</div>
@@ -159,7 +183,7 @@ export function ReservationCalendar({ courts, reservations, selectedDate, sport 
                                                                 </>
                                                             )}
                                                         </div>
-                                                    )}
+                                                    ) : null}
                                                 </div>
                                             )
                                         })}

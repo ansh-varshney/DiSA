@@ -689,36 +689,26 @@ export async function getReservationsByDate(sport: string, date: string) {
 
 
 /**
- * Cancel a reservation
+ * Cancel a reservation (deletes booking from database)
+ * NOTE: For future notification logic - only notify student/manager
+ * if the booking was student-made (not admin-made priority/maintenance)
  */
 export async function cancelReservation(bookingId: string) {
     const { supabase } = await verifyAdmin()
 
-    // First, get the booking to send notifications later
-    const { data: booking } = await supabase
+    // Delete the booking
+    const { error } = await supabase
         .from('bookings')
-        .select('*, profiles(full_name, email), courts(name, sport)')
+        .delete()
         .eq('id', bookingId)
-        .single()
-
-    // Cancel the booking by updating status
-    const { data, error } = await supabase
-        .from('bookings')
-        .update({ status: 'cancelled' })
-        .eq('id', bookingId)
-        .select()
-        .single()
 
     if (error) {
         console.error('Error cancelling reservation:', error)
         throw new Error(`Failed to cancel reservation: ${error.message}`)
     }
 
-    // TODO: Send notifications to student and manager
-    // This will be implemented when student/manager pipelines are built
-
     revalidatePath('/admin/reservations')
-    return data
+    return { success: true }
 }
 
 /**
