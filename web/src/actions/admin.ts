@@ -718,7 +718,9 @@ export async function priorityReserveSlot(
     courtId: string,
     date: string,
     startTime: string,
-    endTime: string
+    endTime: string,
+    numPlayers: number = 2,
+    equipmentIds: string[] = []
 ) {
     const { supabase, user } = await verifyAdmin()
 
@@ -733,7 +735,6 @@ export async function priorityReserveSlot(
         .eq('court_id', courtId)
         .gte('start_time', startDateTime.toISOString())
         .lt('start_time', endDateTime.toISOString())
-        .neq('status', 'cancelled')
         .single()
 
     if (existingBooking) {
@@ -749,7 +750,9 @@ export async function priorityReserveSlot(
             start_time: startDateTime.toISOString(),
             end_time: endDateTime.toISOString(),
             status: 'confirmed',
-            is_priority: true
+            is_priority: true,
+            num_players: numPlayers,
+            equipment_ids: equipmentIds
         })
         .select()
         .single()
@@ -770,7 +773,9 @@ export async function reserveForMaintenance(
     courtId: string,
     date: string,
     startTime: string,
-    endTime: string
+    endTime: string,
+    numPlayers: number = 2,
+    equipmentIds: string[] = []
 ) {
     const { supabase, user } = await verifyAdmin()
 
@@ -785,7 +790,6 @@ export async function reserveForMaintenance(
         .eq('court_id', courtId)
         .gte('start_time', startDateTime.toISOString())
         .lt('start_time', endDateTime.toISOString())
-        .neq('status', 'cancelled')
         .single()
 
     if (existingBooking) {
@@ -801,7 +805,9 @@ export async function reserveForMaintenance(
             start_time: startDateTime.toISOString(),
             end_time: endDateTime.toISOString(),
             status: 'confirmed',
-            is_maintenance: true
+            is_maintenance: true,
+            num_players: numPlayers,
+            equipment_ids: equipmentIds
         })
         .select()
         .single()
@@ -813,6 +819,26 @@ export async function reserveForMaintenance(
 
     revalidatePath('/admin/reservations')
     return data
+}
+
+/**
+ * Get equipment list filtered by sport (for booking dialog)
+ */
+export async function getEquipmentBySport(sport: string) {
+    const supabase = await createClient()
+
+    const { data, error } = await supabase
+        .from('equipment')
+        .select('id, name, equipment_id, sport, condition')
+        .eq('sport', sport)
+        .order('name')
+
+    if (error) {
+        console.error('Error fetching equipment:', error)
+        return []
+    }
+
+    return data || []
 }
 
 

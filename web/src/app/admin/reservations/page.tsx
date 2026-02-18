@@ -1,4 +1,4 @@
-import { getReservationsByDate, getCourtsList } from '@/actions/admin'
+import { getReservationsByDate, getCourtsList, getEquipmentBySport } from '@/actions/admin'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { SportFilter } from '@/components/sport-filter'
 import { DatePicker } from '@/components/date-picker'
@@ -15,6 +15,9 @@ export default async function ReservationsManagement({ searchParams }: { searchP
 
     // Fetch reservations for the selected date and sport
     const reservations = sport && selectedDate ? await getReservationsByDate(sport, selectedDate) : []
+
+    // Fetch available equipment for the selected sport
+    const equipment = sport && sport !== 'all' ? await getEquipmentBySport(sport) : []
 
     return (
         <div className="p-6 space-y-6">
@@ -71,6 +74,7 @@ export default async function ReservationsManagement({ searchParams }: { searchP
                     reservations={reservations}
                     selectedDate={selectedDate}
                     sport={sport}
+                    equipment={equipment}
                 />
             )}
         </div>
