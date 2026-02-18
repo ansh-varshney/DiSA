@@ -1,85 +1,54 @@
-import { getPendingBookings, updateBookingStatus } from '@/actions/manager'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { CheckCircle, XCircle } from 'lucide-react'
-import { format } from 'date-fns'
-import { redirect } from 'next/navigation'
+import { getCurrentBookings, getUnderMaintenanceCourts } from '@/actions/manager'
+import { ManagerBookingCard } from '@/components/manager-booking-card'
+import { MaintenanceFlashcard } from '@/components/maintenance-flashcard'
+import { CalendarClock } from 'lucide-react'
 
 export default async function ManagerDashboard() {
-    const pendingBookings = await getPendingBookings()
+    // Parallel data fetching
+    const [allCurrentBookings, maintenanceCourts] = await Promise.all([
+        getCurrentBookings(),
+        getUnderMaintenanceCourts()
+    ])
 
-    // Server Action wrappers for the buttons
-    async function approve(formData: FormData) {
-        'use server'
-        const id = formData.get('id') as string
-        await updateBookingStatus(id, 'confirmed')
-        redirect('/manager')
-    }
-
-    async function reject(formData: FormData) {
-        'use server'
-        const id = formData.get('id') as string
-        await updateBookingStatus(id, 'rejected')
-        redirect('/manager')
-    }
+    // Filter out maintenance bookings from the main list (they are now handled by the Flashcard logic)
+    const currentBookings = allCurrentBookings.filter((b: any) => !b.is_maintenance)
 
     return (
-        <div className="p-4 md:p-8 space-y-6">
-            <header>
-                <h1 className="text-2xl font-bold text-gray-900">Manager Dashboard</h1>
-                <p className="text-gray-500">Overview of facility activity.</p>
-            </header>
-
-            <section>
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-bold text-[#004d40]">Pending Approvals ({pendingBookings.length})</h2>
-                    <Link href="/manager/approvals" className="text-sm text-blue-600 hover:underline">View All</Link>
+        <div className="p-4 space-y-6">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div className="text-center md:text-left space-y-1">
+                    <h2 className="text-2xl font-bold text-gray-800">Manager Dashboard</h2>
+                    <p className="text-gray-500 font-medium tracking-wide text-sm uppercase">Current Bookings</p>
+                    <div className="h-1 w-20 bg-yellow-400 rounded-full mx-auto md:mx-0 mt-2"></div>
                 </div>
 
-                <div className="space-y-4">
-                    {pendingBookings.length === 0 ? (
-                        <div className="bg-white p-8 rounded-lg text-center text-gray-400 border border-dashed">
-                            No pending bookings.
+                {/* Maintenance Flashcard - Positioned to the side/top-right */}
+                <div className="flex justify-center md:justify-end">
+                    <MaintenanceFlashcard courts={maintenanceCourts} />
+                </div>
+            </div>
+
+            <div className="space-y-4">
+                {currentBookings.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-12 bg-white rounded-xl shadow-sm border border-dashed border-gray-300 text-center space-y-4">
+                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center">
+                            <CalendarClock className="w-8 h-8 text-gray-400" />
                         </div>
-                    ) : (
-                        pendingBookings.map((booking: any) => (
-                            <Card key={booking.id} className="border-l-4 border-l-yellow-400">
-                                <CardContent className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                                    <div>
-                                        <h3 className="font-bold text-lg">{booking.courts.name}</h3>
-                                        <p className="text-gray-600 text-sm">
-                                            {format(new Date(booking.start_time), 'MMM d, h:mm a')} - {format(new Date(booking.end_time), 'h:mm a')}
-                                        </p>
-                                        <div className="mt-2 flex items-center gap-2">
-                                            <span className="font-medium">{booking.profiles.full_name}</span>
-                                            <span className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-500">{booking.profiles.student_id || 'No ID'}</span>
-                                        </div>
-                                    </div>
+                        <div>
+                            <p className="text-lg font-medium text-gray-900">No active bookings</p>
+                            <p className="text-gray-500 text-sm">There are no bookings aimed for today right now.</p>
+                        </div>
+                    </div>
+                ) : (
+                    currentBookings.map((booking: any) => (
+                        <ManagerBookingCard key={booking.id} booking={booking} />
+                    ))
+                )}
+            </div>
 
-                                    <div className="flex gap-2 w-full md:w-auto">
-                                        <form action={reject} className="flex-1 md:flex-none">
-                                            <input type="hidden" name="id" value={booking.id} />
-                                            <Button variant="outline" className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
-                                                <XCircle className="w-4 h-4 mr-2" />
-                                                Reject
-                                            </Button>
-                                        </form>
-                                        <form action={approve} className="flex-1 md:flex-none">
-                                            <input type="hidden" name="id" value={booking.id} />
-                                            <Button className="w-full bg-[#004d40] hover:bg-[#004d40]/90">
-                                                <CheckCircle className="w-4 h-4 mr-2" />
-                                                Approve
-                                            </Button>
-                                        </form>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))
-                    )}
-                </div>
-            </section>
+            <div className="text-center text-xs text-gray-400 mt-8">
+                Showing confirmed & pending bookings for today
+            </div>
         </div>
     )
 }
-
-import Link from 'next/link'
