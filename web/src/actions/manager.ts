@@ -216,3 +216,180 @@ export async function getBookingDetails(bookingId: string) {
         all_players: allPlayers
     }
 }
+
+// ============================================
+// End Session with Equipment Condition Tracking
+// ============================================
+
+export async function endSession(
+    bookingId: string,
+    equipmentConditions: { equipmentId: string; condition: 'good' | 'minor_damage' | 'damaged' }[]
+) {
+    const supabase = await createClient()
+
+    // 1. Update booking status to completed
+    const { error: bookingError } = await supabase
+        .from('bookings')
+        .update({ status: 'completed' })
+        .eq('id', bookingId)
+
+    if (bookingError) {
+        return { error: bookingError.message }
+    }
+
+    // 2. Update equipment conditions
+    for (const item of equipmentConditions) {
+        const { error } = await supabase
+            .from('equipment')
+            .update({ condition: item.condition })
+            .eq('id', item.equipmentId)
+
+        if (error) {
+            console.error('Error updating equipment condition:', error)
+        }
+    }
+
+    revalidatePath('/manager')
+    return { success: true }
+}
+
+// ============================================
+// Report Equipment Lost
+// ============================================
+
+export async function reportEquipmentLost(bookingId: string, equipmentId: string) {
+    const supabase = await createClient()
+
+    // 1. Mark equipment as unavailable (lost)
+    const { error: equipError } = await supabase
+        .from('equipment')
+        .update({
+            is_available: false,
+            condition: 'lost'
+        })
+        .eq('id', equipmentId)
+
+    if (equipError) {
+        return { error: equipError.message }
+    }
+
+    // 2. Get the booking to find all players involved
+    const { data: booking } = await supabase
+        .from('bookings')
+        .select('user_id, players_list')
+        .eq('id', bookingId)
+        .single()
+
+    if (booking) {
+        // 3. Reset points for ALL involved students (per Rules & Penalties in design brief)
+        const allPlayerIds = [booking.user_id, ...(booking.players_list || [])].filter(Boolean)
+        const uniquePlayerIds = [...new Set(allPlayerIds)]
+
+        for (const playerId of uniquePlayerIds) {
+            // Reset points to 0
+            await supabase
+                .from('profiles')
+                .update({ points: 0 })
+                .eq('id', playerId)
+
+            // Create a violation record
+            await supabase
+                .from('student_violations')
+                .insert({
+                    student_id: playerId,
+                    violation_type: 'equipment_loss',
+                    severity: 'critical',
+                    description: `Equipment lost during booking ${bookingId}`,
+                    reported_by: (await supabase.auth.getUser()).data.user?.id
+                })
+        }
+    }
+
+    revalidatePath('/manager')
+    return { success: true }
+}
+
+// ============================================
+// Report Student
+// ============================================
+
+export async function reportStudent(
+    bookingId: string,
+    studentId: string,
+    reasons: string[],
+    details: string
+) {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Unauthorized' }
+
+    const description = `Reasons: ${reasons.join(', ')}${details ? `. Details: ${details}` : ''}`
+
+    // Determine severity based on reasons
+    let severity = 'minor'
+    if (reasons.includes('Equipment misuse') || reasons.includes('Misbehavior')) {
+        severity = 'major'
+    }
+    if (reasons.includes('Violation of rules')) {
+        severity = 'critical'
+    }
+
+    const { error } = await supabase
+        .from('student_violations')
+        .insert({
+            student_id: studentId,
+            violation_type: reasons[0]?.toLowerCase().replace(/ /g, '_') || 'other',
+            severity,
+            description,
+            reported_by: user.id
+        })
+
+    if (error) {
+        return { error: error.message }
+    }
+
+    revalidatePath('/manager')
+    return { success: true }
+}
+
+// ============================================
+// Rate Students (Post-Session)
+// ============================================
+
+export async function rateStudents(
+    bookingId: string,
+    ratings: { studentId: string; rating: number }[]
+) {
+    const supabase = await createClient()
+
+    // Award points based on rating: 1★=1pt, 2★=2pt, 3★=3pt, 4★=5pt, 5★=8pt
+    const pointsMap: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 5, 5: 8 }
+
+    for (const { studentId, rating } of ratings) {
+        const points = pointsMap[rating] || 3
+
+        // Get current points
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('points')
+            .eq('id', studentId)
+            .single()
+
+        if (profile) {
+            await supabase
+                .from('profiles')
+                .update({ points: (profile.points || 0) + points })
+                .eq('id', studentId)
+        }
+    }
+
+    // Mark booking as fully completed (rated)
+    await supabase
+        .from('bookings')
+        .update({ status: 'completed' })
+        .eq('id', bookingId)
+
+    revalidatePath('/manager')
+    return { success: true }
+}

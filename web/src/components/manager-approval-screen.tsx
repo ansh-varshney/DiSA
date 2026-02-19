@@ -2,12 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { format, differenceInSeconds, addMinutes } from 'date-fns'
-import { Loader2, Play, Ban, AlertOctagon, User, Smartphone, Users, Clock, ArrowLeft } from 'lucide-react'
+import { format, differenceInSeconds, differenceInMinutes, addMinutes } from 'date-fns'
+import {
+    Loader2, Play, Ban, AlertOctagon, User, Smartphone, Users,
+    Clock, ArrowLeft, Phone, AlertTriangle, Package
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { updateBookingStatus } from '@/actions/manager'
+import { updateBookingStatus, endSession, reportEquipmentLost } from '@/actions/manager'
+import { ReportStudentDialog } from '@/components/report-student-dialog'
+import { RateStudentsScreen } from '@/components/rate-students-screen'
 
 interface Player {
     id: string
@@ -36,10 +41,19 @@ interface BookingDetailsById {
     equipment: Equipment[]
 }
 
+type EquipmentCondition = 'good' | 'minor_damage' | 'damaged'
+
 export function ManagerApprovalScreen({ booking }: { booking: BookingDetailsById }) {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [currentTime, setCurrentTime] = useState(new Date())
+    const [showRatingScreen, setShowRatingScreen] = useState(false)
+    const [reportingStudent, setReportingStudent] = useState<Player | null>(null)
+
+    // Equipment condition state
+    const [equipmentConditions, setEquipmentConditions] = useState<Record<string, EquipmentCondition>>(
+        () => Object.fromEntries(booking.equipment.map(e => [e.id, 'good' as EquipmentCondition]))
+    )
 
     // Derived state
     const startTime = new Date(booking.start_time)
@@ -58,7 +72,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetailsById
 
     const isUpcoming = secondsToStart > 0
     const isExpired = booking.status === 'pending_confirmation' && secondsToExpiration < 0
-    const isActive = booking.status === 'active' || booking.status === 'started' // adapting to potential schema values
+    const isActive = booking.status === 'active'
 
     const handleStatusUpdate = async (newStatus: 'active' | 'rejected' | 'completed') => {
         setLoading(true)
@@ -77,11 +91,68 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetailsById
         }
     }
 
+    const handleEndSession = async () => {
+        if (!confirm('Are you sure you want to end this session?')) return
+
+        setLoading(true)
+        try {
+            const conditions = Object.entries(equipmentConditions).map(([equipmentId, condition]) => ({
+                equipmentId,
+                condition
+            }))
+            const result = await endSession(booking.id, conditions)
+            if (result.error) {
+                alert(result.error)
+            } else {
+                // Show rating screen
+                setShowRatingScreen(true)
+            }
+        } catch (e) {
+            console.error(e)
+            alert('Something went wrong')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleEquipmentLost = async (equipmentId: string, equipmentName: string) => {
+        if (!confirm(`Mark "${equipmentName}" as LOST? This will reset points for ALL players and notify admin.`)) return
+
+        setLoading(true)
+        try {
+            const result = await reportEquipmentLost(booking.id, equipmentId)
+            if (result.error) {
+                alert(result.error)
+            } else {
+                alert('Equipment marked as lost. Admin has been notified.')
+                router.refresh()
+            }
+        } catch (e) {
+            console.error(e)
+            alert('Something went wrong')
+        } finally {
+            setLoading(false)
+        }
+    }
+
     // Format seconds into MM:SS
     const formatCountdown = (totalSeconds: number) => {
         const m = Math.floor(Math.abs(totalSeconds) / 60)
         const s = Math.abs(totalSeconds) % 60
         return `${m}:${s.toString().padStart(2, '0')}`
+    }
+
+    // Rating screen after session end
+    if (showRatingScreen) {
+        return (
+            <div className="max-w-md mx-auto pb-20">
+                <RateStudentsScreen
+                    bookingId={booking.id}
+                    players={booking.all_players}
+                    onComplete={() => router.push('/manager')}
+                />
+            </div>
+        )
     }
 
     if (booking.status === 'cancelled') {
@@ -102,15 +173,23 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetailsById
                 <Button variant="ghost" size="icon" onClick={() => router.push('/manager')}>
                     <ArrowLeft className="w-5 h-5 text-gray-600" />
                 </Button>
-                <h1 className="text-xl font-bold text-gray-800">Manager Approval</h1>
+                <h1 className="text-xl font-bold text-gray-800">
+                    {isActive ? 'Active Session' : 'Manager Approval'}
+                </h1>
             </div>
 
             {/* Student Details Card */}
             <Card>
-                <CardHeader className="bg-gray-50 border-b border-gray-100 py-3">
+                <CardHeader className="bg-gray-50 border-b border-gray-100 py-3 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-bold text-gray-500 uppercase tracking-wide">
                         Student Details ({booking.all_players.length})
                     </CardTitle>
+                    {!isActive && (
+                        <span className="text-xs text-red-500 font-medium cursor-pointer hover:underline"
+                            onClick={() => {/* scroll hint */ }}>
+                            Tap name to report
+                        </span>
+                    )}
                 </CardHeader>
                 <CardContent className="p-4 space-y-4">
                     {booking.all_players.map((player) => (
@@ -121,7 +200,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetailsById
                             )}>
                                 {player.full_name?.[0] || '?'}
                             </div>
-                            <div>
+                            <div className="flex-1">
                                 <h3 className="font-bold text-gray-800 flex items-center gap-2">
                                     {player.full_name}
                                     {player.is_booker && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">BOOKER</span>}
@@ -131,13 +210,22 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetailsById
                                     {player.phone_number && (
                                         <>
                                             <span>•</span>
-                                            <span className="flex items-center gap-1">
-                                                <Smartphone className="w-3 h-3" /> {player.phone_number}
-                                            </span>
+                                            <a href={`tel:${player.phone_number}`} className="flex items-center gap-1 text-blue-600 hover:text-blue-700">
+                                                <Phone className="w-3 h-3" />
+                                                {player.phone_number}
+                                            </a>
                                         </>
                                     )}
                                 </p>
                             </div>
+                            {/* Report Button */}
+                            <button
+                                onClick={() => setReportingStudent(player)}
+                                className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                                title="Report student"
+                            >
+                                <AlertTriangle className="w-4 h-4" />
+                            </button>
                         </div>
                     ))}
                 </CardContent>
@@ -180,21 +268,85 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetailsById
                             </div>
                         </div>
                     </div>
-
-                    {booking.equipment.length > 0 && (
-                        <div className="pt-2">
-                            <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Equipment Issued</div>
-                            <div className="flex flex-wrap gap-2">
-                                {booking.equipment.map(item => (
-                                    <span key={item.id} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm font-medium border border-gray-200">
-                                        {item.name}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
                 </CardContent>
             </Card>
+
+            {/* Equipment Management Card (Active Session) */}
+            {isActive && booking.equipment.length > 0 && (
+                <Card>
+                    <CardHeader className="bg-gray-50 border-b border-gray-100 py-3">
+                        <CardTitle className="text-sm font-bold text-gray-500 uppercase tracking-wide flex items-center gap-2">
+                            <Package className="w-4 h-4" />
+                            Equipment Condition Check
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 space-y-4">
+                        {booking.equipment.map(item => (
+                            <div key={item.id} className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="font-medium text-gray-800 text-sm">{item.name}</span>
+                                    <button
+                                        onClick={() => handleEquipmentLost(item.id, item.name)}
+                                        className="text-xs text-red-500 hover:text-red-700 font-bold border border-red-200 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                                        disabled={loading}
+                                    >
+                                        LOST
+                                    </button>
+                                </div>
+                                <div className="flex gap-2">
+                                    {(['good', 'minor_damage', 'damaged'] as const).map(condition => {
+                                        const labels: Record<string, string> = {
+                                            good: 'GOOD',
+                                            minor_damage: 'MINOR',
+                                            damaged: 'DAMAGED'
+                                        }
+                                        const colors: Record<string, string> = {
+                                            good: 'bg-green-100 text-green-700 border-green-300',
+                                            minor_damage: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+                                            damaged: 'bg-red-100 text-red-700 border-red-300'
+                                        }
+                                        const activeColors: Record<string, string> = {
+                                            good: 'bg-green-500 text-white border-green-500',
+                                            minor_damage: 'bg-yellow-500 text-white border-yellow-500',
+                                            damaged: 'bg-red-500 text-white border-red-500'
+                                        }
+                                        const isSelected = equipmentConditions[item.id] === condition
+                                        return (
+                                            <button
+                                                key={condition}
+                                                onClick={() => setEquipmentConditions(prev => ({
+                                                    ...prev,
+                                                    [item.id]: condition
+                                                }))}
+                                                className={cn(
+                                                    "flex-1 py-2 text-xs font-bold rounded-lg border transition-all",
+                                                    isSelected ? activeColors[condition] : colors[condition]
+                                                )}
+                                            >
+                                                {labels[condition]}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Equipment Issued (Pre-Active) */}
+            {!isActive && booking.equipment.length > 0 && (
+                <div className="pt-2">
+                    <div className="text-xs font-semibold text-gray-500 uppercase mb-2">Equipment Issued</div>
+                    <div className="flex flex-wrap gap-2">
+                        {booking.equipment.map(item => (
+                            <span key={item.id} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm font-medium border border-gray-200">
+                                {item.name}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Action Area */}
             <div className="space-y-3 pt-2">
@@ -210,16 +362,28 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetailsById
                         </div>
 
                         <Button
+                            className="w-full h-14 text-lg font-bold bg-[#004d40] hover:bg-[#003d33] text-white shadow-lg"
+                            onClick={handleEndSession}
+                            disabled={loading}
+                        >
+                            {loading ? (
+                                <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                            ) : (
+                                <>End Session & Rate Students</>
+                            )}
+                        </Button>
+
+                        <Button
                             className="w-full bg-red-100 hover:bg-red-200 text-red-700 border border-red-200 h-12 font-bold"
                             onClick={() => {
-                                if (confirm('Are you sure you want to end this session early?')) {
+                                if (confirm('EMERGENCY: Are you sure you want to force-end this session immediately?')) {
                                     handleStatusUpdate('completed')
                                 }
                             }}
                             disabled={loading}
                         >
                             <AlertOctagon className="w-4 h-4 mr-2" />
-                            Emergency End Session
+                            Emergency End (Skip Rating)
                         </Button>
                     </div>
                 ) : (
@@ -269,6 +433,20 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetailsById
                     </>
                 )}
             </div>
+
+            {/* Report Student Dialog */}
+            {reportingStudent && (
+                <ReportStudentDialog
+                    bookingId={booking.id}
+                    student={reportingStudent}
+                    onClose={() => setReportingStudent(null)}
+                    onSuccess={() => {
+                        setReportingStudent(null)
+                        alert('Report submitted successfully')
+                        router.refresh()
+                    }}
+                />
+            )}
         </div>
     )
 }

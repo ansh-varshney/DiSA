@@ -3,11 +3,20 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
-import { headers } from 'next/headers'
+import { headers, cookies } from 'next/headers'
 
-export async function loginWithGoogle() {
+export async function loginWithGoogle(role: string = 'student') {
     const supabase = await createClient()
     const origin = (await headers()).get('origin')
+    const cookieStore = await cookies()
+
+    // Store role preference in cookie for the callback to use
+    cookieStore.set('auth-role-preference', role, {
+        path: '/',
+        maxAge: 60 * 5, // 5 minutes
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production'
+    })
 
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -29,8 +38,6 @@ export async function loginWithGoogle() {
         redirect(data.url)
     }
 }
-
-// ... existing phone logic ...
 
 export async function loginWithEmail(prevState: any, formData: FormData) {
     const email = formData.get('email') as string
@@ -69,20 +76,17 @@ export async function signUpWithEmail(prevState: any, formData: FormData) {
     }
 
     if (user) {
-        // 2. Create Profile (Trigger usually handles this, but we can double check or update extra fields)
-        // If you have a Trigger for 'on_auth_user_created', it inserts the row.
-        // We might want to update the full_name and role immediately if the trigger only inserts ID.
-        // For simplicity now, let's assume the trigger handles basic insertion or we manually upsert.
+        const { createAdminClient } = await import('@/utils/supabase/admin')
+        const supabaseAdmin = createAdminClient()
 
-        // Manual profile update to ensure Role is set (security note: usually done via secure admin function or trusted metadata, but for MVP client-side role pick is ok if validated)
-        const { error: profileError } = await supabase
+        const { error: profileError } = await supabaseAdmin
             .from('profiles')
             .upsert({
                 id: user.id,
                 email: email,
                 full_name: fullName,
                 role: role as 'student' | 'manager' | 'admin'
-            })
+            }, { onConflict: 'id' })
 
         if (profileError) {
             console.error('Profile update error:', profileError)
@@ -95,12 +99,18 @@ export async function signUpWithEmail(prevState: any, formData: FormData) {
 
 export async function signInWithPhone(prevState: any, formData: FormData) {
     const phone = formData.get('phone') as string
+    const role = formData.get('role') as string || 'student'
 
     if (!phone) return { error: 'Phone number is required' }
 
     const supabase = await createClient()
     const { error } = await supabase.auth.signInWithOtp({
         phone,
+        options: {
+            data: {
+                role: role
+            }
+        }
     })
 
     if (error) {
@@ -115,7 +125,7 @@ export async function verifyOtp(prevState: any, formData: FormData) {
     const token = formData.get('token') as string
 
     const supabase = await createClient()
-    const { error } = await supabase.auth.verifyOtp({
+    const { data: { user }, error } = await supabase.auth.verifyOtp({
         phone,
         token,
         type: 'sms',
@@ -125,6 +135,36 @@ export async function verifyOtp(prevState: any, formData: FormData) {
         return { error: error.message }
     }
 
+    if (user) {
+        // Try getting role from metadata or default to student
+        const role = user.user_metadata?.role || 'student'
+
+        // Upsert profile to ensure role is set correctly (handles triggers/race conditions)
+        const { createAdminClient } = await import('@/utils/supabase/admin')
+        const supabaseAdmin = createAdminClient()
+
+        const { error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .upsert({
+                id: user.id,
+                email: user.email,
+                full_name: 'New User',
+                role: role as 'student' | 'manager' | 'admin',
+                phone_number: phone
+            }, { onConflict: 'id' })
+
+        if (profileError) {
+            console.error('Profile upsert error inside verifyOtp:', profileError)
+        }
+    }
+
     revalidatePath('/', 'layout')
     redirect('/')
+}
+
+export async function signOut() {
+    const supabase = await createClient()
+    await supabase.auth.signOut()
+    revalidatePath('/', 'layout')
+    redirect('/login')
 }
