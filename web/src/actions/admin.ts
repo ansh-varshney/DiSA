@@ -647,6 +647,8 @@ export async function getReservations(days: number = 3) {
         .select('*, courts(*), profiles(full_name, student_id)')
         .gte('start_time', now.toISOString())
         .lte('start_time', futureDate.toISOString())
+        .neq('status', 'cancelled')
+        .neq('status', 'rejected')
         .order('start_time', { ascending: true })
 
     if (error) {
@@ -676,6 +678,8 @@ export async function getReservationsByDate(sport: string, date: string) {
         .eq('courts.sport', sport)
         .gte('start_time', startOfDay.toISOString())
         .lte('start_time', endOfDay.toISOString())
+        .neq('status', 'cancelled')
+        .neq('status', 'rejected')
         .order('start_time', { ascending: true })
 
     if (error) {
@@ -728,13 +732,15 @@ export async function priorityReserveSlot(
     const startDateTime = new Date(`${date}T${startTime}:00`)
     const endDateTime = new Date(`${date}T${endTime}:00`)
 
-    // Check if slot is already booked
+    // Check if slot is already booked (exclude cancelled/rejected)
     const { data: existingBooking } = await supabase
         .from('bookings')
         .select('id')
         .eq('court_id', courtId)
         .gte('start_time', startDateTime.toISOString())
         .lt('start_time', endDateTime.toISOString())
+        .neq('status', 'cancelled')
+        .neq('status', 'rejected')
         .single()
 
     if (existingBooking) {
@@ -783,13 +789,15 @@ export async function reserveForMaintenance(
     const startDateTime = new Date(`${date}T${startTime}:00`)
     const endDateTime = new Date(`${date}T${endTime}:00`)
 
-    // Check if slot is already booked
+    // Check if slot is already booked (exclude cancelled/rejected)
     const { data: existingBooking } = await supabase
         .from('bookings')
         .select('id')
         .eq('court_id', courtId)
         .gte('start_time', startDateTime.toISOString())
         .lt('start_time', endDateTime.toISOString())
+        .neq('status', 'cancelled')
+        .neq('status', 'rejected')
         .single()
 
     if (existingBooking) {
@@ -862,10 +870,102 @@ export async function forceCancelBooking(bookingId: string) {
 }
 
 //============================================
+// Booking Logs
+//============================================
+
+/**
+ * Get all bookings (any status) for a given sport + date — used by the admin logs page.
+ */
+export async function getBookingLogs(sport: string, date: string) {
+    const supabase = await createClient()
+
+    const startOfDay = new Date(date)
+    startOfDay.setHours(0, 0, 0, 0)
+    const endOfDay = new Date(date)
+    endOfDay.setHours(23, 59, 59, 999)
+
+    // Step 1: get all court IDs for this sport
+    const { data: courts, error: courtsError } = await supabase
+        .from('courts')
+        .select('id, name, sport')
+        .eq('sport', sport)
+
+    if (courtsError || !courts || courts.length === 0) {
+        if (courtsError) console.error('Error fetching courts for logs:', courtsError)
+        return []
+    }
+
+    const courtIds = courts.map((c: any) => c.id)
+    const courtMap: Record<string, { name: string; sport: string }> = Object.fromEntries(
+        courts.map((c: any) => [c.id, { name: c.name, sport: c.sport }])
+    )
+
+    // Step 2: fetch bookings for those courts on the given date (ALL statuses)
+    const { data: bookings, error } = await supabase
+        .from('bookings')
+        .select(`
+            id, status, start_time, end_time, num_players,
+            equipment_ids, players_list, is_priority, is_maintenance, created_at, court_id,
+            profiles!bookings_user_id_fkey(full_name, student_id, email)
+        `)
+        .in('court_id', courtIds)
+        .gte('start_time', startOfDay.toISOString())
+        .lte('start_time', endOfDay.toISOString())
+        .order('start_time', { ascending: true })
+
+    if (error) {
+        console.error('Error fetching booking logs:', error)
+        return []
+    }
+
+    if (!bookings || bookings.length === 0) return []
+
+    // Step 3: fetch equipment details for all equipment used in these bookings
+    const allEquipmentIds = [...new Set(bookings.flatMap((b: any) => b.equipment_ids || []))]
+
+    let equipmentMap: Record<string, { id: string; name: string; condition: string }> = {}
+    if (allEquipmentIds.length > 0) {
+        const { data: equipmentData } = await supabase
+            .from('equipment')
+            .select('id, name, condition')
+            .in('id', allEquipmentIds)
+
+        if (equipmentData) {
+            equipmentMap = Object.fromEntries(equipmentData.map((e: any) => [e.id, e]))
+        }
+    }
+
+    // Step 4: fetch player profiles for all players_list IDs across all bookings
+    const allPlayerIds = [
+        ...new Set(bookings.flatMap((b: any) => b.players_list || []))
+    ].filter(Boolean) as string[]
+
+    let playerMap: Record<string, { id: string; full_name: string; student_id: string; email: string }> = {}
+    if (allPlayerIds.length > 0) {
+        const { data: playerProfiles } = await supabase
+            .from('profiles')
+            .select('id, full_name, student_id, email')
+            .in('id', allPlayerIds)
+
+        if (playerProfiles) {
+            playerMap = Object.fromEntries(playerProfiles.map((p: any) => [p.id, p]))
+        }
+    }
+
+    // Attach court name, equipment details, and player profiles to each booking
+    return bookings.map((b: any) => ({
+        ...b,
+        courts: courtMap[b.court_id] || null,
+        equipment: (b.equipment_ids || []).map((eid: string) => equipmentMap[eid]).filter(Boolean),
+        players: (b.players_list || []).map((pid: string) => playerMap[pid]).filter(Boolean),
+    }))
+}
+
+//============================================
 // Feedback & Complaints
 //============================================
 
-export async function getFeedback(statusFilter?: string) {
+export async function getFeedback(statusFilter?: string, categoryFilter?: string) {
     const supabase = await createClient()
 
     let query = supabase
@@ -875,6 +975,10 @@ export async function getFeedback(statusFilter?: string) {
 
     if (statusFilter && statusFilter !== 'all') {
         query = query.eq('status', statusFilter)
+    }
+
+    if (categoryFilter && categoryFilter !== 'all') {
+        query = query.eq('category', categoryFilter)
     }
 
     const { data, error } = await query
@@ -891,7 +995,7 @@ export async function getFeedback(statusFilter?: string) {
  * Mark feedback as read (delete from database)
  */
 export async function markFeedbackAsRead(feedbackId: string) {
-    const { supabase } = await verifyAdmin()
+    const supabase = await createClient()
 
     const { error } = await supabase
         .from('feedback_complaints')
@@ -1090,6 +1194,7 @@ export async function getDefaulterStudents() {
         student_email: string
         total_violations: number
         latest_reason: string
+        latest_violation_type: string
         latest_source: 'system' | 'manager'
         latest_date: string
         violations: any[]
@@ -1107,6 +1212,7 @@ export async function getDefaulterStudents() {
                 student_email: profile?.email || '',
                 total_violations: 0,
                 latest_reason: violation.reason || 'No reason provided',
+                latest_violation_type: violation.violation_type || 'other',
                 latest_source: violation.reported_by ? 'manager' : 'system',
                 latest_date: violation.created_at,
                 violations: []

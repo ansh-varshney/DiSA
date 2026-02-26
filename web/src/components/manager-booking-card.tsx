@@ -38,17 +38,25 @@ export function ManagerBookingCard({ booking }: BookingCardProps) {
             const start = new Date(booking.start_time)
             const end = new Date(booking.end_time)
 
-            if (isBefore(now, start)) {
+            // Use the actual booking status, not just time
+            if (booking.status === 'active') {
+                if (isAfter(now, end)) {
+                    setStatusLabel('Overdue ⏰')
+                } else {
+                    setStatusLabel('Running 🟢')
+                }
+            } else if (booking.status === 'waiting_manager') {
+                setStatusLabel('Waiting for Approval')
+            } else if (isBefore(now, start)) {
                 const diff = differenceInMinutes(start, now)
                 if (diff <= 60) {
                     setStatusLabel(`Starts in ${diff} min`)
                 } else {
                     setStatusLabel('Upcoming')
                 }
-            } else if (isAfter(now, start) && isBefore(now, end)) {
-                setStatusLabel('Running 🟢')
             } else {
-                setStatusLabel('Finished')
+                // Time is within range but status is still pending/confirmed
+                setStatusLabel('Waiting for Approval')
             }
         }
 
@@ -66,7 +74,9 @@ export function ManagerBookingCard({ booking }: BookingCardProps) {
     return (
         <Link href={`/manager/approvals/${booking.id}`} className="block transition-transform hover:scale-[1.01] active:scale-[0.99]">
             <Card className={cn("border-l-4 shadow-sm hover:shadow-md transition-shadow relative",
-                statusLabel.includes('Running') ? 'border-l-green-500' : 'border-l-blue-500',
+                statusLabel.includes('Running') ? 'border-l-green-500' :
+                    statusLabel.includes('Overdue') ? 'border-l-amber-500' :
+                        statusLabel.includes('Waiting') ? 'border-l-orange-400' : 'border-l-blue-500',
                 isAdmin ? 'bg-amber-50/50' : 'bg-white'
             )}>
                 <CardContent className="p-5 flex flex-col gap-3">
@@ -80,8 +90,10 @@ export function ManagerBookingCard({ booking }: BookingCardProps) {
                         </div>
                         <div className={cn("text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap",
                             statusLabel.includes('Running') ? "bg-green-100 text-green-700" :
-                                statusLabel.includes('Starts') ? "bg-yellow-100 text-yellow-700" :
-                                    "bg-blue-50 text-blue-600"
+                                statusLabel.includes('Overdue') ? "bg-amber-100 text-amber-700" :
+                                    statusLabel.includes('Starts') ? "bg-yellow-100 text-yellow-700" :
+                                        statusLabel.includes('Waiting') ? "bg-orange-100 text-orange-700" :
+                                            "bg-blue-50 text-blue-600"
                         )}>
                             {statusLabel}
                         </div>

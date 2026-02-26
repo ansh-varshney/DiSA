@@ -5,9 +5,10 @@ import { notFound } from 'next/navigation'
 export default async function ManagerApprovalPage({
     params
 }: {
-    params: { id: string }
+    params: Promise<{ id: string }>
 }) {
-    const booking = await getBookingDetails(params.id)
+    const { id } = await params
+    const booking = await getBookingDetails(id)
 
     if (!booking) {
         notFound()
