@@ -9,7 +9,8 @@ import {
     AlertTriangle,
     Bell,
     MessageSquare,
-    Users
+    Users,
+    ScrollText
 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -26,6 +27,7 @@ export function AdminNav() {
         { href: '/admin/announcements', label: 'Announcements', icon: Bell },
         { href: '/admin/feedback', label: 'Feedback', icon: MessageSquare },
         { href: '/admin/coordinators', label: 'Sport Info', icon: Users },
+        { href: '/admin/logs', label: 'Logs', icon: ScrollText },
     ]
 
     return (
