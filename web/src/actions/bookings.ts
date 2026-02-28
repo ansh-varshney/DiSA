@@ -67,7 +67,17 @@ export async function createBooking(prevState: any, formData: FormData) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
 
-    // 2. Overlap Check
+    // 2. Check if student is banned (3+ violations)
+    const { count: violationCount } = await supabase
+        .from('student_violations')
+        .select('id', { count: 'exact', head: true })
+        .eq('student_id', user.id)
+
+    if (violationCount && violationCount >= 3) {
+        return { error: 'Your account has been suspended due to 3 or more violations. Contact admin.' }
+    }
+
+    // 3. Overlap Check
     const { data: conflictingBookings } = await supabase
         .from('bookings')
         .select('id')
@@ -80,11 +90,19 @@ export async function createBooking(prevState: any, formData: FormData) {
         return { error: 'Time slot is already booked' }
     }
 
-    // 3. Parse optional fields
+    // 4. Parse optional fields
     const equipmentIds = equipmentIdsStr ? JSON.parse(equipmentIdsStr) : []
     const numPlayers = numPlayersStr ? parseInt(numPlayersStr) : 2
 
-    // 4. Insert Booking
+    // 5. Mark equipment as unavailable (reserved)
+    if (equipmentIds.length > 0) {
+        await supabase
+            .from('equipment')
+            .update({ is_available: false })
+            .in('id', equipmentIds)
+    }
+
+    // 6. Insert Booking
     const { error } = await supabase
         .from('bookings')
         .insert({
@@ -99,6 +117,13 @@ export async function createBooking(prevState: any, formData: FormData) {
         })
 
     if (error) {
+        // If booking insert fails, re-free the equipment
+        if (equipmentIds.length > 0) {
+            await supabase
+                .from('equipment')
+                .update({ is_available: true })
+                .in('id', equipmentIds)
+        }
         return { error: error.message }
     }
 
@@ -113,10 +138,10 @@ export async function cancelBooking(bookingId: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
 
-    // Only allow cancelling own bookings that are pending or confirmed
+    // Fetch booking to verify ownership and get equipment
     const { data: booking } = await supabase
         .from('bookings')
-        .select('user_id, status')
+        .select('user_id, status, equipment_ids')
         .eq('id', bookingId)
         .single()
 
@@ -124,6 +149,15 @@ export async function cancelBooking(bookingId: string) {
     if (booking.user_id !== user.id) return { error: 'Not your booking' }
     if (!['pending_confirmation', 'confirmed'].includes(booking.status)) {
         return { error: 'Cannot cancel this booking' }
+    }
+
+    // Free equipment first (match manager's behaviour)
+    const equipmentIds: string[] = booking.equipment_ids || []
+    if (equipmentIds.length > 0) {
+        await supabase
+            .from('equipment')
+            .update({ is_available: true })
+            .in('id', equipmentIds)
     }
 
     const { error } = await supabase
@@ -134,6 +168,7 @@ export async function cancelBooking(bookingId: string) {
     if (error) return { error: error.message }
 
     revalidatePath('/student/reservations')
+    revalidatePath('/student')
     return { success: true }
 }
 
@@ -176,3 +211,52 @@ export async function getStudentBookings(userId: string) {
     return { current, upcoming, past }
 }
 
+// ─── Student Emergency Alert ──────────────────────────────────────────────────
+// Called from active-session.tsx. Writes to feedback_complaints so admin can see it.
+export async function studentEmergencyAlert(bookingId: string, reason: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Unauthorized' }
+
+    const { error } = await supabase
+        .from('feedback_complaints')
+        .insert({
+            student_id: user.id,
+            booking_id: bookingId,
+            title: 'Emergency Alert (Student)',
+            description: reason,
+            category: 'emergency_by_student',
+            status: 'open',
+        })
+
+    if (error) return { error: error.message }
+
+    revalidatePath('/admin/feedback')
+    return { success: true }
+}
+
+// ─── Submit Feedback / Complaint ──────────────────────────────────────────────
+export async function submitFeedback(title: string, description: string, category: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Unauthorized' }
+
+    if (!title.trim() || !description.trim()) {
+        return { error: 'Title and description are required' }
+    }
+
+    const { error } = await supabase
+        .from('feedback_complaints')
+        .insert({
+            student_id: user.id,
+            title: title.trim(),
+            description: description.trim(),
+            category,
+            status: 'open',
+        })
+
+    if (error) return { error: error.message }
+
+    revalidatePath('/admin/feedback')
+    return { success: true }
+}
