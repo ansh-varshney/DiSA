@@ -239,7 +239,12 @@ export async function getBookingDetails(bookingId: string) {
         is_booker: true
     })
 
-    const playerIds = Array.isArray(booking.players_list) ? booking.players_list : []
+    const rawPlayersList = Array.isArray(booking.players_list) ? booking.players_list : []
+
+    // Handle both formats: array of UUID strings OR array of {id, full_name, ...} objects
+    const playerIds = rawPlayersList.map((entry: any) =>
+        typeof entry === 'string' ? entry : entry?.id
+    ).filter(Boolean)
 
     // Filter out the booker ID if it happens to be in the list to avoid duplicates
     const additionalPlayerIds = playerIds.filter((id: string) => id !== booking.profiles.id)
