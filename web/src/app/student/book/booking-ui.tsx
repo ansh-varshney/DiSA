@@ -83,8 +83,11 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
         })
     }
 
-    // Check if slot + duration would conflict
+    // Check if slot + duration would conflict OR if slot is in the past
     const isSlotAvailable = (slotTime: Date) => {
+        // Block past slots
+        if (slotTime < new Date()) return false
+
         const slotEnd = addMinutes(slotTime, duration)
         return !bookings.some(b => {
             const start = new Date(b.start_time)
