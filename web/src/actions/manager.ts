@@ -549,3 +549,47 @@ export async function endSession(
     revalidatePath('/student')
     return { success: true }
 }
+
+// ─── Expire Booking (10-min timeout) ──────────────────────────────────────────
+// Called from manager-approval-screen when booking isn't accepted within 10 mins.
+// Cancels booking, frees equipment, issues violations to all players.
+export async function expireBooking(bookingId: string, playerIds: string[]) {
+    const supabase = await createClient()
+
+    // 1. Check booking is still pending (avoid duplicate calls)
+    const { data: booking } = await supabase
+        .from('bookings')
+        .select('status')
+        .eq('id', bookingId)
+        .single()
+
+    if (!booking || ['cancelled', 'rejected', 'completed', 'active'].includes(booking.status)) {
+        return { already_handled: true }
+    }
+
+    // 2. Free equipment
+    await freeBookingEquipment(supabase, bookingId)
+
+    // 3. Cancel the booking
+    await supabase
+        .from('bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', bookingId)
+
+    // 4. Issue violations to all involved students
+    if (playerIds.length > 0) {
+        const violations = playerIds.map(studentId => ({
+            student_id: studentId,
+            booking_id: bookingId,
+            violation_type: 'booking_timeout',
+            severity: 'minor',
+            reason: 'Booking was not approved within 10 minutes of start time and was auto-cancelled.',
+        }))
+        await supabase.from('student_violations').insert(violations)
+    }
+
+    revalidatePath('/manager')
+    revalidatePath('/admin/defaulters')
+    revalidatePath('/student/profile')
+    return { success: true }
+}

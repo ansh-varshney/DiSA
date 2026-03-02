@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { differenceInSeconds, format } from 'date-fns'
 import { Phone, AlertTriangle, CheckCircle, Clock, Zap, Package, Flag, ChevronDown, ArrowLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -11,6 +11,7 @@ import {
     endSession,
     reportLostEquipment,
     reportStudentPostSession,
+    expireBooking,
 } from '@/actions/manager'
 import { useRouter } from 'next/navigation'
 
@@ -525,7 +526,16 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
 
     const isAdminBooking = booking.is_priority || booking.is_maintenance
 
-    // ΓöÇΓöÇ EXPIRED STATE ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // ── EXPIRED STATE: auto-cancel + issue violations ─────────────────────────
+    const expireCalledRef = useRef(false)
+    useEffect(() => {
+        if (isExpired && !expireCalledRef.current) {
+            expireCalledRef.current = true
+            const allPlayerIds = booking.all_players.map(p => p.id)
+            expireBooking(booking.id, allPlayerIds)
+        }
+    }, [isExpired, booking.id, booking.all_players])
+
     if (isExpired) {
         return (
             <div className="min-h-screen bg-gray-50">
@@ -536,7 +546,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
                 <div className="mx-4 mt-8 bg-white rounded-xl border border-red-100 p-6 text-center space-y-3">
                     <AlertTriangle className="w-10 h-10 text-red-500 mx-auto" />
                     <h2 className="font-bold text-gray-900">Booking Expired</h2>
-                    <p className="text-sm text-gray-600">This booking was not approved within 10 minutes of the start time and has been auto-cancelled. A penalty notice has been sent to all involved students.</p>
+                    <p className="text-sm text-gray-600">This booking was not approved within 10 minutes of the start time and has been auto-cancelled. A penalty has been issued to all involved students.</p>
                 </div>
                 <div className="mx-4 mt-4">
                     <button onClick={() => router.push('/manager')} className="w-full py-3 bg-[#004d40] text-white rounded-xl font-semibold">
