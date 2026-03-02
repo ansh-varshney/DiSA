@@ -1,4 +1,4 @@
-import { getBookingDetails } from '@/actions/manager'
+﻿import { getBookingDetails } from '@/actions/manager'
 import { ManagerApprovalScreen } from '@/components/manager-approval-screen'
 import { notFound } from 'next/navigation'
 
@@ -26,4 +26,3 @@ export default async function ManagerApprovalPage({
         </div>
     )
 }
-
