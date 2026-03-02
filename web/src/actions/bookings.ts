@@ -54,6 +54,7 @@ export async function createBooking(prevState: any, formData: FormData) {
     const durationParam = formData.get('duration') as string
     const equipmentIdsStr = formData.get('equipmentIds') as string
     const numPlayersStr = formData.get('numPlayers') as string
+    const playersListStr = formData.get('playersList') as string
 
     if (!courtId || !startTimeStr || !durationParam) {
         return { error: 'Missing required booking details' }
@@ -93,6 +94,7 @@ export async function createBooking(prevState: any, formData: FormData) {
     // 4. Parse optional fields
     const equipmentIds = equipmentIdsStr ? JSON.parse(equipmentIdsStr) : []
     const numPlayers = numPlayersStr ? parseInt(numPlayersStr) : 2
+    const playersList = playersListStr ? JSON.parse(playersListStr) : []
 
     // 5. Mark equipment as unavailable (reserved)
     if (equipmentIds.length > 0) {
@@ -111,7 +113,7 @@ export async function createBooking(prevState: any, formData: FormData) {
             start_time: startTime.toISOString(),
             end_time: endTime.toISOString(),
             status: 'pending_confirmation',
-            players_list: [],
+            players_list: playersList,
             equipment_ids: equipmentIds,
             num_players: numPlayers,
         })
@@ -259,4 +261,28 @@ export async function submitFeedback(title: string, description: string, categor
 
     revalidatePath('/admin/feedback')
     return { success: true }
+}
+
+// ─── Search Students (for Player Picker) ──────────────────────────────────────
+export async function searchStudents(query: string) {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return []
+
+    if (!query || query.trim().length < 2) return []
+
+    const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, student_id')
+        .eq('role', 'student')
+        .neq('id', user.id) // Don't show yourself
+        .ilike('full_name', `%${query.trim()}%`)
+        .limit(10)
+
+    if (error) {
+        console.error('Error searching students:', error)
+        return []
+    }
+
+    return data || []
 }

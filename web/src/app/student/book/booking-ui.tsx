@@ -1,16 +1,17 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition, useEffect, useCallback } from 'react'
 import { startOfDay, addDays, format, addMinutes, isSameDay } from 'date-fns'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { createBooking, getBookingsForDateRange, getAvailableEquipment } from '@/actions/bookings'
-import { Loader2, CheckCircle, Clock, Users, Package, X } from 'lucide-react'
+import { createBooking, getBookingsForDateRange, getAvailableEquipment, searchStudents } from '@/actions/bookings'
+import { Loader2, CheckCircle, Clock, Users, Package, X, Search, UserPlus } from 'lucide-react'
 
 type Court = { id: string; name: string; sport: string }
 type Booking = { id: string; start_time: string; end_time: string; status: string }
 type Equipment = { id: string; name: string; sport: string; condition: string }
+type Player = { id: string; full_name: string; student_id: string }
 
 export default function BookingUI({ initialCourts }: { initialCourts: Court[] }) {
     const [selectedCourt, setSelectedCourt] = useState<Court | null>(initialCourts[0] || null)
@@ -19,7 +20,6 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
     const [selectedDate, setSelectedDate] = useState<Date>(new Date())
     const [selectedSlot, setSelectedSlot] = useState<Date | null>(null)
     const [duration, setDuration] = useState<30 | 60>(30)
-    const [numPlayers, setNumPlayers] = useState(2)
     const [isPending, startTransition] = useTransition()
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
@@ -27,6 +27,13 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
     const [availableEquipment, setAvailableEquipment] = useState<Equipment[]>([])
     const [selectedEquipment, setSelectedEquipment] = useState<string[]>([])
     const [loadingEquipment, setLoadingEquipment] = useState(false)
+
+    // Player state
+    const [selectedPlayers, setSelectedPlayers] = useState<Player[]>([])
+    const [playerSearch, setPlayerSearch] = useState('')
+    const [searchResults, setSearchResults] = useState<Player[]>([])
+    const [searchingPlayers, setSearchingPlayers] = useState(false)
+    const [showPlayerSearch, setShowPlayerSearch] = useState(false)
 
     const today = startOfDay(new Date())
     const days = [0, 1, 2, 3].map(offset => addDays(today, offset))
@@ -74,14 +81,23 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
         }
     }, [])
 
-    // Check if slot is booked
-    const isBooked = (slotTime: Date) => {
-        return bookings.some(b => {
-            const start = new Date(b.start_time)
-            const end = new Date(b.end_time)
-            return slotTime >= start && slotTime < end
-        })
-    }
+    // Debounced player search
+    useEffect(() => {
+        if (playerSearch.length < 2) {
+            setSearchResults([])
+            return
+        }
+
+        const timer = setTimeout(async () => {
+            setSearchingPlayers(true)
+            const results = await searchStudents(playerSearch)
+            // Filter out already selected players
+            setSearchResults(results.filter(r => !selectedPlayers.some(p => p.id === r.id)))
+            setSearchingPlayers(false)
+        }, 300)
+
+        return () => clearTimeout(timer)
+    }, [playerSearch, selectedPlayers])
 
     // Check if slot + duration would conflict OR if slot is in the past
     const isSlotAvailable = (slotTime: Date) => {
@@ -102,6 +118,16 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
         )
     }
 
+    const addPlayer = (player: Player) => {
+        setSelectedPlayers(prev => [...prev, player])
+        setPlayerSearch('')
+        setSearchResults([])
+    }
+
+    const removePlayer = (playerId: string) => {
+        setSelectedPlayers(prev => prev.filter(p => p.id !== playerId))
+    }
+
     const handleBook = async () => {
         if (!selectedCourt || !selectedSlot) return
 
@@ -110,9 +136,18 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
             formData.append('courtId', selectedCourt.id)
             formData.append('startTime', selectedSlot.toISOString())
             formData.append('duration', duration.toString())
-            formData.append('numPlayers', numPlayers.toString())
+            formData.append('numPlayers', (selectedPlayers.length + 1).toString()) // +1 for the booker
             if (selectedEquipment.length > 0) {
                 formData.append('equipmentIds', JSON.stringify(selectedEquipment))
+            }
+            if (selectedPlayers.length > 0) {
+                const playersList = selectedPlayers.map(p => ({
+                    id: p.id,
+                    full_name: p.full_name,
+                    student_id: p.student_id,
+                    status: 'pending'
+                }))
+                formData.append('playersList', JSON.stringify(playersList))
             }
 
             const result = await createBooking(null, formData)
@@ -123,6 +158,7 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
                 handleCourtChange(selectedCourt)
                 setSelectedSlot(null)
                 setSelectedEquipment([])
+                setSelectedPlayers([])
             }
         })
     }
@@ -163,55 +199,115 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
                 ))}
             </div>
 
-            {/* Duration Selector + Player Count */}
-            <div className="grid grid-cols-2 gap-3">
-                <Card>
-                    <CardContent className="p-3">
-                        <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase mb-2">
-                            <Clock className="w-3 h-3" /> Duration
-                        </label>
-                        <div className="flex gap-2">
-                            {([30, 60] as const).map(d => (
-                                <button
-                                    key={d}
-                                    onClick={() => { setDuration(d); setSelectedSlot(null) }}
-                                    className={cn(
-                                        "flex-1 py-2 text-sm font-bold rounded-lg border transition-all",
-                                        duration === d
-                                            ? "bg-[#004d40] text-white border-[#004d40]"
-                                            : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
-                                    )}
+            {/* Duration Selector */}
+            <Card>
+                <CardContent className="p-3">
+                    <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase mb-2">
+                        <Clock className="w-3 h-3" /> Duration
+                    </label>
+                    <div className="flex gap-2">
+                        {([30, 60] as const).map(d => (
+                            <button
+                                key={d}
+                                onClick={() => { setDuration(d); setSelectedSlot(null) }}
+                                className={cn(
+                                    "flex-1 py-2 text-sm font-bold rounded-lg border transition-all",
+                                    duration === d
+                                        ? "bg-[#004d40] text-white border-[#004d40]"
+                                        : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
+                                )}
+                            >
+                                {d} min
+                            </button>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Player Picker */}
+            <Card>
+                <CardContent className="p-3">
+                    <label className="flex items-center justify-between text-xs font-bold text-gray-500 uppercase mb-2">
+                        <span className="flex items-center gap-2">
+                            <Users className="w-3 h-3" /> Players ({selectedPlayers.length + 1} including you)
+                        </span>
+                        <button
+                            onClick={() => setShowPlayerSearch(!showPlayerSearch)}
+                            className="flex items-center gap-1 text-[#004d40] text-xs font-bold normal-case"
+                        >
+                            <UserPlus className="w-3.5 h-3.5" />
+                            Add Player
+                        </button>
+                    </label>
+
+                    {/* Selected Players */}
+                    {selectedPlayers.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-3">
+                            {selectedPlayers.map(player => (
+                                <div
+                                    key={player.id}
+                                    className="flex items-center gap-1.5 bg-[#004d40]/10 text-[#004d40] px-2.5 py-1.5 rounded-full text-sm font-medium"
                                 >
-                                    {d} min
-                                </button>
+                                    <span>{player.full_name}</span>
+                                    <button
+                                        onClick={() => removePlayer(player.id)}
+                                        className="hover:bg-[#004d40]/20 rounded-full p-0.5"
+                                    >
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </div>
                             ))}
                         </div>
-                    </CardContent>
-                </Card>
+                    )}
 
-                <Card>
-                    <CardContent className="p-3">
-                        <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase mb-2">
-                            <Users className="w-3 h-3" /> Players
-                        </label>
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => setNumPlayers(Math.max(1, numPlayers - 1))}
-                                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-100"
-                            >
-                                −
-                            </button>
-                            <span className="text-lg font-bold text-gray-800 w-6 text-center">{numPlayers}</span>
-                            <button
-                                onClick={() => setNumPlayers(Math.min(12, numPlayers + 1))}
-                                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-gray-100"
-                            >
-                                +
-                            </button>
+                    {/* Search Input */}
+                    {showPlayerSearch && (
+                        <div className="relative">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <input
+                                    type="text"
+                                    value={playerSearch}
+                                    onChange={(e) => setPlayerSearch(e.target.value)}
+                                    placeholder="Search by name..."
+                                    className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#004d40] focus:border-transparent"
+                                    autoFocus
+                                />
+                                {searchingPlayers && (
+                                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                                )}
+                            </div>
+
+                            {/* Search Results Dropdown */}
+                            {searchResults.length > 0 && (
+                                <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                    {searchResults.map(student => (
+                                        <button
+                                            key={student.id}
+                                            onClick={() => addPlayer(student)}
+                                            className="w-full text-left px-3 py-2.5 hover:bg-gray-50 flex items-center justify-between border-b border-gray-100 last:border-0"
+                                        >
+                                            <div>
+                                                <p className="text-sm font-medium text-gray-800">{student.full_name}</p>
+                                                {student.student_id && (
+                                                    <p className="text-xs text-gray-400">Roll: {student.student_id}</p>
+                                                )}
+                                            </div>
+                                            <UserPlus className="w-4 h-4 text-[#004d40]" />
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {playerSearch.length >= 2 && !searchingPlayers && searchResults.length === 0 && (
+                                <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-4 text-center text-sm text-gray-400">
+                                    No students found
+                                </div>
+                            )}
                         </div>
-                    </CardContent>
-                </Card>
-            </div>
+                    )}
+                </CardContent>
+            </Card>
 
             {/* Equipment Selector */}
             {availableEquipment.length > 0 && (
@@ -315,9 +411,14 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
                                 </div>
                                 <div>
                                     <p className="text-gray-400 text-xs">Players</p>
-                                    <p className="font-medium">{numPlayers}</p>
+                                    <p className="font-medium">{selectedPlayers.length + 1}</p>
                                 </div>
                             </div>
+                            {selectedPlayers.length > 0 && (
+                                <div className="text-xs text-gray-400 mb-2">
+                                    With: {selectedPlayers.map(p => p.full_name).join(', ')}
+                                </div>
+                            )}
                             {selectedEquipment.length > 0 && (
                                 <div className="text-xs text-gray-400 mb-3">
                                     Equipment: {availableEquipment.filter(e => selectedEquipment.includes(e.id)).map(e => e.name).join(', ')}
