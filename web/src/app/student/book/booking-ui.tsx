@@ -264,6 +264,7 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
                         {generateSlots(selectedDate).map((slot, i) => {
                             const available = isSlotAvailable(slot)
                             const selected = selectedSlot && slot.getTime() === selectedSlot.getTime()
+                            const isPast = slot < new Date()
 
                             return (
                                 <button
@@ -271,9 +272,14 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
                                     disabled={!available}
                                     onClick={() => setSelectedSlot(slot)}
                                     className={cn(
-                                        "py-2 text-sm border rounded-md transition-all",
-                                        !available ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "hover:border-[#004d40]",
-                                        selected ? "bg-[#004d40] text-white border-[#004d40]" : available ? "bg-white" : ""
+                                        "py-2.5 text-sm rounded-lg transition-all font-medium",
+                                        selected
+                                            ? "bg-[#004d40] text-white border-2 border-[#004d40] shadow-md"
+                                            : available
+                                                ? "bg-white border-2 border-[#004d40]/30 text-[#004d40] font-semibold hover:bg-[#004d40]/5 hover:border-[#004d40]"
+                                                : isPast
+                                                    ? "bg-gray-200/60 text-gray-400 line-through cursor-not-allowed border border-gray-200"
+                                                    : "bg-red-50 text-red-300 cursor-not-allowed border border-red-100"
                                     )}
                                 >
                                     {format(slot, 'h:mm a')}
