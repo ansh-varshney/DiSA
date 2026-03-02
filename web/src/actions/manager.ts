@@ -3,12 +3,12 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
-import { startOfDay, endOfDay } from 'date-fns'
+
 
 export async function getCurrentBookings() {
     const supabase = await createClient()
     const now = new Date()
-    const endOfToday = endOfDay(now)
+    const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000)
 
     // 1. Fetch bookings for today
     //    ΓÇó Active bookings show if end_time is within the last 1 hour (manager can still end them)
@@ -22,7 +22,7 @@ export async function getCurrentBookings() {
             courts (name, sport)
         `)
         .in('status', ['pending_confirmation', 'confirmed', 'waiting_manager', 'active'])
-        .lte('start_time', endOfToday.toISOString())
+        .lte('start_time', next24h.toISOString())
         .or(`and(status.eq.active,end_time.gte.${oneHourAgo.toISOString()}),end_time.gte.${now.toISOString()}`)
         .order('start_time', { ascending: true })
 
