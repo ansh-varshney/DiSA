@@ -2,7 +2,7 @@ import { createClient } from '@/utils/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { redirect } from 'next/navigation'
 import { format } from 'date-fns'
-import { AlertTriangle, CheckCircle, Star, Calendar, Shield, MessageSquare } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Star, Calendar, Shield, MessageSquare, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FeedbackForm } from '@/components/feedback-form'
 
@@ -11,6 +11,12 @@ function readableViolationType(type: string) {
     return type
         .replace(/_/g, ' ')
         .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+const statusColors: Record<string, string> = {
+    open: 'bg-red-100 text-red-700',
+    in_progress: 'bg-yellow-100 text-yellow-700',
+    resolved: 'bg-green-100 text-green-700',
 }
 
 export default async function ProfilePage() {
@@ -24,7 +30,7 @@ export default async function ProfilePage() {
         .eq('id', user.id)
         .single()
 
-    // Fetch violations — show reason OR description (manager writes 'reason', some old records use 'description')
+    // Fetch violations
     const { data: violations } = await supabase
         .from('student_violations')
         .select('*')
@@ -38,6 +44,14 @@ export default async function ProfilePage() {
         .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .eq('status', 'completed')
+
+    // Fetch past feedbacks/complaints
+    const { data: feedbacks } = await supabase
+        .from('feedback_complaints')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20)
 
     const violationCount = violations?.length || 0
     const isBanned = violationCount >= 3
@@ -121,7 +135,6 @@ export default async function ProfilePage() {
                     ) : (
                         <div className="space-y-3">
                             {violations?.map((v: any) => {
-                                // Show the human-readable reason (manager writes 'reason', fallback to 'description')
                                 const message = v.reason || v.description || readableViolationType(v.violation_type || 'Unknown')
                                 const severityColors: Record<string, string> = {
                                     critical: 'bg-red-200 text-red-800',
@@ -168,6 +181,48 @@ export default async function ProfilePage() {
                     <FeedbackForm />
                 </CardContent>
             </Card>
+
+            {/* Past Feedback History */}
+            {feedbacks && feedbacks.length > 0 && (
+                <Card>
+                    <CardHeader className="py-3">
+                        <CardTitle className="text-lg flex items-center gap-2 text-gray-800">
+                            <Clock className="w-5 h-5 text-gray-500" />
+                            My Past Feedbacks ({feedbacks.length})
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-3">
+                            {feedbacks.map((fb: any) => (
+                                <div key={fb.id} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className={cn(
+                                                'text-xs font-bold uppercase px-2 py-0.5 rounded-full',
+                                                statusColors[fb.status] || 'bg-gray-100 text-gray-600'
+                                            )}>
+                                                {(fb.status || 'open').replace('_', ' ')}
+                                            </span>
+                                            <span className="text-xs text-gray-400 capitalize">{fb.category || 'feedback'}</span>
+                                        </div>
+                                        <span className="text-xs text-gray-400">
+                                            {format(new Date(fb.created_at), 'MMM d, yyyy')}
+                                        </span>
+                                    </div>
+                                    <p className="text-sm font-semibold text-gray-900">{fb.title}</p>
+                                    <p className="text-sm text-gray-600 mt-0.5">{fb.description}</p>
+                                    {fb.admin_notes && (
+                                        <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-100">
+                                            <p className="text-xs font-semibold text-blue-700">Admin Response:</p>
+                                            <p className="text-sm text-blue-800">{fb.admin_notes}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     )
 }
