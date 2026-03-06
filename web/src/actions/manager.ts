@@ -581,16 +581,25 @@ export async function expireBooking(bookingId: string, playerIds: string[]) {
         .update({ status: 'cancelled' })
         .eq('id', bookingId)
 
-    // 4. Issue violations to all involved students
+    // 4. Issue violations to all involved students (filter out non-students)
     if (playerIds.length > 0) {
-        const violations = playerIds.map(studentId => ({
-            student_id: studentId,
-            booking_id: bookingId,
-            violation_type: 'booking_timeout',
-            severity: 'minor',
-            reason: 'Booking was not approved within 10 minutes of start time and was auto-cancelled.',
-        }))
-        await supabase.from('student_violations').insert(violations)
+        // Fetch roles to skip admins/managers
+        const { data: players } = await supabase
+            .from('profiles')
+            .select('id, role')
+            .in('id', playerIds)
+        const studentIds = players?.filter(p => p.role === 'student').map(p => p.id) || []
+
+        if (studentIds.length > 0) {
+            const violations = studentIds.map(studentId => ({
+                student_id: studentId,
+                booking_id: bookingId,
+                violation_type: 'booking_timeout',
+                severity: 'minor',
+                reason: 'Booking was not approved within 10 minutes of start time and was auto-cancelled.',
+            }))
+            await supabase.from('student_violations').insert(violations)
+        }
     }
 
     revalidatePath('/manager')

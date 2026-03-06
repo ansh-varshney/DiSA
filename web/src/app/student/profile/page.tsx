@@ -53,7 +53,7 @@ export default async function ProfilePage() {
     const { data: feedbacks } = await supabase
         .from('feedback_complaints')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('student_id', user.id)
         .order('created_at', { ascending: false })
         .limit(20)
 

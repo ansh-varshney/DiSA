@@ -133,10 +133,17 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
 
     // ─── Slot helpers ────────────────────────────────────────────────────────
     const getBookingForSlot = (courtId: string, slotTime: string): Booking | undefined => {
+        const [slotH, slotM] = slotTime.split(':').map(Number)
+        const slotDate = new Date(selectedDate)
+        slotDate.setHours(slotH, slotM, 0, 0)
+        const slotMs = slotDate.getTime()
+
         return bookings.find(b => {
             if (b.court_id !== courtId) return false
-            const startStr = new Date(b.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
-            return startStr === slotTime
+            const bStart = new Date(b.start_time).getTime()
+            const bEnd = new Date(b.end_time).getTime()
+            // Slot is within the booking range
+            return slotMs >= bStart && slotMs < bEnd
         })
     }
 

@@ -33,7 +33,7 @@ export async function getAvailableEquipment(sport: string) {
     const { data, error } = await supabase
         .from('equipment')
         .select('id, name, sport, condition')
-        .eq('sport', sport)
+        .ilike('sport', sport)
         .eq('is_available', true)
         .neq('condition', 'lost')
         .order('name')
@@ -64,6 +64,11 @@ export async function createBooking(prevState: any, formData: FormData) {
     const duration = parseInt(durationParam)
     const endTime = addMinutes(startTime, duration)
 
+    // 0. Prevent booking in the past
+    if (startTime < new Date()) {
+        return { error: 'Cannot book a slot in the past' }
+    }
+
     // 1. Check if user is logged in
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
@@ -78,7 +83,7 @@ export async function createBooking(prevState: any, formData: FormData) {
         return { error: 'Your account has been suspended due to 3 or more violations. Contact admin.' }
     }
 
-    // 3. Overlap Check
+    // 3. Overlap Check — same court
     const { data: conflictingBookings } = await supabase
         .from('bookings')
         .select('id')
@@ -89,6 +94,19 @@ export async function createBooking(prevState: any, formData: FormData) {
 
     if (conflictingBookings && conflictingBookings.length > 0) {
         return { error: 'Time slot is already booked' }
+    }
+
+    // 3b. Prevent same student from double-booking overlapping time on ANY court
+    const { data: studentConflicts } = await supabase
+        .from('bookings')
+        .select('id')
+        .eq('user_id', user.id)
+        .neq('status', 'cancelled')
+        .neq('status', 'rejected')
+        .or(`and(start_time.lt.${endTime.toISOString()},end_time.gt.${startTime.toISOString()})`)
+
+    if (studentConflicts && studentConflicts.length > 0) {
+        return { error: 'You already have a booking during this time' }
     }
 
     // 4. Parse optional fields
