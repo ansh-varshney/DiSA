@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useEffect, useRef } from 'react'
 import { differenceInSeconds, format } from 'date-fns'
@@ -47,8 +47,11 @@ interface BookingDetails {
 
 // ΓöÇΓöÇΓöÇ Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 function fmt(seconds: number) {
-    const m = Math.floor(Math.abs(seconds) / 60).toString().padStart(2, '0')
-    const s = (Math.abs(seconds) % 60).toString().padStart(2, '0')
+    const abs = Math.abs(seconds)
+    const h = Math.floor(abs / 3600)
+    const m = Math.floor((abs % 3600) / 60).toString().padStart(2, '0')
+    const s = (abs % 60).toString().padStart(2, '0')
+    if (h > 0) return `${h}h ${m}m ${s}s`
     return `${m}:${s}`
 }
 
@@ -604,7 +607,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
             <div className="mx-4 mt-4 bg-white rounded-xl border p-4 flex items-center gap-3">
                 <Clock className={cn('w-5 h-5', isUpcoming ? 'text-amber-500' : 'text-green-600')} />
                 <div>
-                    <p className="text-xs text-gray-500">{isUpcoming ? 'Session starts in' : 'Started ΓÇö awaiting approval'}</p>
+                    <p className="text-xs text-gray-500">{isUpcoming ? 'Session starts in' : 'Started - awaiting approval'}</p>
                     {isUpcoming ? (
                         <p className="text-xl font-mono font-bold text-[#004d40]">{fmt(secondsToStart)}</p>
                     ) : (
@@ -622,7 +625,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
                     <div className="flex justify-between">
                         <span className="text-gray-500">Time</span>
                         <span className="font-medium text-gray-900">
-                            {format(startTime, 'h:mm a')} ΓÇô {format(endTime, 'h:mm a')}
+                            {format(startTime, 'h:mm a')} - {format(endTime, 'h:mm a')}
                         </span>
                     </div>
                     <div className="flex justify-between">
@@ -694,7 +697,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
                             : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     )}
                 >
-                    {isUpcoming ? `Accept Play (starts in ${fmt(secondsToStart)})` : loading ? 'StartingΓÇª' : 'Accept Play'}
+                    {isUpcoming ? `Accept Play (starts in ${fmt(secondsToStart)})` : loading ? 'Starting...' : 'Accept Play'}
                 </button>
 
                 <button
