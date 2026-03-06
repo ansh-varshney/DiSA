@@ -34,9 +34,9 @@ const formatTime = (time: string) => {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function BookingUI({ initialCourts }: { initialCourts: Court[] }) {
-    // Get unique sports from courts
+    // Get unique sports from courts (normalize to lowercase)
     const sports = useMemo(() => {
-        const set = new Set(initialCourts.map(c => c.sport))
+        const set = new Set(initialCourts.map(c => c.sport.toLowerCase().trim()))
         return Array.from(set).sort()
     }, [initialCourts])
 
@@ -63,7 +63,7 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
     // Courts for selected sport
     const filteredCourts = useMemo(() => {
         if (!selectedSport) return []
-        return initialCourts.filter(c => c.sport === selectedSport)
+        return initialCourts.filter(c => c.sport.toLowerCase().trim() === selectedSport)
     }, [initialCourts, selectedSport])
 
     // Filter out past time slots
