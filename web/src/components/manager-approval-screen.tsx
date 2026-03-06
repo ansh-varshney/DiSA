@@ -511,8 +511,19 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
 
     const handleAccept = async () => {
         setLoading(true)
-        await updateBookingStatus(booking.id, 'active')
-        setSessionActive(true)
+        try {
+            const result = await updateBookingStatus(booking.id, 'active')
+            if (result?.error) {
+                console.error('Accept error:', result.error)
+                alert('Error accepting: ' + result.error)
+                setLoading(false)
+                return
+            }
+            setSessionActive(true)
+        } catch (err) {
+            console.error('Accept error:', err)
+            alert('Something went wrong. Please try again.')
+        }
         setLoading(false)
     }
 

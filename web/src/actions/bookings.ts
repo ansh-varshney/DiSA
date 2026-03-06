@@ -112,7 +112,7 @@ export async function createBooking(prevState: any, formData: FormData) {
             court_id: courtId,
             start_time: startTime.toISOString(),
             end_time: endTime.toISOString(),
-            status: 'pending_confirmation',
+            status: 'confirmed',
             players_list: playersList,
             equipment_ids: equipmentIds,
             num_players: numPlayers,

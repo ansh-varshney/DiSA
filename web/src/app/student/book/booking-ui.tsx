@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useTransition, useEffect } from 'react'
-import { startOfDay, addDays, format, addMinutes } from 'date-fns'
+import { useState, useTransition, useEffect, useMemo } from 'react'
+import { addDays, format, startOfDay } from 'date-fns'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { createBooking, getBookingsForDateRange, getAvailableEquipment, searchStudents } from '@/actions/bookings'
@@ -34,9 +34,16 @@ const formatTime = (time: string) => {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function BookingUI({ initialCourts }: { initialCourts: Court[] }) {
+    // Get unique sports from courts
+    const sports = useMemo(() => {
+        const set = new Set(initialCourts.map(c => c.sport))
+        return Array.from(set).sort()
+    }, [initialCourts])
+
+    const [selectedSport, setSelectedSport] = useState('')
+    const [selectedDate, setSelectedDate] = useState('')
     const [bookings, setBookings] = useState<Booking[]>([])
     const [loadingBookings, setLoadingBookings] = useState(false)
-    const [selectedDate, setSelectedDate] = useState<Date>(new Date())
     const [isPending, startTransition] = useTransition()
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
@@ -51,17 +58,38 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
     const [selectedEquipment, setSelectedEquipment] = useState<string[]>([])
     const [loadingEquipment, setLoadingEquipment] = useState(false)
 
-    const today = startOfDay(new Date())
-    const days = [0, 1, 2, 3].map(offset => addDays(today, offset))
-    const timeSlots = generateTimeSlots()
+    const allTimeSlots = generateTimeSlots()
+
+    // Courts for selected sport
+    const filteredCourts = useMemo(() => {
+        if (!selectedSport) return []
+        return initialCourts.filter(c => c.sport === selectedSport)
+    }, [initialCourts, selectedSport])
+
+    // Filter out past time slots
+    const visibleTimeSlots = useMemo(() => {
+        if (!selectedDate) return allTimeSlots
+        const selected = new Date(selectedDate)
+        const now = new Date()
+        const isToday = selected.toDateString() === now.toDateString()
+        if (!isToday) return allTimeSlots
+        // Only show slots that haven't passed yet
+        return allTimeSlots.filter(time => {
+            const [hour, minute] = time.split(':').map(Number)
+            const slotDate = new Date()
+            slotDate.setHours(hour, minute, 0, 0)
+            return slotDate > now
+        })
+    }, [selectedDate, allTimeSlots])
 
     // ─── Data fetching ───────────────────────────────────────────────────────
-    const fetchBookings = async (date: Date) => {
+    const fetchBookings = async (dateStr: string) => {
+        if (!dateStr || filteredCourts.length === 0) return
         setLoadingBookings(true)
         try {
-            // Fetch bookings for ALL courts on this date
+            const date = new Date(dateStr)
             const allBookings: Booking[] = []
-            for (const court of initialCourts) {
+            for (const court of filteredCourts) {
                 const data = await getBookingsForDateRange(court.id, date, addDays(date, 1))
                 allBookings.push(...(data as Booking[]))
             }
@@ -72,20 +100,19 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
     }
 
     useEffect(() => {
-        fetchBookings(selectedDate)
-    }, [selectedDate])
+        if (selectedDate && filteredCourts.length > 0) {
+            fetchBookings(selectedDate)
+        }
+    }, [selectedDate, selectedSport])
 
     // Fetch equipment when slot is selected
     useEffect(() => {
-        if (selectedSlot) {
-            const court = initialCourts.find(c => c.id === selectedSlot.courtId)
-            if (court) {
-                setLoadingEquipment(true)
-                getAvailableEquipment(court.sport).then(eq => {
-                    setAvailableEquipment(eq)
-                    setLoadingEquipment(false)
-                })
-            }
+        if (selectedSlot && selectedSport) {
+            setLoadingEquipment(true)
+            getAvailableEquipment(selectedSport).then(eq => {
+                setAvailableEquipment(eq)
+                setLoadingEquipment(false)
+            })
         }
     }, [selectedSlot?.courtId])
 
@@ -105,16 +132,6 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
     }, [playerSearch, selectedPlayers])
 
     // ─── Slot helpers ────────────────────────────────────────────────────────
-    const isSlotInPast = (slotTime: string): boolean => {
-        const now = new Date()
-        const isToday = selectedDate.toDateString() === now.toDateString()
-        if (!isToday) return false
-        const [hour, minute] = slotTime.split(':').map(Number)
-        const slotDate = new Date(selectedDate)
-        slotDate.setHours(hour, minute, 0, 0)
-        return slotDate <= now
-    }
-
     const getBookingForSlot = (courtId: string, slotTime: string): Booking | undefined => {
         return bookings.find(b => {
             if (b.court_id !== courtId) return false
@@ -124,7 +141,6 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
     }
 
     const handleSlotClick = (court: Court, time: string) => {
-        if (isSlotInPast(time)) return
         const booking = getBookingForSlot(court.id, time)
         if (booking) return // Can't book occupied slot
 
@@ -137,7 +153,7 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
     }
 
     const handleBook = async () => {
-        if (!selectedSlot) return
+        if (!selectedSlot || !selectedDate) return
 
         const [hour, minute] = selectedSlot.time.split(':').map(Number)
         const startTime = new Date(selectedDate)
@@ -157,7 +173,7 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
                     id: p.id,
                     full_name: p.full_name,
                     student_id: p.student_id,
-                    status: 'pending'
+                    status: 'confirmed'
                 }))
                 formData.append('playersList', JSON.stringify(playersList))
             }
@@ -166,68 +182,129 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
             if (result?.error) {
                 setMessage({ text: result.error, type: 'error' })
             } else {
-                setMessage({ text: 'Booking request sent!', type: 'success' })
+                setMessage({ text: 'Slot booked successfully!', type: 'success' })
                 setSelectedSlot(null)
                 fetchBookings(selectedDate)
             }
         })
     }
 
+    const todayStr = new Date().toISOString().split('T')[0]
+    const maxDateStr = format(addDays(new Date(), 3), 'yyyy-MM-dd')
+
     // ─── Render ──────────────────────────────────────────────────────────────
     return (
         <div className="space-y-4">
-            {/* Date Selector */}
-            <div className="grid grid-cols-4 gap-2 text-center bg-white p-2 rounded-lg border">
-                {days.map(d => (
-                    <div
-                        key={d.toString()}
-                        onClick={() => { setSelectedDate(d); setSelectedSlot(null) }}
-                        className={cn(
-                            "p-2 rounded cursor-pointer transition-colors",
-                            selectedDate.toDateString() === d.toDateString()
-                                ? "bg-[#004d40] text-white"
-                                : "hover:bg-gray-100"
-                        )}
-                    >
-                        <div className="text-xs font-medium uppercase">{format(d, 'EEE')}</div>
-                        <div className="text-lg font-bold">{format(d, 'd')}</div>
-                    </div>
-                ))}
-            </div>
+            {/* Filters: Sport dropdown + Date picker */}
+            <Card>
+                <CardContent className="p-4">
+                    <div className="flex items-center gap-4 flex-wrap">
+                        <div className="flex items-center gap-2">
+                            <label className="text-sm font-semibold text-gray-900">Sport:</label>
+                            <select
+                                value={selectedSport}
+                                onChange={(e) => {
+                                    setSelectedSport(e.target.value)
+                                    setSelectedSlot(null)
+                                    setBookings([])
+                                }}
+                                className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                            >
+                                <option value="">Select Sport</option>
+                                {sports.map(s => (
+                                    <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                                ))}
+                            </select>
+                        </div>
 
-            {/* Calendar Grid */}
-            {loadingBookings ? (
+                        {selectedSport && (
+                            <div className="flex items-center gap-2">
+                                <label className="text-sm font-semibold text-gray-900">Date:</label>
+                                <input
+                                    type="date"
+                                    min={todayStr}
+                                    max={maxDateStr}
+                                    value={selectedDate}
+                                    onChange={(e) => {
+                                        setSelectedDate(e.target.value)
+                                        setSelectedSlot(null)
+                                    }}
+                                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                                />
+                            </div>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Prompt states */}
+            {!selectedSport ? (
+                <Card>
+                    <CardContent className="p-12">
+                        <div className="text-center space-y-3">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                                <Package className="w-8 h-8 text-gray-400" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900">Select a Sport</h3>
+                            <p className="text-gray-500 text-sm max-w-md mx-auto">Choose a sport from the dropdown above to see available courts and time slots.</p>
+                        </div>
+                    </CardContent>
+                </Card>
+            ) : !selectedDate ? (
+                <Card>
+                    <CardContent className="p-12">
+                        <div className="text-center space-y-3">
+                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                                <Clock className="w-8 h-8 text-gray-400" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900">Select a Date</h3>
+                            <p className="text-gray-500 text-sm max-w-md mx-auto">Choose a date to view available slots for {selectedSport} courts.</p>
+                        </div>
+                    </CardContent>
+                </Card>
+            ) : loadingBookings ? (
                 <div className="flex items-center justify-center p-16">
                     <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
                 </div>
+            ) : filteredCourts.length === 0 ? (
+                <Card>
+                    <CardContent className="p-12 text-center text-gray-500">
+                        No courts available for {selectedSport}.
+                    </CardContent>
+                </Card>
+            ) : visibleTimeSlots.length === 0 ? (
+                <Card>
+                    <CardContent className="p-12 text-center text-gray-500">
+                        No more available slots for today. Try selecting tomorrow.
+                    </CardContent>
+                </Card>
             ) : (
+                /* Calendar Grid */
                 <Card>
                     <CardContent className="p-0">
                         <div className="overflow-x-auto">
                             <div className="inline-block min-w-full">
-                                <div className="grid" style={{ gridTemplateColumns: `72px repeat(${initialCourts.length}, minmax(120px, 1fr))` }}>
+                                <div className="grid" style={{ gridTemplateColumns: `72px repeat(${filteredCourts.length}, minmax(120px, 1fr))` }}>
                                     {/* Header Row */}
                                     <div className="sticky top-0 left-0 z-20 bg-[#004d40] border-b border-r border-[#003d33] p-2">
                                         <span className="text-[10px] font-bold text-white/70 uppercase">Time</span>
                                     </div>
-                                    {initialCourts.map(court => (
+                                    {filteredCourts.map(court => (
                                         <div key={court.id} className="sticky top-0 z-10 bg-[#004d40] border-b border-r border-[#003d33] p-2">
                                             <div className="font-semibold text-xs text-white">{court.name}</div>
-                                            <div className="text-[10px] text-white/60">{court.sport}</div>
                                         </div>
                                     ))}
 
-                                    {/* Time Slots */}
-                                    {timeSlots.map(time => (
+                                    {/* Only future time slots */}
+                                    {visibleTimeSlots.map(time => (
                                         <React.Fragment key={time}>
                                             <div className="sticky left-0 z-10 bg-gray-50 border-r border-b border-gray-200 p-1.5 text-[11px] text-gray-500 font-medium flex items-center">
                                                 {formatTime(time)}
                                             </div>
 
-                                            {initialCourts.map(court => {
+                                            {filteredCourts.map(court => {
                                                 const booking = getBookingForSlot(court.id, time)
                                                 const isBooked = !!booking
-                                                const isPast = isSlotInPast(time)
                                                 const isSelected = selectedSlot?.courtId === court.id && selectedSlot?.time === time
 
                                                 return (
@@ -236,29 +313,18 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
                                                         onClick={() => handleSlotClick(court, time)}
                                                         className={cn(
                                                             "border-r border-b border-gray-200 p-1.5 min-h-[44px] transition-all text-xs",
-                                                            isPast
-                                                                ? "bg-gray-100 cursor-not-allowed"
-                                                                : isSelected
-                                                                    ? "bg-[#004d40] text-white ring-2 ring-[#004d40] ring-offset-1"
-                                                                    : isBooked
-                                                                        ? "bg-blue-50 border-l-[3px] border-l-blue-500 cursor-default"
-                                                                        : "bg-white hover:bg-[#004d40]/5 cursor-pointer"
+                                                            isSelected
+                                                                ? "bg-[#004d40] text-white ring-2 ring-[#004d40] ring-offset-1"
+                                                                : isBooked
+                                                                    ? "bg-blue-50 border-l-[3px] border-l-blue-500 cursor-default"
+                                                                    : "bg-white hover:bg-[#004d40]/5 cursor-pointer"
                                                         )}
                                                     >
-                                                        {isPast && !isBooked ? (
-                                                            <span className="text-[10px] text-gray-400 italic">—</span>
-                                                        ) : isSelected ? (
+                                                        {isSelected ? (
                                                             <span className="text-[10px] font-bold">✓ Selected</span>
                                                         ) : booking ? (
                                                             <div>
-                                                                <div className="font-semibold text-blue-700 text-[11px]">
-                                                                    {booking.profiles?.full_name || 'Booked'}
-                                                                </div>
-                                                                {booking.num_players && (
-                                                                    <div className="text-[10px] text-blue-500">
-                                                                        {booking.num_players} players
-                                                                    </div>
-                                                                )}
+                                                                <div className="font-semibold text-blue-700 text-[11px]">Booked</div>
                                                             </div>
                                                         ) : null}
                                                     </div>
@@ -281,7 +347,7 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
                         <div className="flex items-center justify-between">
                             <div>
                                 <h3 className="font-bold text-gray-900">{selectedSlot.courtName}</h3>
-                                <p className="text-sm text-gray-500">{format(selectedDate, 'EEE, MMM d')} · {formatTime(selectedSlot.time)}</p>
+                                <p className="text-sm text-gray-500">{selectedDate} · {formatTime(selectedSlot.time)}</p>
                             </div>
                             <button onClick={() => setSelectedSlot(null)} className="p-1 hover:bg-gray-100 rounded-full">
                                 <X className="w-5 h-5 text-gray-400" />

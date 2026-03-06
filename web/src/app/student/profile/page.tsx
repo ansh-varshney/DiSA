@@ -30,11 +30,15 @@ export default async function ProfilePage() {
         .eq('id', user.id)
         .single()
 
-    // Fetch violations
+    // Fetch violations — only past 2 months
+    const twoMonthsAgo = new Date()
+    twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2)
+
     const { data: violations } = await supabase
         .from('student_violations')
         .select('*')
         .eq('student_id', user.id)
+        .gte('created_at', twoMonthsAgo.toISOString())
         .order('created_at', { ascending: false })
         .limit(10)
 
