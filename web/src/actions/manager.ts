@@ -1,4 +1,4 @@
-﻿'use server'
+'use server'
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
@@ -11,8 +11,8 @@ export async function getCurrentBookings() {
     const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000)
 
     // 1. Fetch bookings for today
-    //    ΓÇó Active bookings show if end_time is within the last 1 hour (manager can still end them)
-    //    ΓÇó Non-active bookings show only if end_time is still in the future
+    //    - Active bookings show if end_time is within the last 1 hour (manager can still end them)
+    //    - Non-active bookings show only if end_time is still in the future
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
     const { data: bookings, error } = await supabase
         .from('bookings')
@@ -336,7 +336,7 @@ export async function rejectWithReason(
     return { success: true }
 }
 
-// ΓöÇΓöÇΓöÇ Helper: free equipment for a booking ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- Helper: free equipment for a booking ------------------------------------
 async function freeBookingEquipment(supabase: any, bookingId: string) {
     const { data: booking } = await supabase
         .from('bookings')
@@ -354,7 +354,7 @@ async function freeBookingEquipment(supabase: any, bookingId: string) {
     return equipmentIds
 }
 
-// ΓöÇΓöÇΓöÇ Emergency End Session ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- Emergency End Session ----------------------------------------------------
 export async function emergencyEndSession(bookingId: string, reason: string) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -388,7 +388,7 @@ export async function emergencyEndSession(bookingId: string, reason: string) {
     return { success: true }
 }
 
-// ΓöÇΓöÇΓöÇ Update Equipment Conditions ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- Update Equipment Conditions ----------------------------------------------
 // (Usage count increment is handled inside endSession for correctness)
 export async function updateEquipmentConditions(
     conditions: { id: string; condition: 'good' | 'minor_damage' | 'damaged' }[]
@@ -407,7 +407,7 @@ export async function updateEquipmentConditions(
     return { success: true }
 }
 
-// ΓöÇΓöÇΓöÇ Report Lost Equipment ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- Report Lost Equipment ----------------------------------------------------
 export async function reportLostEquipment(
     bookingId: string,
     equipmentIds: string[],
@@ -490,7 +490,7 @@ export async function reportLostEquipment(
     return { success: true, impactedBookingsCount: impactedBookings.length }
 }
 
-// ΓöÇΓöÇΓöÇ Report Student Post-Session ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- Report Student Post-Session ----------------------------------------------
 export async function reportStudentPostSession(
     bookingId: string,
     studentId: string,
@@ -512,7 +512,7 @@ export async function reportStudentPostSession(
     return { success: true }
 }
 
-// ΓöÇΓöÇΓöÇ End Session (normal end) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- End Session (normal end) -------------------------------------------------
 export async function endSession(
     bookingId: string,
     equipmentConditions: { id: string; condition: 'good' | 'minor_damage' | 'damaged' }[]

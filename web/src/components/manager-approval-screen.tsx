@@ -15,7 +15,7 @@ import {
 } from '@/actions/manager'
 import { useRouter } from 'next/navigation'
 
-// ΓöÇΓöÇΓöÇ Types ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- Types --------------------------------------------------------------------
 interface Player {
     id: string
     full_name: string
@@ -45,7 +45,7 @@ interface BookingDetails {
     all_players: Player[]
 }
 
-// ΓöÇΓöÇΓöÇ Helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- Helpers ------------------------------------------------------------------
 function fmt(seconds: number) {
     const abs = Math.abs(seconds)
     const h = Math.floor(abs / 3600)
@@ -55,7 +55,7 @@ function fmt(seconds: number) {
     return `${m}:${s}`
 }
 
-// ΓöÇΓöÇΓöÇ SCREEN: Active Session (big timer + emergency) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- SCREEN: Active Session (big timer + emergency) ---------------------------
 function ActiveSessionScreen({ booking, onTimerEnd }: { booking: BookingDetails; onTimerEnd: () => void }) {
     const [secondsLeft, setSecondsLeft] = useState(0)
     const [emergencyOpen, setEmergencyOpen] = useState(false)
@@ -166,7 +166,7 @@ function ActiveSessionScreen({ booking, onTimerEnd }: { booking: BookingDetails;
                     <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-3">
                         <div className="flex items-center gap-2 text-red-700 font-bold">
                             <Zap className="w-4 h-4" />
-                            Emergency Stop ΓÇö Reason Required
+                            Emergency Stop - Reason Required
                         </div>
                         <textarea
                             className="w-full border border-red-200 rounded-lg p-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
@@ -187,7 +187,7 @@ function ActiveSessionScreen({ booking, onTimerEnd }: { booking: BookingDetails;
                                 disabled={!emergencyReason.trim() || loading}
                                 className="flex-1 py-2.5 bg-red-600 disabled:opacity-50 text-white rounded-lg text-sm font-bold"
                             >
-                                {loading ? 'StoppingΓÇª' : 'Confirm Emergency Stop'}
+                                {loading ? 'Stopping...' : 'Confirm Emergency Stop'}
                             </button>
                         </div>
                     </div>
@@ -197,7 +197,7 @@ function ActiveSessionScreen({ booking, onTimerEnd }: { booking: BookingDetails;
     )
 }
 
-// ΓöÇΓöÇΓöÇ SCREEN: Post-Session ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- SCREEN: Post-Session -----------------------------------------------------
 function PostSessionScreen({ booking }: { booking: BookingDetails }) {
     const router = useRouter()
     const [equipConds, setEquipConds] = useState<Record<string, 'good' | 'minor_damage' | 'damaged' | 'lost'>>(
@@ -274,7 +274,7 @@ function PostSessionScreen({ booking }: { booking: BookingDetails }) {
             <div className="mx-4 mt-4 bg-white rounded-xl border p-4 flex items-center gap-2 text-gray-500">
                 <CheckCircle className="w-4 h-4 text-green-600" />
                 <span className="text-sm">
-                    Session completed ┬╖ {format(new Date(booking.start_time), 'h:mm a')} ΓÇô {format(new Date(booking.end_time), 'h:mm a')}
+                    Session completed ┬╖ {format(new Date(booking.start_time), 'h:mm a')} - {format(new Date(booking.end_time), 'h:mm a')}
                 </span>
             </div>
 
@@ -375,7 +375,7 @@ function PostSessionScreen({ booking }: { booking: BookingDetails }) {
                     disabled={loading}
                     className="w-full py-4 bg-[#004d40] hover:bg-[#00695c] disabled:opacity-60 text-white rounded-xl font-bold text-base transition"
                 >
-                    {loading ? 'Ending SessionΓÇª' : 'End Session'}
+                    {loading ? 'Ending Session...' : 'End Session'}
                 </button>
             </div>
 
@@ -462,7 +462,7 @@ function PostSessionScreen({ booking }: { booking: BookingDetails }) {
     )
 }
 
-// ΓöÇΓöÇΓöÇ MAIN EXPORT ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// --- MAIN EXPORT --------------------------------------------------------------
 export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) {
     const router = useRouter()
     const [currentTime, setCurrentTime] = useState(new Date())
@@ -515,7 +515,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
         return <PostSessionScreen booking={booking} />
     }
 
-    // ΓöÇΓöÇ REJECT_REASONS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // -- REJECT_REASONS ------------------------------------------------------
     const REJECT_REASONS = [
         { value: 'students_late', label: 'Students arrived late' },
         { value: 'inappropriate_behaviour', label: 'Inappropriate behaviour' },
@@ -572,7 +572,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
         )
     }
 
-    // ΓöÇΓöÇ CANCELLED/REJECTED ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // -- CANCELLED/REJECTED --------------------------------------------------
     if (booking.status === 'cancelled' || booking.status === 'rejected') {
         return (
             <div className="min-h-screen bg-gray-50">
@@ -594,7 +594,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
         )
     }
 
-    // ΓöÇΓöÇ PENDING APPROVAL ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    // -- PENDING APPROVAL ----------------------------------------------------
     return (
         <div className="min-h-screen bg-gray-50 pb-8">
             {/* Header */}
@@ -752,7 +752,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
                                 onClick={handleReject}
                                 disabled={!rejectReason || loading}
                                 className="flex-1 py-3 bg-red-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold">
-                                {loading ? 'ProcessingΓÇª' : 'Confirm Reject'}
+                                {loading ? 'Processing...' : 'Confirm Reject'}
                             </button>
                         </div>
                     </div>
