@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { LayoutDashboard, CheckSquare, ClipboardList, UserCog } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { SignOutButton } from '@/components/sign-out-button'
 
 export function ManagerNav() {
     const pathname = usePathname()
@@ -34,6 +35,7 @@ export function ManagerNav() {
                         </Link>
                     )
                 })}
+                <SignOutButton variant="mobile" />
             </div>
 
             {/* Desktop Sidebar */}
@@ -57,6 +59,9 @@ export function ManagerNav() {
                         </Link>
                     )
                 })}
+                <div className="mt-auto">
+                    <SignOutButton variant="desktop" />
+                </div>
             </div>
         </nav>
     )

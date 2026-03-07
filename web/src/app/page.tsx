@@ -34,16 +34,28 @@ export default async function Home() {
     // If we are here, profile might be missing (e.g. sign up didn't run trigger/action correctly)
     if (!profile) {
       console.log('Home Page Debug: Profile missing, creating default student profile...')
-      const { error } = await supabase.from('profiles').insert({
+
+      const { createAdminClient } = await import('@/utils/supabase/admin')
+      const supabaseAdmin = createAdminClient()
+
+      // Try getting role from metadata
+      const role = user.user_metadata?.role || 'student'
+
+      const { error } = await supabaseAdmin.from('profiles').upsert({
         id: user.id,
         email: user.email,
-        full_name: 'New Student',
-        role: 'student'
-      })
+        full_name: user.user_metadata?.full_name || 'New User',
+        role: role as 'student' | 'manager' | 'admin',
+        avatar_url: user.user_metadata?.avatar_url
+      }, { onConflict: 'id' })
+
       if (!error) {
-        redirect('/student')
+        console.log('Home Page Debug: Created/Updated profile, redirecting...')
+        if (role === 'student') redirect('/student')
+        if (role === 'manager') redirect('/manager')
+        if (role === 'admin') redirect('/admin')
       } else {
-        console.error('Home Page Debug: Failed to create profile', error)
+        console.error('Home Page Debug: Error creating profile:', error)
       }
     }
   }

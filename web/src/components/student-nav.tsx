@@ -1,9 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { Home, CalendarPlus, History, User } from 'lucide-react'
+import { Home, CalendarPlus, History, User, Trophy } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { SignOutButton } from '@/components/sign-out-button'
 
 export function StudentNav() {
     const pathname = usePathname()
@@ -12,6 +13,7 @@ export function StudentNav() {
         { href: '/student', label: 'Home', icon: Home },
         { href: '/student/book', label: 'Book', icon: CalendarPlus },
         { href: '/student/reservations', label: 'Reservations', icon: History },
+        { href: '/student/leaderboard', label: 'Leaderboard', icon: Trophy },
         { href: '/student/profile', label: 'Profile', icon: User },
     ]
 
@@ -34,6 +36,7 @@ export function StudentNav() {
                         </Link>
                     )
                 })}
+                <SignOutButton variant="mobile" className="text-gray-500 hover:text-gray-900" />
             </div>
             {/* Desktop View Placeholder - We focus on Mobile First */}
             <div className="hidden md:flex flex-col space-y-4 fixed left-0 top-0 bottom-0 w-64 bg-white border-r p-4">
@@ -56,6 +59,9 @@ export function StudentNav() {
                         </Link>
                     )
                 })}
+                <div className="mt-auto">
+                    <SignOutButton variant="desktop" className="text-gray-600 hover:bg-gray-50" />
+                </div>
             </div>
         </nav>
     )

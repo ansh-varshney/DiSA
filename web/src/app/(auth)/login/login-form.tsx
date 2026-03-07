@@ -28,7 +28,7 @@ export function LoginForm() {
 
     const handleGoogleLogin = async () => {
         startTransition(async () => {
-            await loginWithGoogle()
+            await loginWithGoogle(role)
         })
     }
 

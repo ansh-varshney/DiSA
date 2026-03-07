@@ -3,16 +3,16 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
-import { startOfDay, endOfDay } from 'date-fns'
+
 
 export async function getCurrentBookings() {
     const supabase = await createClient()
     const now = new Date()
-    const endOfToday = endOfDay(now)
+    const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000)
 
     // 1. Fetch bookings for today
-    //    • Active bookings show if end_time is within the last 1 hour (manager can still end them)
-    //    • Non-active bookings show only if end_time is still in the future
+    //    - Active bookings show if end_time is within the last 1 hour (manager can still end them)
+    //    - Non-active bookings show only if end_time is still in the future
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
     const { data: bookings, error } = await supabase
         .from('bookings')
@@ -22,7 +22,7 @@ export async function getCurrentBookings() {
             courts (name, sport)
         `)
         .in('status', ['pending_confirmation', 'confirmed', 'waiting_manager', 'active'])
-        .lte('start_time', endOfToday.toISOString())
+        .lte('start_time', next24h.toISOString())
         .or(`and(status.eq.active,end_time.gte.${oneHourAgo.toISOString()}),end_time.gte.${now.toISOString()}`)
         .order('start_time', { ascending: true })
 
@@ -239,7 +239,12 @@ export async function getBookingDetails(bookingId: string) {
         is_booker: true
     })
 
-    const playerIds = Array.isArray(booking.players_list) ? booking.players_list : []
+    const rawPlayersList = Array.isArray(booking.players_list) ? booking.players_list : []
+
+    // Handle both formats: array of UUID strings OR array of {id, full_name, ...} objects
+    const playerIds = rawPlayersList.map((entry: any) =>
+        typeof entry === 'string' ? entry : entry?.id
+    ).filter(Boolean)
 
     // Filter out the booker ID if it happens to be in the list to avoid duplicates
     const additionalPlayerIds = playerIds.filter((id: string) => id !== booking.profiles.id)
@@ -547,5 +552,58 @@ export async function endSession(
     revalidatePath('/manager')
     revalidatePath('/admin/reservations')
     revalidatePath('/student')
+    return { success: true }
+}
+
+// ─── Expire Booking (10-min timeout) ──────────────────────────────────────────
+// Called from manager-approval-screen when booking isn't accepted within 10 mins.
+// Cancels booking, frees equipment, issues violations to all players.
+export async function expireBooking(bookingId: string, playerIds: string[]) {
+    const supabase = await createClient()
+
+    // 1. Check booking is still pending (avoid duplicate calls)
+    const { data: booking } = await supabase
+        .from('bookings')
+        .select('status')
+        .eq('id', bookingId)
+        .single()
+
+    if (!booking || ['cancelled', 'rejected', 'completed', 'active'].includes(booking.status)) {
+        return { already_handled: true }
+    }
+
+    // 2. Free equipment
+    await freeBookingEquipment(supabase, bookingId)
+
+    // 3. Cancel the booking
+    await supabase
+        .from('bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', bookingId)
+
+    // 4. Issue violations to all involved students (filter out non-students)
+    if (playerIds.length > 0) {
+        // Fetch roles to skip admins/managers
+        const { data: players } = await supabase
+            .from('profiles')
+            .select('id, role')
+            .in('id', playerIds)
+        const studentIds = players?.filter(p => p.role === 'student').map(p => p.id) || []
+
+        if (studentIds.length > 0) {
+            const violations = studentIds.map(studentId => ({
+                student_id: studentId,
+                booking_id: bookingId,
+                violation_type: 'booking_timeout',
+                severity: 'minor',
+                reason: 'Booking was not approved within 10 minutes of start time and was auto-cancelled.',
+            }))
+            await supabase.from('student_violations').insert(violations)
+        }
+    }
+
+    revalidatePath('/manager')
+    revalidatePath('/admin/defaulters')
+    revalidatePath('/student/profile')
     return { success: true }
 }

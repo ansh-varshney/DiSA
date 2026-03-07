@@ -1,55 +1,49 @@
-import { createClient } from '@/utils/supabase/server'
+﻿import { getCurrentBookings } from '@/actions/manager'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
-import { Timer, StopCircle } from 'lucide-react'
+import Link from 'next/link'
+import { Timer, ChevronRight } from 'lucide-react'
 
 export default async function ActiveSessionsPage() {
-    const supabase = await createClient()
-    const { data: activeBookings } = await supabase
-        .from('bookings')
-        .select(`
-            *,
-            profiles:user_id (full_name),
-            courts (name)
-        `)
-        .eq('status', 'confirmed') // Confirmed bookings that haven't ended yet
-        // In real app we also check valid time window
-        .order('start_time', { ascending: true })
+    const allBookings = await getCurrentBookings()
+    const activeBookings = allBookings.filter((b: any) => b.status === 'active')
 
     return (
-        <div className="p-4 md:p-8 space-y-6">
-            <h1 className="text-2xl font-bold text-gray-900">Active Sessions</h1>
+        <div className="p-4 space-y-4">
+            <h1 className="text-xl font-bold text-gray-900">Active Sessions</h1>
+            <p className="text-sm text-gray-500 -mt-2">Sessions currently in progress</p>
 
-            <div className="space-y-4">
-                {activeBookings?.length === 0 ? (
-                    <p className="text-gray-500">No active sessions right now.</p>
-                ) : (
-                    activeBookings?.map((booking: any) => (
-                        <Card key={booking.id} className="border-l-4 border-l-green-500">
-                            <CardContent className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                                <div>
-                                    <h3 className="font-bold text-lg">{booking.courts.name}</h3>
-                                    <p className="text-gray-600 text-sm">
-                                        {format(new Date(booking.start_time), 'h:mm a')} - {format(new Date(booking.end_time), 'h:mm a')}
-                                    </p>
-                                    <div className="mt-2 flex items-center gap-2">
-                                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                        <span className="font-medium">{booking.profiles.full_name}</span>
+            {activeBookings.length === 0 ? (
+                <div className="p-8 text-center text-gray-400 border-2 border-dashed rounded-xl">
+                    <Timer className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                    No active sessions right now.
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {activeBookings.map((booking: any) => (
+                        <Link
+                            key={booking.id}
+                            href={`/manager/approvals/${booking.id}`}
+                        >
+                            <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-green-500 mb-3">
+                                <CardContent className="p-4 flex items-center justify-between">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                            <h3 className="font-bold text-gray-900">{booking.courts?.name}</h3>
+                                        </div>
+                                        <p className="text-sm text-gray-600">
+                                            {format(new Date(booking.start_time), 'h:mm a')} – {format(new Date(booking.end_time), 'h:mm a')}
+                                        </p>
+                                        <p className="text-xs text-gray-500 mt-1">{booking.profiles?.full_name}</p>
                                     </div>
-                                </div>
-
-                                <div className="flex gap-2">
-                                    <Button variant="destructive">
-                                        <StopCircle className="w-4 h-4 mr-2" />
-                                        End Session
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))
-                )}
-            </div>
+                                    <ChevronRight className="w-5 h-5 text-gray-400 shrink-0" />
+                                </CardContent>
+                            </Card>
+                        </Link>
+                    ))}
+                </div>
+            )}
         </div>
     )
 }

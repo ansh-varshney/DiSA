@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { differenceInSeconds, format } from 'date-fns'
 import { Phone, AlertTriangle, CheckCircle, Clock, Zap, Package, Flag, ChevronDown, ArrowLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -11,10 +11,11 @@ import {
     endSession,
     reportLostEquipment,
     reportStudentPostSession,
+    expireBooking,
 } from '@/actions/manager'
 import { useRouter } from 'next/navigation'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types ──────────────────────────────────────────────────────────────────--
 interface Player {
     id: string
     full_name: string
@@ -44,14 +45,17 @@ interface BookingDetails {
     all_players: Player[]
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// --- Helpers ------------------------------------------------------------------
 function fmt(seconds: number) {
-    const m = Math.floor(Math.abs(seconds) / 60).toString().padStart(2, '0')
-    const s = (Math.abs(seconds) % 60).toString().padStart(2, '0')
+    const abs = Math.abs(seconds)
+    const h = Math.floor(abs / 3600)
+    const m = Math.floor((abs % 3600) / 60).toString().padStart(2, '0')
+    const s = (abs % 60).toString().padStart(2, '0')
+    if (h > 0) return `${h}h ${m}m ${s}s`
     return `${m}:${s}`
 }
 
-// ─── SCREEN: Active Session (big timer + emergency) ───────────────────────────
+// --- SCREEN: Active Session (big timer + emergency) ---------------------------
 function ActiveSessionScreen({ booking, onTimerEnd }: { booking: BookingDetails; onTimerEnd: () => void }) {
     const [secondsLeft, setSecondsLeft] = useState(0)
     const [emergencyOpen, setEmergencyOpen] = useState(false)
@@ -162,7 +166,7 @@ function ActiveSessionScreen({ booking, onTimerEnd }: { booking: BookingDetails;
                     <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-3">
                         <div className="flex items-center gap-2 text-red-700 font-bold">
                             <Zap className="w-4 h-4" />
-                            Emergency Stop — Reason Required
+                            Emergency Stop - Reason Required
                         </div>
                         <textarea
                             className="w-full border border-red-200 rounded-lg p-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
@@ -183,7 +187,7 @@ function ActiveSessionScreen({ booking, onTimerEnd }: { booking: BookingDetails;
                                 disabled={!emergencyReason.trim() || loading}
                                 className="flex-1 py-2.5 bg-red-600 disabled:opacity-50 text-white rounded-lg text-sm font-bold"
                             >
-                                {loading ? 'Stopping…' : 'Confirm Emergency Stop'}
+                                {loading ? 'Stopping...' : 'Confirm Emergency Stop'}
                             </button>
                         </div>
                     </div>
@@ -193,7 +197,7 @@ function ActiveSessionScreen({ booking, onTimerEnd }: { booking: BookingDetails;
     )
 }
 
-// ─── SCREEN: Post-Session ─────────────────────────────────────────────────────
+// --- SCREEN: Post-Session -----------------------------------------------------
 function PostSessionScreen({ booking }: { booking: BookingDetails }) {
     const router = useRouter()
     const [equipConds, setEquipConds] = useState<Record<string, 'good' | 'minor_damage' | 'damaged' | 'lost'>>(
@@ -270,7 +274,7 @@ function PostSessionScreen({ booking }: { booking: BookingDetails }) {
             <div className="mx-4 mt-4 bg-white rounded-xl border p-4 flex items-center gap-2 text-gray-500">
                 <CheckCircle className="w-4 h-4 text-green-600" />
                 <span className="text-sm">
-                    Session completed · {format(new Date(booking.start_time), 'h:mm a')} – {format(new Date(booking.end_time), 'h:mm a')}
+                    Session completed ┬╖ {format(new Date(booking.start_time), 'h:mm a')} - {format(new Date(booking.end_time), 'h:mm a')}
                 </span>
             </div>
 
@@ -344,7 +348,7 @@ function PostSessionScreen({ booking }: { booking: BookingDetails }) {
                                 ))}
                             </div>
                             {equipConds[eq.id] === 'lost' && (
-                                <p className="text-xs text-red-600 mt-2 font-medium">⚠ Admin will be notified. This item will be removed from future bookings.</p>
+                                <p className="text-xs text-red-600 mt-2 font-medium">ΓÜá Admin will be notified. This item will be removed from future bookings.</p>
                             )}
                         </div>
                     ))}
@@ -371,7 +375,7 @@ function PostSessionScreen({ booking }: { booking: BookingDetails }) {
                     disabled={loading}
                     className="w-full py-4 bg-[#004d40] hover:bg-[#00695c] disabled:opacity-60 text-white rounded-xl font-bold text-base transition"
                 >
-                    {loading ? 'Ending Session…' : 'End Session'}
+                    {loading ? 'Ending Session...' : 'End Session'}
                 </button>
             </div>
 
@@ -458,7 +462,7 @@ function PostSessionScreen({ booking }: { booking: BookingDetails }) {
     )
 }
 
-// ─── MAIN EXPORT ──────────────────────────────────────────────────────────────
+// ─── MAIN EXPORT ────────────────────────────────────────────────────────────--
 export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) {
     const router = useRouter()
     const [currentTime, setCurrentTime] = useState(new Date())
@@ -485,6 +489,17 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
     const isExpired = !['active', 'completed', 'cancelled', 'rejected'].includes(booking.status) && secondsToExpiration < 0
     const canAccept = secondsToStart <= 0 && !isExpired && booking.status !== 'cancelled' && booking.status !== 'rejected'
 
+    // ── EXPIRED STATE: auto-cancel + issue violations ─────────────────────────
+    // IMPORTANT: hooks must be above ALL early returns
+    const expireCalledRef = useRef(false)
+    useEffect(() => {
+        if (isExpired && !expireCalledRef.current) {
+            expireCalledRef.current = true
+            const allPlayerIds = booking.all_players.map(p => p.id)
+            expireBooking(booking.id, allPlayerIds)
+        }
+    }, [isExpired, booking.id, booking.all_players])
+
     // Show active session screen
     if (sessionActive) {
         return (
@@ -500,7 +515,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
         return <PostSessionScreen booking={booking} />
     }
 
-    // ── REJECT_REASONS ──────────────────────────────────────────────────────
+    // -- REJECT_REASONS ------------------------------------------------------
     const REJECT_REASONS = [
         { value: 'students_late', label: 'Students arrived late' },
         { value: 'inappropriate_behaviour', label: 'Inappropriate behaviour' },
@@ -510,8 +525,19 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
 
     const handleAccept = async () => {
         setLoading(true)
-        await updateBookingStatus(booking.id, 'active')
-        setSessionActive(true)
+        try {
+            const result = await updateBookingStatus(booking.id, 'active')
+            if (result?.error) {
+                console.error('Accept error:', result.error)
+                alert('Error accepting: ' + result.error)
+                setLoading(false)
+                return
+            }
+            setSessionActive(true)
+        } catch (err) {
+            console.error('Accept error:', err)
+            alert('Something went wrong. Please try again.')
+        }
         setLoading(false)
     }
 
@@ -525,7 +551,6 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
 
     const isAdminBooking = booking.is_priority || booking.is_maintenance
 
-    // ── EXPIRED STATE ───────────────────────────────────────────────────────
     if (isExpired) {
         return (
             <div className="min-h-screen bg-gray-50">
@@ -536,7 +561,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
                 <div className="mx-4 mt-8 bg-white rounded-xl border border-red-100 p-6 text-center space-y-3">
                     <AlertTriangle className="w-10 h-10 text-red-500 mx-auto" />
                     <h2 className="font-bold text-gray-900">Booking Expired</h2>
-                    <p className="text-sm text-gray-600">This booking was not approved within 10 minutes of the start time and has been auto-cancelled. A penalty notice has been sent to all involved students.</p>
+                    <p className="text-sm text-gray-600">This booking was not approved within 10 minutes of the start time and has been auto-cancelled. A penalty has been issued to all involved students.</p>
                 </div>
                 <div className="mx-4 mt-4">
                     <button onClick={() => router.push('/manager')} className="w-full py-3 bg-[#004d40] text-white rounded-xl font-semibold">
@@ -547,7 +572,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
         )
     }
 
-    // ── CANCELLED/REJECTED ──────────────────────────────────────────────────
+    // -- CANCELLED/REJECTED --------------------------------------------------
     if (booking.status === 'cancelled' || booking.status === 'rejected') {
         return (
             <div className="min-h-screen bg-gray-50">
@@ -569,7 +594,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
         )
     }
 
-    // ── PENDING APPROVAL ────────────────────────────────────────────────────
+    // -- PENDING APPROVAL ----------------------------------------------------
     return (
         <div className="min-h-screen bg-gray-50 pb-8">
             {/* Header */}
@@ -583,7 +608,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
             <div className="mx-4 mt-4 bg-white rounded-xl border p-4 flex items-center gap-3">
                 <Clock className={cn('w-5 h-5', isUpcoming ? 'text-amber-500' : 'text-green-600')} />
                 <div>
-                    <p className="text-xs text-gray-500">{isUpcoming ? 'Session starts in' : 'Started — awaiting approval'}</p>
+                    <p className="text-xs text-gray-500">{isUpcoming ? 'Session starts in' : 'Started - awaiting approval'}</p>
                     {isUpcoming ? (
                         <p className="text-xl font-mono font-bold text-[#004d40]">{fmt(secondsToStart)}</p>
                     ) : (
@@ -601,7 +626,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
                     <div className="flex justify-between">
                         <span className="text-gray-500">Time</span>
                         <span className="font-medium text-gray-900">
-                            {format(startTime, 'h:mm a')} – {format(endTime, 'h:mm a')}
+                            {format(startTime, 'h:mm a')} - {format(endTime, 'h:mm a')}
                         </span>
                     </div>
                     <div className="flex justify-between">
@@ -673,7 +698,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
                             : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     )}
                 >
-                    {isUpcoming ? `Accept Play (starts in ${fmt(secondsToStart)})` : loading ? 'Starting…' : 'Accept Play'}
+                    {isUpcoming ? `Accept Play (starts in ${fmt(secondsToStart)})` : loading ? 'Starting...' : 'Accept Play'}
                 </button>
 
                 <button
@@ -727,7 +752,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
                                 onClick={handleReject}
                                 disabled={!rejectReason || loading}
                                 className="flex-1 py-3 bg-red-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold">
-                                {loading ? 'Processing…' : 'Confirm Reject'}
+                                {loading ? 'Processing...' : 'Confirm Reject'}
                             </button>
                         </div>
                     </div>

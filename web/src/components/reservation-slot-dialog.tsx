@@ -6,6 +6,7 @@ import { Button } from './ui/button'
 import { cancelReservation, priorityReserveSlot, reserveForMaintenance } from '@/actions/admin'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, Crown, Wrench, Minus, Plus, ChevronDown, Check, ArrowLeft, Users, Dumbbell } from 'lucide-react'
+import { getPlayerLimits } from '@/lib/sport-config'
 
 interface Equipment {
     id: string
@@ -285,26 +286,37 @@ export function ReservationSlotDialog({
                             <>
                                 {/* Number of Players */}
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium text-gray-700">Number of Players</label>
-                                    <div className="flex items-center gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setNumPlayers(Math.max(2, numPlayers - 1))}
-                                            disabled={numPlayers <= 2}
-                                            className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                        >
-                                            <Minus className="w-4 h-4 text-gray-700" />
-                                        </button>
-                                        <span className="text-lg font-bold text-gray-900 w-8 text-center">{numPlayers}</span>
-                                        <button
-                                            type="button"
-                                            onClick={() => setNumPlayers(numPlayers + 1)}
-                                            className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 transition-colors"
-                                        >
-                                            <Plus className="w-4 h-4 text-gray-700" />
-                                        </button>
-                                        <span className="text-xs text-gray-500 ml-1">(min. 2)</span>
-                                    </div>
+                                    {(() => {
+                                        const limits = getPlayerLimits(sport)
+                                        const atMax = limits.max ? numPlayers >= limits.max : false
+                                        return (
+                                            <>
+                                                <label className="text-sm font-medium text-gray-700">Number of Players</label>
+                                                <div className="flex items-center gap-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setNumPlayers(Math.max(2, numPlayers - 1))}
+                                                        disabled={numPlayers <= 2}
+                                                        className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                                    >
+                                                        <Minus className="w-4 h-4 text-gray-700" />
+                                                    </button>
+                                                    <span className="text-lg font-bold text-gray-900 w-8 text-center">{numPlayers}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => !atMax && setNumPlayers(numPlayers + 1)}
+                                                        disabled={atMax}
+                                                        className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                                    >
+                                                        <Plus className="w-4 h-4 text-gray-700" />
+                                                    </button>
+                                                    <span className="text-xs text-gray-500 ml-1">
+                                                        (min. {limits.min}{limits.max ? `, max. ${limits.max}` : ''})
+                                                    </span>
+                                                </div>
+                                            </>
+                                        )
+                                    })()}
                                 </div>
 
                                 {/* Equipment Selection */}

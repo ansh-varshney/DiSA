@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { SignOutButton } from '@/components/sign-out-button'
 
 export function AdminNav() {
     const pathname = usePathname()
@@ -50,6 +51,9 @@ export function AdminNav() {
                         </Link>
                     )
                 })}
+                <div className="min-w-[20%] flex justify-center">
+                    <SignOutButton variant="mobile" className="text-gray-500 hover:text-gray-900" />
+                </div>
             </div>
 
             {/* Desktop Sidebar */}
@@ -73,6 +77,9 @@ export function AdminNav() {
                         </Link>
                     )
                 })}
+                <div className="mt-auto pt-4">
+                    <SignOutButton variant="desktop" className="text-gray-600 hover:bg-gray-100" />
+                </div>
             </div>
         </nav>
     )
