@@ -6,7 +6,7 @@ import { useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { cancelBooking } from '@/actions/bookings'
+import { cancelBooking, withdrawFromBooking } from '@/actions/bookings'
 import {
     Clock, Calendar, CheckCircle, XCircle, AlertTriangle,
     Timer, Loader2, ChevronDown, ChevronUp
@@ -16,6 +16,7 @@ import { ActiveSessionView } from '@/components/active-session'
 
 interface Booking {
     id: string
+    user_id: string
     start_time: string
     end_time: string
     status: string
@@ -27,6 +28,7 @@ interface ReservationsListProps {
     current: Booking[]
     upcoming: Booking[]
     past: Booking[]
+    userId: string
 }
 
 const statusColors: Record<string, string> = {
@@ -38,9 +40,10 @@ const statusColors: Record<string, string> = {
     rejected: 'bg-red-100 text-red-700',
 }
 
-export function ReservationsList({ current, upcoming, past }: ReservationsListProps) {
+export function ReservationsList({ current, upcoming, past, userId }: ReservationsListProps) {
     const router = useRouter()
     const [cancellingId, setCancellingId] = useState<string | null>(null)
+    const [withdrawingId, setWithdrawingId] = useState<string | null>(null)
     const [showPast, setShowPast] = useState(false)
 
     const handleCancel = async (bookingId: string) => {
@@ -52,6 +55,18 @@ export function ReservationsList({ current, upcoming, past }: ReservationsListPr
             else router.refresh()
         } finally {
             setCancellingId(null)
+        }
+    }
+
+    const handleWithdraw = async (bookingId: string) => {
+        if (!confirm('Withdraw from this booking? The booking will continue without you.')) return
+        setWithdrawingId(bookingId)
+        try {
+            const result = await withdrawFromBooking(bookingId)
+            if (result.error) alert(result.error)
+            else router.refresh()
+        } finally {
+            setWithdrawingId(null)
         }
     }
 
@@ -103,22 +118,41 @@ export function ReservationsList({ current, upcoming, past }: ReservationsListPr
                                         {booking.status.replace('_', ' ')}
                                     </span>
                                     {['pending_confirmation', 'confirmed'].includes(booking.status) && (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="text-red-500 hover:text-red-700 hover:bg-red-50 text-xs"
-                                            onClick={() => handleCancel(booking.id)}
-                                            disabled={cancellingId === booking.id}
-                                        >
-                                            {cancellingId === booking.id ? (
-                                                <Loader2 className="w-3 h-3 animate-spin" />
-                                            ) : (
-                                                <>
-                                                    <XCircle className="w-3 h-3 mr-1" />
-                                                    Cancel
-                                                </>
-                                            )}
-                                        </Button>
+                                        booking.user_id === userId ? (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-red-500 hover:text-red-700 hover:bg-red-50 text-xs"
+                                                onClick={() => handleCancel(booking.id)}
+                                                disabled={cancellingId === booking.id}
+                                            >
+                                                {cancellingId === booking.id ? (
+                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                ) : (
+                                                    <>
+                                                        <XCircle className="w-3 h-3 mr-1" />
+                                                        Cancel
+                                                    </>
+                                                )}
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-orange-500 hover:text-orange-700 hover:bg-orange-50 text-xs"
+                                                onClick={() => handleWithdraw(booking.id)}
+                                                disabled={withdrawingId === booking.id}
+                                            >
+                                                {withdrawingId === booking.id ? (
+                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                ) : (
+                                                    <>
+                                                        <XCircle className="w-3 h-3 mr-1" />
+                                                        Withdraw
+                                                    </>
+                                                )}
+                                            </Button>
+                                        )
                                     )}
                                 </div>
                             </CardContent>

@@ -192,6 +192,56 @@ export async function cancelBooking(bookingId: string) {
     return { success: true }
 }
 
+export async function withdrawFromBooking(bookingId: string) {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'Unauthorized' }
+
+    // Fetch the booking
+    const { data: booking } = await supabase
+        .from('bookings')
+        .select('user_id, status, players_list, num_players')
+        .eq('id', bookingId)
+        .single()
+
+    if (!booking) return { error: 'Booking not found' }
+
+    // Can't withdraw if you're the booker — use cancel instead
+    if (booking.user_id === user.id) {
+        return { error: 'You are the booker. Use cancel instead.' }
+    }
+
+    // Can only withdraw from active/confirmed bookings
+    if (!['pending_confirmation', 'confirmed'].includes(booking.status)) {
+        return { error: 'Cannot withdraw from this booking' }
+    }
+
+    // Remove user from players_list
+    const playersList = Array.isArray(booking.players_list) ? booking.players_list : []
+    const updatedPlayersList = playersList.filter((p: any) => {
+        const playerId = typeof p === 'string' ? p : p?.id
+        return playerId !== user.id
+    })
+
+    const newNumPlayers = Math.max(1, (booking.num_players || 2) - 1)
+
+    const { error } = await supabase
+        .from('bookings')
+        .update({
+            players_list: updatedPlayersList,
+            num_players: newNumPlayers,
+        })
+        .eq('id', bookingId)
+
+    if (error) return { error: error.message }
+
+    revalidatePath('/student/reservations')
+    revalidatePath('/student')
+    revalidatePath('/student/book')
+    return { success: true }
+}
+
 export async function getStudentBookings(userId: string) {
     const supabase = await createClient()
     const now = new Date()

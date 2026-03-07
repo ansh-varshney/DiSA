@@ -22,6 +22,7 @@ export default async function ReservationsPage() {
                 current={current}
                 upcoming={upcoming}
                 past={past}
+                userId={user.id}
             />
         </div>
     )

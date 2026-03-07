@@ -86,6 +86,7 @@ ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 -- All authenticated users can view bookings (needed for booking grid + manager)
 CREATE POLICY "Authenticated users can view all bookings" ON public.bookings FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "Users can create bookings" ON public.bookings FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Authenticated users can update bookings" ON public.bookings FOR UPDATE USING (auth.role() = 'authenticated');
 
 
 -- Announcements Table
