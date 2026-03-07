@@ -83,8 +83,8 @@ CREATE TABLE public.bookings (
 );
 
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
--- Basic policies for bookings
-CREATE POLICY "Users can view their own bookings" ON public.bookings FOR SELECT USING (auth.uid() = user_id);
+-- All authenticated users can view bookings (needed for booking grid + manager)
+CREATE POLICY "Authenticated users can view all bookings" ON public.bookings FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "Users can create bookings" ON public.bookings FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 

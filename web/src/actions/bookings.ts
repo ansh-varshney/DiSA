@@ -196,7 +196,8 @@ export async function getStudentBookings(userId: string) {
     const supabase = await createClient()
     const now = new Date()
 
-    const { data, error } = await supabase
+    // 1. Bookings the student created
+    const { data: ownBookings, error: ownError } = await supabase
         .from('bookings')
         .select(`
             *,
@@ -205,23 +206,42 @@ export async function getStudentBookings(userId: string) {
         .eq('user_id', userId)
         .order('start_time', { ascending: false })
 
-    if (error) {
-        console.error('Error fetching student bookings:', error)
-        return { current: [], upcoming: [], past: [] }
-    }
+    // 2. Bookings where the student was added as a player
+    //    players_list is JSONB array of objects: [{id, full_name, ...}]
+    const { data: playerBookings, error: playerError } = await supabase
+        .from('bookings')
+        .select(`
+            *,
+            courts (name, sport)
+        `)
+        .neq('user_id', userId)
+        .contains('players_list', JSON.stringify([{ id: userId }]))
+        .order('start_time', { ascending: false })
 
-    const current = (data || []).filter((b: any) =>
+    if (ownError) console.error('Error fetching own bookings:', ownError)
+    if (playerError) console.error('Error fetching player bookings:', playerError)
+
+    // 3. Merge and deduplicate
+    const allBookings = [...(ownBookings || []), ...(playerBookings || [])]
+    const seen = new Set<string>()
+    const data = allBookings.filter(b => {
+        if (seen.has(b.id)) return false
+        seen.add(b.id)
+        return true
+    })
+
+    const current = data.filter((b: any) =>
         b.status === 'active' &&
         new Date(b.start_time) <= now &&
         new Date(b.end_time) >= now
     )
 
-    const upcoming = (data || []).filter((b: any) =>
+    const upcoming = data.filter((b: any) =>
         ['pending_confirmation', 'confirmed'].includes(b.status) &&
         new Date(b.end_time) > now
     )
 
-    const past = (data || []).filter((b: any) =>
+    const past = data.filter((b: any) =>
         b.status === 'completed' ||
         b.status === 'cancelled' ||
         b.status === 'rejected' ||
