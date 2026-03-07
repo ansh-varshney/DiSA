@@ -106,15 +106,17 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
     }, [selectedDate, selectedSport])
 
     // Fetch equipment when slot is selected
+    const selectedCourtId = selectedSlot?.courtId ?? null
     useEffect(() => {
-        if (selectedSlot && selectedSport) {
+        if (selectedCourtId && selectedSport) {
             setLoadingEquipment(true)
+            setAvailableEquipment([])
             getAvailableEquipment(selectedSport).then(eq => {
                 setAvailableEquipment(eq)
                 setLoadingEquipment(false)
-            })
+            }).catch(() => setLoadingEquipment(false))
         }
-    }, [selectedSlot?.courtId])
+    }, [selectedCourtId, selectedSport])
 
     // Debounced player search
     useEffect(() => {
@@ -418,7 +420,7 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
                                             value={playerSearch.trim()}
                                             onChange={(e) => setPlayerSearch(e.target.value)}
                                             placeholder="Search by name..."
-                                            className="w-full pl-8 pr-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                                            className="w-full pl-8 pr-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#004d40] placeholder:text-gray-400"
                                             autoFocus
                                         />
                                     </div>
@@ -444,11 +446,13 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
                         </div>
 
                         {/* Equipment */}
-                        {availableEquipment.length > 0 && (
-                            <div>
-                                <label className="flex items-center gap-1 text-xs font-bold text-gray-500 uppercase mb-1.5">
-                                    <Package className="w-3 h-3" /> Equipment
-                                </label>
+                        <div>
+                            <label className="flex items-center gap-1 text-xs font-bold text-gray-500 uppercase mb-1.5">
+                                <Package className="w-3 h-3" /> Equipment
+                            </label>
+                            {loadingEquipment ? (
+                                <p className="text-xs text-gray-400">Loading equipment...</p>
+                            ) : availableEquipment.length > 0 ? (
                                 <div className="flex flex-wrap gap-1.5">
                                     {availableEquipment.map(eq => (
                                         <button
@@ -467,8 +471,10 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
                                         </button>
                                     ))}
                                 </div>
-                            </div>
-                        )}
+                            ) : (
+                                <p className="text-xs text-gray-400">No equipment available</p>
+                            )}
+                        </div>
 
                         {/* Confirm Button */}
                         <button
