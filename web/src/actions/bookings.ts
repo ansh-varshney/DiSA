@@ -27,14 +27,14 @@ export async function getBookingsForDateRange(courtId: string, startDate: Date, 
     return data
 }
 
-export async function getAvailableEquipment(sport: string) {
+export async function getAvailableEquipment(sport: string, startTime?: string, endTime?: string) {
     const supabase = await createClient()
 
-    const { data, error } = await supabase
+    // 1. Get all equipment for this sport (not lost)
+    const { data: allEquipment, error } = await supabase
         .from('equipment')
-        .select('id, name, sport, condition')
+        .select('id, name, sport, condition, is_available')
         .ilike('sport', sport)
-        .eq('is_available', true)
         .neq('condition', 'lost')
         .order('name')
 
@@ -43,7 +43,32 @@ export async function getAvailableEquipment(sport: string) {
         return []
     }
 
-    return data || []
+    if (!allEquipment || allEquipment.length === 0) return []
+
+    // 2. If we have a time range, check which equipment is reserved by overlapping bookings
+    let reservedIds = new Set<string>()
+
+    if (startTime && endTime) {
+        const { data: overlappingBookings } = await supabase
+            .from('bookings')
+            .select('equipment_ids')
+            .neq('status', 'cancelled')
+            .neq('status', 'rejected')
+            .neq('status', 'completed')
+            .or(`and(start_time.lt.${endTime},end_time.gt.${startTime})`)
+
+        if (overlappingBookings) {
+            overlappingBookings.forEach(b => {
+                (b.equipment_ids || []).forEach((id: string) => reservedIds.add(id))
+            })
+        }
+    }
+
+    // 3. Return equipment with in_use flag
+    return allEquipment.map(eq => ({
+        ...eq,
+        in_use: reservedIds.has(eq.id) || !eq.is_available,
+    }))
 }
 
 export async function createBooking(prevState: any, formData: FormData) {

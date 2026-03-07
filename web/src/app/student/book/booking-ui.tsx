@@ -10,7 +10,7 @@ import React from 'react'
 
 type Court = { id: string; name: string; sport: string }
 type Booking = { id: string; court_id: string; start_time: string; end_time: string; status: string; user_id: string; profiles?: { full_name: string }; num_players?: number }
-type Equipment = { id: string; name: string; sport: string; condition: string }
+type Equipment = { id: string; name: string; sport: string; condition: string; in_use?: boolean }
 type Player = { id: string; full_name: string; student_id: string }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -107,16 +107,22 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
 
     // Fetch equipment when slot is selected
     const selectedCourtId = selectedSlot?.courtId ?? null
+    const selectedTime = selectedSlot?.time ?? null
     useEffect(() => {
-        if (selectedCourtId && selectedSport) {
+        if (selectedCourtId && selectedSport && selectedTime && selectedDate) {
             setLoadingEquipment(true)
             setAvailableEquipment([])
-            getAvailableEquipment(selectedSport).then(eq => {
+            // Compute start/end ISO for the selected slot + duration
+            const [h, m] = selectedTime.split(':').map(Number)
+            const start = new Date(selectedDate)
+            start.setHours(h, m, 0, 0)
+            const end = new Date(start.getTime() + duration * 60 * 1000)
+            getAvailableEquipment(selectedSport, start.toISOString(), end.toISOString()).then(eq => {
                 setAvailableEquipment(eq)
                 setLoadingEquipment(false)
             }).catch(() => setLoadingEquipment(false))
         }
-    }, [selectedCourtId, selectedSport])
+    }, [selectedCourtId, selectedSport, selectedTime, selectedDate, duration])
 
     // Debounced player search
     useEffect(() => {
@@ -457,17 +463,20 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
                                     {availableEquipment.map(eq => (
                                         <button
                                             key={eq.id}
-                                            onClick={() => setSelectedEquipment(prev =>
+                                            onClick={() => !eq.in_use && setSelectedEquipment(prev =>
                                                 prev.includes(eq.id) ? prev.filter(id => id !== eq.id) : [...prev, eq.id]
                                             )}
+                                            disabled={eq.in_use}
                                             className={cn(
                                                 "px-2.5 py-1 text-xs rounded-full border transition-all",
-                                                selectedEquipment.includes(eq.id)
-                                                    ? "bg-[#004d40] text-white border-[#004d40]"
-                                                    : "bg-white text-gray-600 border-gray-200"
+                                                eq.in_use
+                                                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                                    : selectedEquipment.includes(eq.id)
+                                                        ? "bg-[#004d40] text-white border-[#004d40]"
+                                                        : "bg-white text-gray-600 border-gray-200 hover:border-[#004d40]"
                                             )}
                                         >
-                                            {eq.name} {selectedEquipment.includes(eq.id) && '✓'}
+                                            {eq.name} {eq.in_use ? '(In Use)' : selectedEquipment.includes(eq.id) && '✓'}
                                         </button>
                                     ))}
                                 </div>
