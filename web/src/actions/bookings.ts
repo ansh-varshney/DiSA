@@ -239,6 +239,8 @@ export async function withdrawFromBooking(bookingId: string) {
     revalidatePath('/student/reservations')
     revalidatePath('/student')
     revalidatePath('/student/book')
+    revalidatePath('/manager')
+    revalidatePath('/admin/reservations')
     return { success: true }
 }
 
