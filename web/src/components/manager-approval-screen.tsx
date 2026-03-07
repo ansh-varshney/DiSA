@@ -489,6 +489,17 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
     const isExpired = !['active', 'completed', 'cancelled', 'rejected'].includes(booking.status) && secondsToExpiration < 0
     const canAccept = secondsToStart <= 0 && !isExpired && booking.status !== 'cancelled' && booking.status !== 'rejected'
 
+    // ── EXPIRED STATE: auto-cancel + issue violations ─────────────────────────
+    // IMPORTANT: hooks must be above ALL early returns
+    const expireCalledRef = useRef(false)
+    useEffect(() => {
+        if (isExpired && !expireCalledRef.current) {
+            expireCalledRef.current = true
+            const allPlayerIds = booking.all_players.map(p => p.id)
+            expireBooking(booking.id, allPlayerIds)
+        }
+    }, [isExpired, booking.id, booking.all_players])
+
     // Show active session screen
     if (sessionActive) {
         return (
@@ -539,16 +550,6 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
     }
 
     const isAdminBooking = booking.is_priority || booking.is_maintenance
-
-    // ── EXPIRED STATE: auto-cancel + issue violations ─────────────────────────
-    const expireCalledRef = useRef(false)
-    useEffect(() => {
-        if (isExpired && !expireCalledRef.current) {
-            expireCalledRef.current = true
-            const allPlayerIds = booking.all_players.map(p => p.id)
-            expireBooking(booking.id, allPlayerIds)
-        }
-    }, [isExpired, booking.id, booking.all_players])
 
     if (isExpired) {
         return (
