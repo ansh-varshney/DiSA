@@ -15,7 +15,7 @@ import {
 } from '@/actions/manager'
 import { useRouter } from 'next/navigation'
 
-// --- Types --------------------------------------------------------------------
+// ─── Types ──────────────────────────────────────────────────────────────────--
 interface Player {
     id: string
     full_name: string
@@ -462,7 +462,7 @@ function PostSessionScreen({ booking }: { booking: BookingDetails }) {
     )
 }
 
-// --- MAIN EXPORT --------------------------------------------------------------
+// ─── MAIN EXPORT ────────────────────────────────────────────────────────────--
 export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) {
     const router = useRouter()
     const [currentTime, setCurrentTime] = useState(new Date())

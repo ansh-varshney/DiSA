@@ -336,7 +336,7 @@ export async function rejectWithReason(
     return { success: true }
 }
 
-// --- Helper: free equipment for a booking ------------------------------------
+// ─── Helper: free equipment for a booking ────────────────────────────────────
 async function freeBookingEquipment(supabase: any, bookingId: string) {
     const { data: booking } = await supabase
         .from('bookings')
@@ -354,7 +354,7 @@ async function freeBookingEquipment(supabase: any, bookingId: string) {
     return equipmentIds
 }
 
-// --- Emergency End Session ----------------------------------------------------
+// ─── Emergency End Session ────────────────────────────────────────────────────
 export async function emergencyEndSession(bookingId: string, reason: string) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -388,7 +388,7 @@ export async function emergencyEndSession(bookingId: string, reason: string) {
     return { success: true }
 }
 
-// --- Update Equipment Conditions ----------------------------------------------
+// ─── Update Equipment Conditions ──────────────────────────────────────────────
 // (Usage count increment is handled inside endSession for correctness)
 export async function updateEquipmentConditions(
     conditions: { id: string; condition: 'good' | 'minor_damage' | 'damaged' }[]
@@ -407,7 +407,7 @@ export async function updateEquipmentConditions(
     return { success: true }
 }
 
-// --- Report Lost Equipment ----------------------------------------------------
+// ─── Report Lost Equipment ────────────────────────────────────────────────────
 export async function reportLostEquipment(
     bookingId: string,
     equipmentIds: string[],
@@ -490,7 +490,7 @@ export async function reportLostEquipment(
     return { success: true, impactedBookingsCount: impactedBookings.length }
 }
 
-// --- Report Student Post-Session ----------------------------------------------
+// ─── Report Student Post-Session ──────────────────────────────────────────────
 export async function reportStudentPostSession(
     bookingId: string,
     studentId: string,
@@ -512,7 +512,7 @@ export async function reportStudentPostSession(
     return { success: true }
 }
 
-// --- End Session (normal end) -------------------------------------------------
+// ─── End Session (normal end) ─────────────────────────────────────────────────
 export async function endSession(
     bookingId: string,
     equipmentConditions: { id: string; condition: 'good' | 'minor_damage' | 'damaged' }[]
