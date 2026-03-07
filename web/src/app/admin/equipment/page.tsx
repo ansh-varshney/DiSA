@@ -115,7 +115,13 @@ export default async function EquipmentManagement({ searchParams }: { searchPara
                                                     {item.cost ? `₹${item.cost.toFixed(2)}` : '-'}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <span className="text-gray-500 text-sm">N/A</span>
+                                                    {(item.condition === 'damaged' || item.condition === 'lost') ? (
+                                                        <span className="inline-flex items-center px-2 py-1 bg-red-50 text-red-700 rounded text-sm font-medium">
+                                                            {item.total_usage_count || 0} uses
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-gray-500 text-sm">Active</span>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>
                                                     {item.pictures && item.pictures.length > 0 ? (

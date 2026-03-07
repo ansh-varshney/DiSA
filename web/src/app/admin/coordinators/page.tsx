@@ -4,9 +4,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button'
 import { Plus, Mail, Phone } from 'lucide-react'
 import { CoordinatorForm } from '@/components/coordinator-form'
+import { SportFilter } from '@/components/sport-filter'
 
-export default async function CoordinatorsManagement({ searchParams }: { searchParams: { sport?: string } }) {
-    const sport = searchParams.sport || 'all'
+export default async function CoordinatorsManagement({ searchParams }: { searchParams: Promise<{ sport?: string }> }) {
+    const params = await searchParams
+    const sport = params.sport || 'all'
     const coordinators = await getCoordinators(sport)
 
     return (
@@ -25,23 +27,7 @@ export default async function CoordinatorsManagement({ searchParams }: { searchP
             </header>
 
             {/* Filters */}
-            <div className="flex items-center gap-3">
-                <label htmlFor="sport-filter" className="text-sm font-medium text-gray-700">
-                    Filter by Sport:
-                </label>
-                <select
-                    id="sport-filter"
-                    defaultValue={sport}
-                    onChange={(e) => window.location.href = `/admin/coordinators?sport=${e.target.value}`}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#004d40] focus:border-transparent"
-                >
-                    <option value="all">All Sports</option>
-                    <option value="badminton">Badminton</option>
-                    <option value="tennis">Tennis</option>
-                    <option value="basketball">Basketball</option>
-                    <option value="football">Football</option>
-                </select>
-            </div>
+            <SportFilter />
 
             {/* Coordinators Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

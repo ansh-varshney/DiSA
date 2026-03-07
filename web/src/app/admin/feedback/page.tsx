@@ -6,11 +6,22 @@ import { FeedbackActions } from '@/components/feedback-actions'
 import { StatusFilter } from '@/components/status-filter'
 import { format } from 'date-fns'
 
-export default async function FeedbackManagement({ searchParams }: { searchParams: { status?: string } }) {
-    const statusFilter = searchParams.status || 'all'
-    const feedback = await getFeedback(statusFilter)
+const CATEGORY_LABELS: Record<string, { label: string; emoji: string; color: string }> = {
+    general: { label: 'General', emoji: '💬', color: 'bg-gray-100 text-gray-700' },
+    emergency_by_manager: { label: 'Emergency (Manager)', emoji: '🚨', color: 'bg-red-100 text-red-700' },
+}
 
-    const statusVariants: Record<string, "info" | "warning" | "success" | "danger"> = {
+export default async function FeedbackManagement({
+    searchParams
+}: {
+    searchParams: Promise<{ status?: string; category?: string }>
+}) {
+    const { status, category } = await searchParams
+    const statusFilter = status || 'all'
+    const categoryFilter = category || 'all'
+    const feedback = await getFeedback(statusFilter, categoryFilter)
+
+    const statusVariants: Record<string, 'info' | 'warning' | 'success' | 'danger'> = {
         open: 'danger',
         in_progress: 'warning',
         resolved: 'success'
@@ -20,16 +31,28 @@ export default async function FeedbackManagement({ searchParams }: { searchParam
         <div className="p-6 space-y-6">
             <header>
                 <h1 className="text-2xl font-bold text-gray-900">Feedback & Complaints</h1>
-                <p className="text-gray-500 text-sm">Monitor and resolve student feedback</p>
+                <p className="text-gray-500 text-sm">Monitor and resolve student feedback and manager reports</p>
             </header>
 
             {/* Filters */}
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4 justify-between">
                 <StatusFilter />
+                <span className="text-sm text-gray-500">
+                    Total: <strong>{feedback.length}</strong>
+                </span>
+            </div>
 
-                <div className="ml-auto flex gap-2 text-sm">
-                    <span className="text-gray-600">Total: <strong>{feedback.length}</strong></span>
-                </div>
+            {/* Summary Pills */}
+            <div className="flex flex-wrap gap-3">
+                {Object.entries(CATEGORY_LABELS).map(([key, { label, emoji, color }]) => (
+                    <a
+                        key={key}
+                        href={`/admin/feedback?category=${key}`}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold ${color} hover:opacity-80 transition`}
+                    >
+                        {emoji} {label}
+                    </a>
+                ))}
             </div>
 
             {/* Feedback Table */}
@@ -46,42 +69,51 @@ export default async function FeedbackManagement({ searchParams }: { searchParam
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="text-gray-900 font-semibold">Student</TableHead>
+                                    <TableHead className="text-gray-900 font-semibold">Category</TableHead>
+                                    <TableHead className="text-gray-900 font-semibold">Filed By</TableHead>
                                     <TableHead className="text-gray-900 font-semibold">Title</TableHead>
-                                    <TableHead className="w-96 text-gray-900 font-semibold">Description</TableHead>
+                                    <TableHead className="w-80 text-gray-900 font-semibold">Description</TableHead>
                                     <TableHead className="text-gray-900 font-semibold">Status</TableHead>
                                     <TableHead className="text-gray-900 font-semibold">Date</TableHead>
                                     <TableHead className="text-right text-gray-900 font-semibold">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {feedback.map((item) => (
-                                    <TableRow key={item.id}>
-                                        <TableCell>
-                                            <div>
-                                                <div className="font-semibold text-gray-900">{item.profiles?.full_name || 'Unknown'}</div>
-                                                <div className="text-xs text-gray-600">{item.profiles?.student_id || '-'}</div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="font-semibold text-gray-900">{item.title}</TableCell>
-                                        <TableCell className="text-gray-800 text-sm">
-                                            {item.description.length > 100
-                                                ? item.description.substring(0, 100) + '...'
-                                                : item.description}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant={statusVariants[item.status] || 'info'}>
-                                                {item.status.replace('_', ' ')}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-gray-800 text-sm">
-                                            {format(new Date(item.created_at), 'MMM d, yyyy')}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <FeedbackActions feedbackId={item.id} currentStatus={item.status} />
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                {feedback.map((item) => {
+                                    const cat = CATEGORY_LABELS[item.category || 'general'] || CATEGORY_LABELS.general
+                                    return (
+                                        <TableRow key={item.id}>
+                                            <TableCell>
+                                                <span className={`px-2 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ${cat.color}`}>
+                                                    {cat.emoji} {cat.label}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div>
+                                                    <div className="font-semibold text-gray-900">{item.profiles?.full_name || 'Unknown'}</div>
+                                                    <div className="text-xs text-gray-600">{item.profiles?.student_id || '-'}</div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="font-semibold text-gray-900">{item.title}</TableCell>
+                                            <TableCell className="text-gray-800 text-sm">
+                                                {item.description.length > 100
+                                                    ? item.description.substring(0, 100) + '...'
+                                                    : item.description}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant={statusVariants[item.status] || 'info'}>
+                                                    {item.status.replace('_', ' ')}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-gray-800 text-sm">
+                                                {format(new Date(item.created_at), 'MMM d, yyyy')}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <FeedbackActions feedbackId={item.id} currentStatus={item.status} />
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                })}
                             </TableBody>
                         </Table>
                     )}

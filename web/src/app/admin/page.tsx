@@ -11,7 +11,8 @@ import {
     Users,
     BarChart3,
     DollarSign,
-    TrendingUp
+    TrendingUp,
+    ScrollText
 } from 'lucide-react'
 
 export default async function AdminHome() {
@@ -179,6 +180,26 @@ export default async function AdminHome() {
                                         </div>
                                         <p className="text-sm text-gray-500">
                                             View sport details and information
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </Link>
+
+                    <Link href="/admin/logs">
+                        <Card className="hover:shadow-lg transition-all border-l-4 border-l-cyan-600 cursor-pointer group">
+                            <CardContent className="p-6">
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <div className="w-10 h-10 bg-cyan-50 rounded-lg flex items-center justify-center group-hover:bg-cyan-100 transition-colors">
+                                                <ScrollText className="w-5 h-5 text-cyan-600" />
+                                            </div>
+                                            <h3 className="font-bold text-gray-900">Booking Logs</h3>
+                                        </div>
+                                        <p className="text-sm text-gray-500">
+                                            View all bookings by sport and date
                                         </p>
                                     </div>
                                 </div>
