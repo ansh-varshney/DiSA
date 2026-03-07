@@ -5,6 +5,7 @@ import { addDays, format, startOfDay } from 'date-fns'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { createBooking, getBookingsForDateRange, getAvailableEquipment, searchStudents } from '@/actions/bookings'
+import { getPlayerLimits } from '@/lib/sport-config'
 import { Loader2, CheckCircle, Clock, Users, Package, X, Search, UserPlus, ChevronRight } from 'lucide-react'
 import React from 'react'
 
@@ -394,17 +395,34 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
 
                         {/* Players */}
                         <div>
-                            <label className="flex items-center justify-between text-xs font-bold text-gray-500 uppercase mb-1.5">
-                                <span className="flex items-center gap-1">
-                                    <Users className="w-3 h-3" /> Players ({selectedPlayers.length + 1})
-                                </span>
-                                <button
-                                    onClick={() => setPlayerSearch(playerSearch ? '' : ' ')}
-                                    className="flex items-center gap-1 text-[#004d40] text-xs font-bold normal-case"
-                                >
-                                    <UserPlus className="w-3.5 h-3.5" /> Add
-                                </button>
-                            </label>
+                            {(() => {
+                                const limits = getPlayerLimits(selectedSport)
+                                const totalPlayers = selectedPlayers.length + 1
+                                const atMax = limits.max ? totalPlayers >= limits.max : false
+                                return (
+                                    <>
+                                        <label className="flex items-center justify-between text-xs font-bold text-gray-500 uppercase mb-1.5">
+                                            <span className="flex items-center gap-1">
+                                                <Users className="w-3 h-3" /> Players ({totalPlayers}{limits.max ? `/${limits.max}` : ''})
+                                            </span>
+                                            {!atMax && (
+                                                <button
+                                                    onClick={() => setPlayerSearch(playerSearch ? '' : ' ')}
+                                                    className="flex items-center gap-1 text-[#004d40] text-xs font-bold normal-case"
+                                                >
+                                                    <UserPlus className="w-3.5 h-3.5" /> Add
+                                                </button>
+                                            )}
+                                            {atMax && (
+                                                <span className="text-[10px] text-orange-500 font-semibold normal-case">Max reached</span>
+                                            )}
+                                        </label>
+                                        {totalPlayers < limits.min && (
+                                            <p className="text-[11px] text-red-500 mb-1">Minimum {limits.min} players required</p>
+                                        )}
+                                    </>
+                                )
+                            })()}
                             {selectedPlayers.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5 mb-2">
                                     {selectedPlayers.map(p => (

@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { addMinutes } from 'date-fns'
+import { getPlayerLimits } from '@/lib/sport-config'
 
 export async function getBookingsForDateRange(courtId: string, startDate: Date, endDate: Date) {
     const supabase = await createClient()
@@ -139,6 +140,23 @@ export async function createBooking(prevState: any, formData: FormData) {
     const numPlayers = numPlayersStr ? parseInt(numPlayersStr) : 2
     const playersList = playersListStr ? JSON.parse(playersListStr) : []
 
+    // 4b. Validate player count against sport limits
+    const { data: court } = await supabase
+        .from('courts')
+        .select('sport')
+        .eq('id', courtId)
+        .single()
+
+    if (court) {
+        const limits = getPlayerLimits(court.sport)
+        if (numPlayers < limits.min) {
+            return { error: `Minimum ${limits.min} players required for ${court.sport}` }
+        }
+        if (limits.max && numPlayers > limits.max) {
+            return { error: `Maximum ${limits.max} players allowed for ${court.sport}` }
+        }
+    }
+
     // 5. Mark equipment as unavailable (reserved)
     if (equipmentIds.length > 0) {
         await supabase
@@ -223,10 +241,10 @@ export async function withdrawFromBooking(bookingId: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
 
-    // Fetch the booking
+    // Fetch the booking with court sport info
     const { data: booking } = await supabase
         .from('bookings')
-        .select('user_id, status, players_list, num_players')
+        .select('user_id, status, players_list, num_players, equipment_ids, courts(sport)')
         .eq('id', bookingId)
         .single()
 
@@ -250,6 +268,33 @@ export async function withdrawFromBooking(bookingId: string) {
     })
 
     const newNumPlayers = Math.max(1, (booking.num_players || 2) - 1)
+
+    // Check if withdrawal drops below minimum players
+    const sport = (booking as any).courts?.sport || ''
+    const limits = getPlayerLimits(sport)
+
+    if (newNumPlayers < limits.min) {
+        // Auto-cancel the booking since it no longer meets minimum
+        const equipmentIds: string[] = booking.equipment_ids || []
+        if (equipmentIds.length > 0) {
+            await supabase
+                .from('equipment')
+                .update({ is_available: true })
+                .in('id', equipmentIds)
+        }
+
+        await supabase
+            .from('bookings')
+            .update({ status: 'cancelled' })
+            .eq('id', bookingId)
+
+        revalidatePath('/student/reservations')
+        revalidatePath('/student')
+        revalidatePath('/student/book')
+        revalidatePath('/manager')
+        revalidatePath('/admin/reservations')
+        return { success: true, cancelled: true, reason: `Booking cancelled: player count dropped below minimum (${limits.min})` }
+    }
 
     const { error } = await supabase
         .from('bookings')

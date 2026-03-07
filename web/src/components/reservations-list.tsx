@@ -62,9 +62,14 @@ export function ReservationsList({ current, upcoming, past, userId }: Reservatio
         if (!confirm('Withdraw from this booking? The booking will continue without you.')) return
         setWithdrawingId(bookingId)
         try {
-            const result = await withdrawFromBooking(bookingId)
+            const result = await withdrawFromBooking(bookingId) as any
             if (result.error) alert(result.error)
-            else router.refresh()
+            else {
+                if (result.cancelled) {
+                    alert(result.reason || 'Booking was cancelled as player count dropped below minimum.')
+                }
+                router.refresh()
+            }
         } finally {
             setWithdrawingId(null)
         }
