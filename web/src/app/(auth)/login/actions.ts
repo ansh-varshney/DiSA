@@ -62,6 +62,9 @@ export async function signUpWithEmail(prevState: any, formData: FormData) {
     const password = formData.get('password') as string
     const fullName = formData.get('fullName') as string
     const role = formData.get('role') as string
+    const branch = formData.get('branch') as string || null
+    const year = formData.get('year') as string || null
+    const gender = formData.get('gender') as string || null
 
     const supabase = await createClient()
 
@@ -85,7 +88,10 @@ export async function signUpWithEmail(prevState: any, formData: FormData) {
                 id: user.id,
                 email: email,
                 full_name: fullName,
-                role: role as 'student' | 'manager' | 'admin'
+                role: role as 'student' | 'manager' | 'admin',
+                branch,
+                year,
+                gender,
             }, { onConflict: 'id' })
 
         if (profileError) {
@@ -139,19 +145,31 @@ export async function verifyOtp(prevState: any, formData: FormData) {
         // Try getting role from metadata or default to student
         const role = user.user_metadata?.role || 'student'
 
-        // Upsert profile to ensure role is set correctly (handles triggers/race conditions)
         const { createAdminClient } = await import('@/utils/supabase/admin')
         const supabaseAdmin = createAdminClient()
 
+        // Check if profile already exists to avoid overwriting fields like full_name
+        const { data: existingProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('id')
+            .eq('id', user.id)
+            .single()
+
+        const upsertData: Record<string, any> = {
+            id: user.id,
+            email: user.email,
+            role: role as 'student' | 'manager' | 'admin',
+            phone_number: phone,
+        }
+
+        // Only set full_name on first-time registration — never overwrite an existing name
+        if (!existingProfile) {
+            upsertData.full_name = 'New User'
+        }
+
         const { error: profileError } = await supabaseAdmin
             .from('profiles')
-            .upsert({
-                id: user.id,
-                email: user.email,
-                full_name: 'New User',
-                role: role as 'student' | 'manager' | 'admin',
-                phone_number: phone
-            }, { onConflict: 'id' })
+            .upsert(upsertData, { onConflict: 'id' })
 
         if (profileError) {
             console.error('Profile upsert error inside verifyOtp:', profileError)
@@ -162,9 +180,3 @@ export async function verifyOtp(prevState: any, formData: FormData) {
     redirect('/')
 }
 
-export async function signOut() {
-    const supabase = await createClient()
-    await supabase.auth.signOut()
-    revalidatePath('/', 'layout')
-    redirect('/login')
-}

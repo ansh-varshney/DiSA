@@ -1,0 +1,118 @@
+'use client'
+
+import { useState, useTransition } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { completeStudentProfile } from './actions'
+import { Loader2, UserCircle } from 'lucide-react'
+
+const BRANCHES = [
+    { value: 'CSE', label: 'CSE – Computer Science & Engineering' },
+    { value: 'ECE', label: 'ECE – Electronics & Communication' },
+    { value: 'CB', label: 'CB – Computational Biology' },
+    { value: 'CSAM', label: 'CSAM – CS with AI & ML' },
+    { value: 'CSD', label: 'CSD – CS with Design' },
+    { value: 'CSSS', label: 'CSSS – CS with Social Sciences' },
+    { value: 'CSNS', label: 'CSNS – CS with Natural Sciences' },
+    { value: 'M.Tech CSE', label: 'M.Tech CSE' },
+    { value: 'M.Tech ECE', label: 'M.Tech ECE' },
+    { value: 'PhD', label: 'PhD' },
+    { value: 'Other', label: 'Other' },
+]
+
+const YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year+', 'PG', 'PhD']
+const GENDERS = ['Male', 'Female', 'Other', 'Prefer not to say']
+
+export default function CompleteProfilePage() {
+    const [isPending, startTransition] = useTransition()
+    const [error, setError] = useState<string | null>(null)
+
+    const handleSubmit = (formData: FormData) => {
+        setError(null)
+        startTransition(async () => {
+            const result = await completeStudentProfile(formData)
+            if (result?.error) setError(result.error)
+        })
+    }
+
+    return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+            <Card className="w-full max-w-md shadow-lg border-0 bg-white">
+                <CardHeader className="text-center pb-4">
+                    <div className="mx-auto w-12 h-12 bg-[#004d40]/10 rounded-xl flex items-center justify-center mb-3">
+                        <UserCircle className="w-6 h-6 text-[#004d40]" />
+                    </div>
+                    <CardTitle className="text-xl font-bold text-gray-900">Complete Your Profile</CardTitle>
+                    <CardDescription className="text-sm text-gray-500">
+                        A few more details to set up your student account.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <form action={handleSubmit} className="space-y-4">
+                        <div className="space-y-1">
+                            <label className="text-xs font-medium text-gray-600">Roll Number (optional)</label>
+                            <Input name="studentId" type="text" placeholder="e.g. 2022XXX" className="h-11" />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-xs font-medium text-gray-600">Branch <span className="text-red-500">*</span></label>
+                            <select
+                                name="branch"
+                                required
+                                defaultValue=""
+                                className="w-full h-11 border border-input rounded-md px-3 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                            >
+                                <option value="" disabled>Select Branch</option>
+                                {BRANCHES.map(b => (
+                                    <option key={b.value} value={b.value}>{b.label}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-xs font-medium text-gray-600">Academic Year <span className="text-red-500">*</span></label>
+                            <select
+                                name="year"
+                                required
+                                defaultValue=""
+                                className="w-full h-11 border border-input rounded-md px-3 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                            >
+                                <option value="" disabled>Select Year</option>
+                                {YEARS.map(y => (
+                                    <option key={y} value={y}>{y}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-xs font-medium text-gray-600">Gender <span className="text-red-500">*</span></label>
+                            <select
+                                name="gender"
+                                required
+                                defaultValue=""
+                                className="w-full h-11 border border-input rounded-md px-3 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                            >
+                                <option value="" disabled>Select Gender</option>
+                                {GENDERS.map(g => (
+                                    <option key={g} value={g}>{g}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {error && <p className="text-sm text-red-500">{error}</p>}
+
+                        <Button
+                            type="submit"
+                            className="w-full bg-[#004d40] hover:bg-[#004d40]/90"
+                            disabled={isPending}
+                        >
+                            {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            Save & Continue
+                        </Button>
+                    </form>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}

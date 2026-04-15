@@ -1,9 +1,11 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { generateCourtId } from '@/lib/sports'
 import { generateEquipmentId } from '@/lib/sports'
+import { sendNotification, sendNotifications, broadcastToAllStudents } from '@/actions/notifications'
 
 /**
  * Admin Actions - Server actions for admin dashboard
@@ -263,10 +265,10 @@ export async function deleteEquipment(id: string) {
         .eq('id', id)
         .single()
 
-    // Delete equipment record
+    // Soft-delete: mark as retired to preserve referential integrity with booking history
     const { error } = await supabase
         .from('equipment')
-        .delete()
+        .update({ condition: 'retired' })
         .eq('id', id)
 
     if (error) {
@@ -534,10 +536,10 @@ export async function deleteCourt(id: string) {
         }
     }
 
-    // Hard delete the court record
+    // Soft-delete: mark as inactive to preserve referential integrity with booking history
     const { data, error } = await supabase
         .from('courts')
-        .delete()
+        .update({ is_active: false })
         .eq('id', id)
         .select()
         .single()
@@ -588,6 +590,14 @@ export async function createAnnouncement(title: string, content: string) {
         console.error('Error creating announcement:', error)
         throw new Error('Failed to create announcement')
     }
+
+    // N24 — broadcast announcement to all students
+    await broadcastToAllStudents({
+        type: 'announcement',
+        title: `Announcement: ${title}`,
+        body: content.length > 120 ? content.slice(0, 117) + '…' : content,
+        data: { announcement_id: data.id },
+    })
 
     revalidatePath('/admin/announcements')
     revalidatePath('/student')
@@ -693,22 +703,59 @@ export async function getReservationsByDate(sport: string, date: string) {
 
 
 /**
- * Cancel a reservation (deletes booking from database)
- * NOTE: For future notification logic - only notify student/manager
- * if the booking was student-made (not admin-made priority/maintenance)
+ * Cancel a reservation (soft-cancels the booking by setting status = 'cancelled')
+ * Notifies the booker and all confirmed players for student-made bookings.
  */
 export async function cancelReservation(bookingId: string) {
     const { supabase } = await verifyAdmin()
+    const adminSupabase = createAdminClient()
 
-    // Delete the booking
+    // Fetch booking details before cancelling so we can notify affected users
+    const { data: booking } = await adminSupabase
+        .from('bookings')
+        .select('user_id, players_list, start_time, is_priority, is_maintenance, courts(name)')
+        .eq('id', bookingId)
+        .single()
+
+    // Soft-cancel: update status instead of hard-deleting to preserve booking history
     const { error } = await supabase
         .from('bookings')
-        .delete()
+        .update({ status: 'cancelled' })
         .eq('id', bookingId)
 
     if (error) {
         console.error('Error cancelling reservation:', error)
         throw new Error(`Failed to cancel reservation: ${error.message}`)
+    }
+
+    // Notify booker and all confirmed players — skip admin-created bookings
+    if (booking && !booking.is_priority && !booking.is_maintenance) {
+        const courtName = (booking as any).courts?.name || 'the court'
+        const startDisplay = new Date(booking.start_time).toLocaleString('en-IN', {
+            weekday: 'short', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+        })
+
+        const confirmedIds = new Set<string>()
+        confirmedIds.add(booking.user_id)
+        const playersList = Array.isArray(booking.players_list) ? booking.players_list : []
+        for (const p of playersList) {
+            const pid = typeof p === 'string' ? p : p.id
+            const status = typeof p === 'string' ? undefined : p.status
+            if (!status || status === 'confirmed') confirmedIds.add(pid)
+        }
+
+        const notifications = Array.from(confirmedIds).map(pid => ({
+            recipientId: pid,
+            type: 'force_cancelled',
+            title: 'Booking Cancelled by Admin',
+            body: `Your booking for ${courtName} on ${startDisplay} has been cancelled by the admin.`,
+            data: { booking_id: bookingId, court_name: courtName },
+        }))
+
+        if (notifications.length > 0) {
+            await sendNotifications(notifications)
+        }
     }
 
     revalidatePath('/admin/reservations')
@@ -732,19 +779,61 @@ export async function priorityReserveSlot(
     const startDateTime = new Date(`${date}T${startTime}:00`)
     const endDateTime = new Date(`${date}T${endTime}:00`)
 
-    // Check if slot is already booked (exclude cancelled/rejected)
-    const { data: existingBooking } = await supabase
+    const adminSupabase = createAdminClient()
+
+    // Find all non-admin student bookings that overlap with this slot
+    const { data: conflicting } = await adminSupabase
         .from('bookings')
-        .select('id')
+        .select('id, user_id, players_list, start_time, courts(name, sport)')
         .eq('court_id', courtId)
         .gte('start_time', startDateTime.toISOString())
         .lt('start_time', endDateTime.toISOString())
-        .neq('status', 'cancelled')
-        .neq('status', 'rejected')
-        .single()
+        .not('status', 'in', '("cancelled","rejected","completed")')
+        .eq('is_priority', false)
+        .not('is_maintenance', 'eq', true)
 
-    if (existingBooking) {
-        throw new Error('This slot is already reserved')
+    // Cancel all conflicting bookings and collect affected student IDs
+    const notifications: Array<{ recipientId: string; type: string; title: string; body: string; data: Record<string, any> }> = []
+
+    if (conflicting && conflicting.length > 0) {
+        const courtData = (conflicting[0] as any).courts
+        const courtName = courtData?.name || 'the court'
+        const startDisplay = startDateTime.toLocaleString('en-IN', {
+            weekday: 'short', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+        })
+
+        for (const booking of conflicting) {
+            // Cancel booking
+            await adminSupabase
+                .from('bookings')
+                .update({ status: 'cancelled' })
+                .eq('id', booking.id)
+
+            // Collect all confirmed players + booker for N25
+            const playersList = Array.isArray((booking as any).players_list) ? (booking as any).players_list : []
+            const confirmedIds = new Set<string>()
+            confirmedIds.add((booking as any).user_id)
+            for (const p of playersList) {
+                const pid = typeof p === 'string' ? p : p.id
+                const status = typeof p === 'string' ? undefined : p.status
+                if (!status || status === 'confirmed') confirmedIds.add(pid)
+            }
+
+            for (const pid of confirmedIds) {
+                notifications.push({
+                    recipientId: pid,
+                    type: 'priority_reserve_cancelled',
+                    title: 'Booking Cancelled — Priority Reserve',
+                    body: `Your booking for ${courtName} on ${startDisplay} has been cancelled due to a priority reservation by the admin.`,
+                    data: { booking_id: booking.id, court_name: courtName },
+                })
+            }
+        }
+
+        if (notifications.length > 0) {
+            await sendNotifications(notifications)
+        }
     }
 
     // Create priority reservation
@@ -773,7 +862,8 @@ export async function priorityReserveSlot(
 }
 
 /**
- * Reserve slot for maintenance (admin)
+ * Reserve slot for maintenance (admin).
+ * Cancels and notifies any conflicting student bookings before creating the slot.
  */
 export async function reserveForMaintenance(
     courtId: string,
@@ -785,23 +875,60 @@ export async function reserveForMaintenance(
 ) {
     const { supabase, user } = await verifyAdmin()
 
-    // Create datetime strings
     const startDateTime = new Date(`${date}T${startTime}:00`)
     const endDateTime = new Date(`${date}T${endTime}:00`)
 
-    // Check if slot is already booked (exclude cancelled/rejected)
-    const { data: existingBooking } = await supabase
+    const adminSupabase = createAdminClient()
+
+    // Find all non-admin student bookings that overlap with this slot
+    const { data: conflicting } = await adminSupabase
         .from('bookings')
-        .select('id')
+        .select('id, user_id, players_list, start_time, courts(name)')
         .eq('court_id', courtId)
         .gte('start_time', startDateTime.toISOString())
         .lt('start_time', endDateTime.toISOString())
-        .neq('status', 'cancelled')
-        .neq('status', 'rejected')
-        .single()
+        .not('status', 'in', '("cancelled","rejected","completed")')
+        .eq('is_priority', false)
+        .not('is_maintenance', 'eq', true)
 
-    if (existingBooking) {
-        throw new Error('This slot is already reserved')
+    const notifications: Array<{ recipientId: string; type: string; title: string; body: string; data: Record<string, any> }> = []
+
+    if (conflicting && conflicting.length > 0) {
+        const courtName = (conflicting[0] as any).courts?.name || 'the court'
+        const startDisplay = startDateTime.toLocaleString('en-IN', {
+            weekday: 'short', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+        })
+
+        for (const booking of conflicting) {
+            await adminSupabase
+                .from('bookings')
+                .update({ status: 'cancelled' })
+                .eq('id', booking.id)
+
+            const playersList = Array.isArray((booking as any).players_list) ? (booking as any).players_list : []
+            const confirmedIds = new Set<string>()
+            confirmedIds.add((booking as any).user_id)
+            for (const p of playersList) {
+                const pid = typeof p === 'string' ? p : p.id
+                const status = typeof p === 'string' ? undefined : p.status
+                if (!status || status === 'confirmed') confirmedIds.add(pid)
+            }
+
+            for (const pid of confirmedIds) {
+                notifications.push({
+                    recipientId: pid,
+                    type: 'maintenance_cancelled',
+                    title: 'Booking Cancelled — Court Maintenance',
+                    body: `Your booking for ${courtName} on ${startDisplay} has been cancelled due to scheduled maintenance.`,
+                    data: { booking_id: booking.id, court_name: courtName },
+                })
+            }
+        }
+
+        if (notifications.length > 0) {
+            await sendNotifications(notifications)
+        }
     }
 
     // Create maintenance reservation
@@ -839,6 +966,7 @@ export async function getEquipmentBySport(sport: string) {
         .from('equipment')
         .select('id, name, equipment_id, sport, condition')
         .eq('sport', sport)
+        .not('condition', 'in', '("lost","retired")')
         .order('name')
 
     if (error) {
@@ -852,6 +980,14 @@ export async function getEquipmentBySport(sport: string) {
 
 export async function forceCancelBooking(bookingId: string) {
     const { supabase } = await verifyAdmin()
+    const adminSupabase = createAdminClient()
+
+    // Fetch booking details before cancelling so we can notify affected users
+    const { data: booking } = await adminSupabase
+        .from('bookings')
+        .select('user_id, players_list, start_time, is_priority, is_maintenance, courts(name)')
+        .eq('id', bookingId)
+        .single()
 
     const { data, error } = await supabase
         .from('bookings')
@@ -863,6 +999,36 @@ export async function forceCancelBooking(bookingId: string) {
     if (error) {
         console.error('Error cancelling booking:', error)
         throw new Error('Failed to cancel booking')
+    }
+
+    // Notify booker and all confirmed players — skip admin-created bookings
+    if (booking && !booking.is_priority && !booking.is_maintenance) {
+        const courtName = (booking as any).courts?.name || 'the court'
+        const startDisplay = new Date(booking.start_time).toLocaleString('en-IN', {
+            weekday: 'short', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+        })
+
+        const confirmedIds = new Set<string>()
+        confirmedIds.add(booking.user_id)
+        const playersList = Array.isArray(booking.players_list) ? booking.players_list : []
+        for (const p of playersList) {
+            const pid = typeof p === 'string' ? p : p.id
+            const status = typeof p === 'string' ? undefined : p.status
+            if (!status || status === 'confirmed') confirmedIds.add(pid)
+        }
+
+        const notifications = Array.from(confirmedIds).map(pid => ({
+            recipientId: pid,
+            type: 'force_cancelled',
+            title: 'Booking Cancelled by Admin',
+            body: `Your booking for ${courtName} on ${startDisplay} has been cancelled by the admin.`,
+            data: { booking_id: bookingId, court_name: courtName },
+        }))
+
+        if (notifications.length > 0) {
+            await sendNotifications(notifications)
+        }
     }
 
     revalidatePath('/admin/reservations')
@@ -1166,15 +1332,15 @@ export async function getViolations(filters?: { severity?: string; violationType
 }
 
 /**
- * Get defaulter students (grouped violations by student)
+ * Get defaulter students (grouped violations by student), including ban status.
  */
 export async function getDefaulterStudents() {
-    const supabase = await createClient()
+    const adminSupabase = createAdminClient()
 
-    // Fetch all violations with student details
-    const { data: violations, error } = await supabase
+    // Fetch all violations with student details (admin client bypasses RLS)
+    const { data: violations, error } = await adminSupabase
         .from('student_violations')
-        .select('*, profiles!student_violations_student_id_fkey(full_name, student_id, email), reported_by_profile:profiles!student_violations_reported_by_fkey(full_name)')
+        .select('*, profiles!student_violations_student_id_fkey(full_name, student_id, email, phone_number, banned_until), reported_by_profile:profiles!student_violations_reported_by_fkey(full_name)')
         .order('created_at', { ascending: false })
 
     if (error) {
@@ -1192,7 +1358,10 @@ export async function getDefaulterStudents() {
         student_name: string
         student_roll: string
         student_email: string
+        student_phone: string
+        banned_until: string | null
         total_violations: number
+        late_arrival_count: number
         latest_reason: string
         latest_violation_type: string
         latest_source: 'system' | 'manager'
@@ -1200,7 +1369,7 @@ export async function getDefaulterStudents() {
         violations: any[]
     }>()
 
-    violations.forEach(violation => {
+    violations.forEach((violation: any) => {
         const studentId = violation.student_id
         const profile = violation.profiles
 
@@ -1210,7 +1379,10 @@ export async function getDefaulterStudents() {
                 student_name: profile?.full_name || 'Unknown',
                 student_roll: profile?.student_id || '-',
                 student_email: profile?.email || '',
+                student_phone: profile?.phone_number || '',
+                banned_until: profile?.banned_until || null,
                 total_violations: 0,
+                late_arrival_count: 0,
                 latest_reason: violation.reason || 'No reason provided',
                 latest_violation_type: violation.violation_type || 'other',
                 latest_source: violation.reported_by ? 'manager' : 'system',
@@ -1221,6 +1393,9 @@ export async function getDefaulterStudents() {
 
         const student = studentMap.get(studentId)!
         student.total_violations++
+        if (violation.violation_type === 'students_late') {
+            student.late_arrival_count++
+        }
         student.violations.push(violation)
     })
 
@@ -1230,23 +1405,65 @@ export async function getDefaulterStudents() {
 }
 
 /**
- * Remove student from defaulters list (clear all violations)
+ * Remove student from defaulters list:
+ * - Deletes all violations
+ * - Clears banned_until
+ * Uses the clear_student_defaulter RPC (runs as SECURITY DEFINER to bypass RLS).
  */
 export async function removeStudentFromDefaulters(studentId: string) {
-    const { supabase } = await verifyAdmin()
+    await verifyAdmin()
+    const adminSupabase = createAdminClient()
 
-    // Delete all violations for this student
-    const { error } = await supabase
-        .from('student_violations')
-        .delete()
-        .eq('student_id', studentId)
+    const { error } = await adminSupabase.rpc('clear_student_defaulter', { p_student_id: studentId })
 
     if (error) {
-        console.error('Error removing student from defaulters:', error)
-        throw new Error(`Failed to remove student from defaulters: ${error.message}`)
+        console.error('Error clearing defaulter:', error)
+        throw new Error(`Failed to clear defaulter: ${error.message}`)
     }
 
+    // N17 — notify student their record was cleared
+    await sendNotification({
+        recipientId: studentId,
+        type: 'defaulter_cleared',
+        title: 'Record Cleared by Admin',
+        body: 'Your violation record and any active booking ban have been cleared by an admin. You can book again.',
+        data: {},
+    })
+
     revalidatePath('/admin/defaulters')
+    revalidatePath('/student/profile')
+    return { success: true }
+}
+
+/**
+ * Admin: manually adjust a student's points (positive or negative).
+ */
+export async function adjustStudentPoints(studentId: string, delta: number) {
+    await verifyAdmin()
+    const adminSupabase = createAdminClient()
+
+    const { error } = await adminSupabase.rpc('update_student_points', {
+        p_student_id: studentId,
+        p_delta: delta,
+    })
+
+    if (error) {
+        console.error('Error adjusting points:', error)
+        throw new Error(`Failed to adjust points: ${error.message}`)
+    }
+
+    // N18 — notify student of manual points adjustment
+    const sign = delta >= 0 ? '+' : ''
+    await sendNotification({
+        recipientId: studentId,
+        type: 'points_adjusted',
+        title: 'Points Adjusted by Admin',
+        body: `An admin has manually adjusted your points (${sign}${delta} pts).`,
+        data: { delta },
+    })
+
+    revalidatePath('/admin/defaulters')
+    revalidatePath('/admin/analytics/student-welfare/leaderboard')
     return { success: true }
 }
 

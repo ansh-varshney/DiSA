@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { loginWithGoogle, signInWithPhone, verifyOtp, loginWithEmail, signUpWithEmail } from './actions'
 import { ShieldCheck, ArrowLeft, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { BRANCHES, YEARS, GENDERS } from '@/lib/profile-options'
 
 export function LoginForm() {
     const searchParams = useSearchParams()
@@ -103,19 +104,33 @@ export function LoginForm() {
                 </div>
 
                 {authMethod === 'email' ? (
-                    <form action={handleEmailSubmit} className="space-y-4">
+                    <form key={isSignUp ? 'email-signup' : 'email-signin'} action={handleEmailSubmit} className="space-y-4">
                         <input type="hidden" name="role" value={role} />
                         {isSignUp && (
                             <div className="space-y-2">
                                 <Input name="fullName" type="text" placeholder="Full Name" required className="h-11" />
+                                <select name="branch" required defaultValue=""
+                                    className="w-full h-11 border border-input rounded-md px-3 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+                                    <option value="" disabled>Select Branch</option>
+                                    {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+                                </select>
+                                <select name="year" required defaultValue=""
+                                    className="w-full h-11 border border-input rounded-md px-3 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+                                    <option value="" disabled>Select Academic Year</option>
+                                    {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                                </select>
+                                <div className="flex gap-3">
+                                    {GENDERS.map(g => (
+                                        <label key={g} className="flex-1 flex items-center justify-center gap-2 h-11 border border-input rounded-md cursor-pointer hover:border-[#004d40] has-[:checked]:border-[#004d40] has-[:checked]:bg-[#004d40]/5 transition-colors">
+                                            <input type="radio" name="gender" value={g} required className="accent-[#004d40]" />
+                                            <span className="text-sm font-medium text-gray-900">{g}</span>
+                                        </label>
+                                    ))}
+                                </div>
                             </div>
                         )}
-                        <div className="space-y-2">
-                            <Input name="email" type="email" placeholder="Email@example.com" required className="h-11" />
-                        </div>
-                        <div className="space-y-2">
-                            <Input name="password" type="password" placeholder="Password" required className="h-11" />
-                        </div>
+                        <Input name="email" type="email" placeholder="Email@example.com" required className="h-11" />
+                        <Input name="password" type="password" placeholder="Password" required className="h-11" />
 
                         {error && <p className="text-sm text-red-500">{error}</p>}
 
@@ -155,7 +170,7 @@ export function LoginForm() {
                     </form>
                 ) : (
                     step === 'phone' ? (
-                        <form action={handlePhoneSubmit} className="space-y-4">
+                        <form key="phone" action={handlePhoneSubmit} className="space-y-4">
                             <input type="hidden" name="role" value={role} />
                             <div className="space-y-2">
                                 <Input
@@ -175,7 +190,7 @@ export function LoginForm() {
                             </Button>
                         </form>
                     ) : (
-                        <form action={handleOtpSubmit} className="space-y-4">
+                        <form key="otp" action={handleOtpSubmit} className="space-y-4">
                             <input type="hidden" name="phone" value={phone} />
                             <div className="space-y-2">
                                 <Input

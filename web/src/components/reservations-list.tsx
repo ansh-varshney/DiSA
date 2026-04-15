@@ -34,6 +34,7 @@ interface ReservationsListProps {
 const statusColors: Record<string, string> = {
     pending_confirmation: 'bg-yellow-100 text-yellow-800',
     confirmed: 'bg-blue-100 text-blue-800',
+    waiting_manager: 'bg-amber-100 text-amber-800',
     active: 'bg-green-100 text-green-800',
     completed: 'bg-gray-100 text-gray-600',
     cancelled: 'bg-red-100 text-red-700',
@@ -45,6 +46,7 @@ export function ReservationsList({ current, upcoming, past, userId }: Reservatio
     const [cancellingId, setCancellingId] = useState<string | null>(null)
     const [withdrawingId, setWithdrawingId] = useState<string | null>(null)
     const [showPast, setShowPast] = useState(false)
+    const [pastLimit, setPastLimit] = useState(10)
 
     const handleCancel = async (bookingId: string) => {
         if (!confirm('Cancel this booking?')) return
@@ -120,9 +122,9 @@ export function ReservationsList({ current, upcoming, past, userId }: Reservatio
                                         "px-2 py-1 text-xs rounded-full font-semibold capitalize",
                                         statusColors[booking.status] || 'bg-gray-100 text-gray-600'
                                     )}>
-                                        {booking.status.replace('_', ' ')}
+                                        {booking.status.replace(/_/g, ' ')}
                                     </span>
-                                    {['pending_confirmation', 'confirmed'].includes(booking.status) && (
+                                    {['pending_confirmation', 'confirmed', 'waiting_manager'].includes(booking.status) && (
                                         booking.user_id === userId ? (
                                             <Button
                                                 variant="ghost"
@@ -181,24 +183,34 @@ export function ReservationsList({ current, upcoming, past, userId }: Reservatio
                         {past.length === 0 ? (
                             <p className="text-center text-gray-400 text-sm p-4">No past bookings</p>
                         ) : (
-                            past.slice(0, 10).map(booking => (
-                                <Card key={booking.id} className="opacity-70">
-                                    <CardContent className="p-3 flex justify-between items-center">
-                                        <div>
-                                            <h3 className="font-semibold text-gray-700 text-sm">{booking.courts.name}</h3>
-                                            <p className="text-xs text-gray-400">
-                                                {format(new Date(booking.start_time), 'MMM d, h:mm a')}
-                                            </p>
-                                        </div>
-                                        <span className={cn(
-                                            "px-2 py-0.5 text-xs rounded-full capitalize",
-                                            statusColors[booking.status] || 'bg-gray-100 text-gray-600'
-                                        )}>
-                                            {booking.status.replace('_', ' ')}
-                                        </span>
-                                    </CardContent>
-                                </Card>
-                            ))
+                            <>
+                                {past.slice(0, pastLimit).map(booking => (
+                                    <Card key={booking.id} className="opacity-70">
+                                        <CardContent className="p-3 flex justify-between items-center">
+                                            <div>
+                                                <h3 className="font-semibold text-gray-700 text-sm">{booking.courts.name}</h3>
+                                                <p className="text-xs text-gray-400">
+                                                    {format(new Date(booking.start_time), 'MMM d, h:mm a')}
+                                                </p>
+                                            </div>
+                                            <span className={cn(
+                                                "px-2 py-0.5 text-xs rounded-full capitalize",
+                                                statusColors[booking.status] || 'bg-gray-100 text-gray-600'
+                                            )}>
+                                                {booking.status.replace(/_/g, ' ')}
+                                            </span>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                                {past.length > pastLimit && (
+                                    <button
+                                        onClick={() => setPastLimit(l => l + 10)}
+                                        className="w-full text-xs text-gray-400 hover:text-gray-600 py-2 transition-colors"
+                                    >
+                                        Show more ({past.length - pastLimit} remaining)
+                                    </button>
+                                )}
+                            </>
                         )}
                     </div>
                 )}

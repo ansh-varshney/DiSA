@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Home, CalendarPlus, History, User, Trophy } from 'lucide-react'
+import { Home, CalendarPlus, History, User, Trophy, Bell, Inbox } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { SignOutButton } from '@/components/sign-out-button'
@@ -14,6 +14,8 @@ export function StudentNav() {
         { href: '/student/book', label: 'Book', icon: CalendarPlus },
         { href: '/student/reservations', label: 'Reservations', icon: History },
         { href: '/student/leaderboard', label: 'Leaderboard', icon: Trophy },
+        { href: '/student/notifications', label: 'Alerts', icon: Bell },
+        { href: '/student/play-requests', label: 'Requests', icon: Inbox },
         { href: '/student/profile', label: 'Profile', icon: User },
     ]
 

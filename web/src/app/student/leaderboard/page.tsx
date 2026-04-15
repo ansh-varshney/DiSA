@@ -1,13 +1,32 @@
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { redirect } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Trophy, Medal, Star, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { sendNotifications } from '@/actions/notifications'
 
 export default async function LeaderboardPage() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
+
+    // Trigger monthly reset (idempotent — no-op if already reset this month).
+    // When a new month's reset runs, the RPC returns the top-5 student IDs that
+    // were awarded a priority booking slot so we can notify them here.
+    const adminSupabase = createAdminClient()
+    const { data: resetResult } = await adminSupabase.rpc('reset_monthly_points')
+    if (resetResult?.reset_count > 0 && Array.isArray(resetResult?.top5_ids) && resetResult.top5_ids.length > 0) {
+        await sendNotifications(
+            resetResult.top5_ids.map((id: string) => ({
+                recipientId: id,
+                type: 'priority_booking_awarded',
+                title: 'Monthly Leaderboard Reward!',
+                body: 'You finished in the top 5 this month! You have earned a priority booking — book a 90-minute session anytime this month.',
+                data: { reward: 'priority_booking' },
+            }))
+        )
+    }
 
     // Get top 5 students by points
     const { data: topStudents } = await supabase

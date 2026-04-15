@@ -1,7 +1,108 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import {
+    sendNotification,
+    sendNotifications,
+    notifyAdmins,
+} from '@/actions/notifications'
+
+// ─── Role guard ───────────────────────────────────────────────────────────────
+
+async function requireManagerRole(): Promise<
+    { user: any; supabase: any; error: null } |
+    { user: null; supabase: null; error: string }
+> {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { user: null, supabase: null, error: 'Unauthorized' }
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+    if (!profile || !['manager', 'admin', 'superuser'].includes(profile.role)) {
+        return { user: null, supabase: null, error: 'Forbidden' }
+    }
+
+    return { user, supabase, error: null }
+}
+
+// ─── Point deltas by event ────────────────────────────────────────────────────
+const REJECTION_POINTS: Record<string, number> = {
+    students_late:            -6,
+    inappropriate_behaviour:  -8,
+    improper_gear:            -4,
+    other:                     0,
+}
+
+const POST_SESSION_POINTS: Record<string, number> = {
+    late_end:                -4,
+    inappropriate_behaviour: -8,
+    vandalism:               -15,
+    other:                    0,
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Return all confirmed student IDs (booker + confirmed players_list entries) for a booking.
+ *  Entries with no status field are treated as confirmed for backward compatibility. */
+async function getBookingStudentIds(
+    adminSupabase: ReturnType<typeof createAdminClient>,
+    bookingId: string,
+): Promise<string[]> {
+    const { data: booking } = await adminSupabase
+        .from('bookings')
+        .select('user_id, players_list')
+        .eq('id', bookingId)
+        .single()
+
+    if (!booking) return []
+
+    const playersList = Array.isArray(booking.players_list) ? booking.players_list : []
+    const extraIds = playersList
+        .filter((p: any) => !p.status || p.status === 'confirmed') // confirmed or legacy
+        .map((p: any) => (typeof p === 'string' ? p : p?.id))
+        .filter(Boolean)
+
+    const allIds = [...new Set([booking.user_id, ...extraIds])]
+
+    const { data: profiles } = await adminSupabase
+        .from('profiles')
+        .select('id')
+        .in('id', allIds)
+        .eq('role', 'student')
+
+    return (profiles || []).map((p: any) => p.id)
+}
+
+/** Fetch booking with court info for notification bodies. */
+async function getBookingForNotif(adminSupabase: ReturnType<typeof createAdminClient>, bookingId: string) {
+    const { data } = await adminSupabase
+        .from('bookings')
+        .select('id, start_time, user_id, courts(name, sport)')
+        .eq('id', bookingId)
+        .single()
+    return data
+}
+
+/** Atomically add `delta` to each student's points (via DB RPC). */
+async function applyPoints(
+    adminSupabase: ReturnType<typeof createAdminClient>,
+    studentIds: string[],
+    delta: number,
+): Promise<void> {
+    if (studentIds.length === 0 || delta === 0) return
+    await Promise.all(
+        studentIds.map((id) =>
+            adminSupabase.rpc('update_student_points', { p_student_id: id, p_delta: delta }),
+        ),
+    )
+}
 
 
 
@@ -39,7 +140,7 @@ export async function getCurrentBookings() {
     ))
 
     // 3. Fetch equipment details if any exist
-    let equipmentMap = new Map()
+    const equipmentMap = new Map()
     if (allEquipmentIds.length > 0) {
         const { data: equipmentList } = await supabase
             .from('equipment')
@@ -159,11 +260,13 @@ export async function updateBookingStatus(bookingId: string, status: 'confirmed'
         equipmentIds = booking?.equipment_ids || []
     }
 
-    // Update booking status
-    const { error } = await supabase
-        .from('bookings')
-        .update({ status })
-        .eq('id', bookingId)
+    // Update booking status; guard against overwriting terminal states (e.g. race with lazy expiry)
+    const updateQuery = supabase.from('bookings').update({ status }).eq('id', bookingId)
+    const { error } = await (
+        status === 'active'
+            ? updateQuery.not('status', 'in', '("cancelled","completed","rejected")')
+            : updateQuery
+    )
 
     if (error) {
         return { error: error.message }
@@ -175,6 +278,29 @@ export async function updateBookingStatus(bookingId: string, status: 'confirmed'
             .from('equipment')
             .update({ is_available: true })
             .in('id', equipmentIds)
+    }
+
+    // N5 — when session goes active, notify all confirmed players to report to the court
+    if (status === 'active') {
+        const adminSupabase = createAdminClient()
+        const bk = await getBookingForNotif(adminSupabase, bookingId)
+        if (bk) {
+            const studentIds = await getBookingStudentIds(adminSupabase, bookingId)
+            const court = (bk as any).courts
+            const startDisplay = new Date(bk.start_time).toLocaleString('en-IN', {
+                weekday: 'short', month: 'short', day: 'numeric',
+                hour: '2-digit', minute: '2-digit',
+            })
+            await sendNotifications(
+                studentIds.map((id) => ({
+                    recipientId: id,
+                    type: 'booking_session_active',
+                    title: 'Session Active — Report to Court',
+                    body: `Your ${court?.sport || ''} session at ${court?.name || 'the court'} is now active (${startDisplay}). Head over now!`,
+                    data: { booking_id: bookingId, court_name: court?.name, sport: court?.sport },
+                })),
+            )
+        }
     }
 
     revalidatePath('/manager')
@@ -210,13 +336,60 @@ export async function getBookingDetails(bookingId: string) {
     // If pending/waiting AND it's been more than 10 mins since start -> Auto Cancel
     const isPending = ['pending_confirmation', 'waiting_manager'].includes(booking.status)
     if (isPending && now > tenMinutesAfterStart) {
+        // Free equipment so it becomes bookable again
+        await freeBookingEquipment(supabase, bookingId)
+
         // Auto-cancel
         await supabase
             .from('bookings')
             .update({ status: 'cancelled' })
             .eq('id', bookingId)
 
-        booking.status = 'cancelled' // Return updated status
+        booking.status = 'cancelled'
+
+        // Issue violations + N7 — same as expireBooking timeout path
+        const rawList = Array.isArray(booking.players_list) ? booking.players_list : []
+        const allPlayerIds = [
+            booking.user_id,
+            ...rawList.map((p: any) => (typeof p === 'string' ? p : p?.id)).filter(Boolean),
+        ] as string[]
+
+        if (allPlayerIds.length > 0) {
+            const { data: playerRows } = await supabase
+                .from('profiles')
+                .select('id, role')
+                .in('id', allPlayerIds)
+            const expiredStudentIds = (playerRows || [])
+                .filter((p: any) => p.role === 'student')
+                .map((p: any) => p.id)
+
+            if (expiredStudentIds.length > 0) {
+                const adminSupabaseExp = createAdminClient()
+                await adminSupabaseExp.from('student_violations').insert(
+                    expiredStudentIds.map((id: string) => ({
+                        student_id: id,
+                        booking_id: bookingId,
+                        violation_type: 'booking_timeout',
+                        severity: 'minor',
+                        reason: 'Booking was not approved within 10 minutes of start time and was auto-cancelled.',
+                    })),
+                )
+                await applyPoints(adminSupabaseExp, expiredStudentIds, -8)
+                const bkNotif = await getBookingForNotif(adminSupabaseExp, bookingId)
+                if (bkNotif) {
+                    const court = (bkNotif as any).courts
+                    await sendNotifications(
+                        expiredStudentIds.map((id: string) => ({
+                            recipientId: id,
+                            type: 'booking_expired',
+                            title: 'Booking Expired — No-Show',
+                            body: `Your ${court?.sport || ''} booking at ${court?.name || 'court'} was auto-cancelled (no manager approval within 10 minutes). −8 pts.`,
+                            data: { booking_id: bookingId, points_delta: -8 },
+                        })),
+                    )
+                }
+            }
+        }
     }
 
     // 3. Fetch Equipment Details
@@ -231,7 +404,7 @@ export async function getBookingDetails(bookingId: string) {
 
     // 4. Fetch All Players Details
     // players_list is a JSON structure. Assuming array of UUID strings based on creation logic.
-    let allPlayers: any[] = []
+    const allPlayers: any[] = []
 
     // Always include the main booker (User)
     allPlayers.push({
@@ -273,7 +446,9 @@ export async function rejectWithReason(
     customReason: string | null,
     playerIds: string[]
 ) {
-    const supabase = await createClient()
+    const auth = await requireManagerRole()
+    if (auth.error) return { error: auth.error }
+    const { supabase } = auth
 
     // 1. Fetch booking to get equipment before cancelling
     const { data: bookingData } = await supabase
@@ -310,6 +485,9 @@ export async function rejectWithReason(
 
     const studentIds = players?.filter(p => p.role === 'student').map(p => p.id) || []
 
+    // adminSupabase is needed for points/ban RPCs and for N6 notification lookup
+    const adminSupabase = createAdminClient()
+
     if (studentIds.length > 0) {
         // Insert a violation record for each student
         const violations = studentIds.map(studentId => ({
@@ -328,11 +506,70 @@ export async function rejectWithReason(
             console.error('Error inserting violations:', violationError)
             // Non-fatal: booking is already cancelled, just log
         }
+
+        // Deduct points for all involved students
+        const pointsDelta = REJECTION_POINTS[reason] ?? 0
+        if (pointsDelta !== 0) {
+            await applyPoints(adminSupabase, studentIds, pointsDelta)
+        }
+
+        // If late arrival, check whether any student now has 3+ strikes → 14-day ban + N16
+        // This runs independently of whether points were deducted, so a future change to the
+        // points delta for 'students_late' will not accidentally disable the ban.
+        if (reason === 'students_late') {
+            const banResults = await Promise.all(
+                studentIds.map(async (id) => {
+                    // RPC now returns the actual banned_until timestamp (or null if no ban)
+                    const { data: banned_until } = await adminSupabase.rpc('check_and_apply_late_ban', { p_student_id: id })
+                    return { id, banned_until: banned_until as string | null }
+                }),
+            )
+            const bannedResults = banResults.filter((r) => r.banned_until != null)
+            if (bannedResults.length > 0) {
+                await sendNotifications(
+                    bannedResults.map(({ id, banned_until }) => {
+                        // Use the authoritative DB timestamp — not a locally-computed one
+                        const banDateStr = new Date(banned_until!).toLocaleDateString('en-IN', {
+                            day: 'numeric', month: 'long', year: 'numeric',
+                        })
+                        return {
+                            recipientId: id,
+                            type: 'ban_applied',
+                            title: '14-Day Booking Ban Applied',
+                            body: `You have accumulated 3 late-arrival violations. Booking is suspended until ${banDateStr}. Contact admin for early clearance.`,
+                            data: { banned_until },
+                        }
+                    }),
+                )
+            }
+        }
+    }
+
+    // N6 — notify student players of rejection regardless of whether violations were issued
+    const bk = await getBookingForNotif(adminSupabase, bookingId)
+    if (bk && studentIds.length > 0) {
+        const court = (bk as any).courts
+        const startDisplay = new Date(bk.start_time).toLocaleString('en-IN', {
+            weekday: 'short', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+        })
+        const reasonLabel = reason.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+        await sendNotifications(
+            studentIds.map((id) => ({
+                recipientId: id,
+                type: 'booking_rejected',
+                title: 'Booking Rejected',
+                body: `Your ${court?.sport || ''} booking at ${court?.name || 'court'} on ${startDisplay} was rejected. Reason: ${customReason || reasonLabel}.`,
+                data: { booking_id: bookingId, reason, court_name: court?.name },
+            })),
+        )
     }
 
     revalidatePath('/manager')
     revalidatePath('/admin/reservations')
+    revalidatePath('/admin/defaulters')
     revalidatePath('/student')
+    revalidatePath('/student/profile')
     return { success: true }
 }
 
@@ -356,9 +593,9 @@ async function freeBookingEquipment(supabase: any, bookingId: string) {
 
 // ─── Emergency End Session ────────────────────────────────────────────────────
 export async function emergencyEndSession(bookingId: string, reason: string) {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'Unauthorized' }
+    const auth = await requireManagerRole()
+    if (auth.error) return { error: auth.error }
+    const { user, supabase } = auth
 
     // 1. Free equipment
     await freeBookingEquipment(supabase, bookingId)
@@ -381,6 +618,32 @@ export async function emergencyEndSession(bookingId: string, reason: string) {
             category: 'emergency_by_manager',
             status: 'open',
         })
+
+    // N11 — notify all confirmed players session ended early
+    const adminSupabase2 = createAdminClient()
+    const studentIds2 = await getBookingStudentIds(adminSupabase2, bookingId)
+    const bk2 = await getBookingForNotif(adminSupabase2, bookingId)
+    if (bk2) {
+        const court2 = (bk2 as any).courts
+        if (studentIds2.length > 0) {
+            await sendNotifications(
+                studentIds2.map((id) => ({
+                    recipientId: id,
+                    type: 'session_ended_emergency',
+                    title: 'Session Ended Early',
+                    body: `Your ${court2?.sport || ''} session at ${court2?.name || 'court'} was ended early by the manager. Reason: ${reason}.`,
+                    data: { booking_id: bookingId, reason },
+                })),
+            )
+        }
+        // Always notify admins of emergency end, regardless of student count
+        await notifyAdmins({
+            type: 'emergency_alert',
+            title: 'Emergency Session End',
+            body: `Manager ended a ${court2?.sport || ''} session early at ${court2?.name || 'court'}. Reason: ${reason}.`,
+            data: { booking_id: bookingId, reason },
+        })
+    }
 
     revalidatePath('/manager')
     revalidatePath('/admin/feedback')
@@ -413,9 +676,9 @@ export async function reportLostEquipment(
     equipmentIds: string[],
     playerIds: string[]
 ) {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'Unauthorized' }
+    const auth = await requireManagerRole()
+    if (auth.error) return { error: auth.error }
+    const { user, supabase } = auth
 
     console.log('=== reportLostEquipment called ===')
     console.log('bookingId:', bookingId)
@@ -479,6 +742,36 @@ export async function reportLostEquipment(
         const { error: violationError, data: violationData } = await supabase.from('student_violations').insert(violations).select()
         console.log('Violation insert result:', violationData)
         console.log('Violation insert error:', violationError)
+
+        // Deduct -20 points from all involved students
+        const adminSupabase = createAdminClient()
+        const { data: studentProfiles } = await adminSupabase
+            .from('profiles')
+            .select('id')
+            .in('id', playerIds)
+            .eq('role', 'student')
+        const studentIds = (studentProfiles || []).map((p: any) => p.id)
+        await applyPoints(adminSupabase, studentIds, -20)
+
+        // N14 — notify all players of equipment loss
+        if (studentIds.length > 0) {
+            await sendNotifications(
+                studentIds.map((id: string) => ({
+                    recipientId: id,
+                    type: 'equipment_lost',
+                    title: 'Equipment Lost — Severe Violation',
+                    body: `Equipment lost during your booking (${names}) has been reported. −20 pts. This has been flagged to admin.`,
+                    data: { booking_id: bookingId, equipment: names, points_delta: -20 },
+                })),
+            )
+        }
+        // N21 — notify admins
+        await notifyAdmins({
+            type: 'equipment_incident',
+            title: 'Equipment Reported Lost',
+            body: `Equipment reported lost: ${names}. All players have been penalised (−20 pts each).`,
+            data: { booking_id: bookingId, equipment: names },
+        })
     } else {
         console.warn('reportLostEquipment: No players provided')
     }
@@ -487,6 +780,7 @@ export async function reportLostEquipment(
     revalidatePath('/admin/equipment')
     revalidatePath('/admin/reservations')
     revalidatePath('/student')
+    revalidatePath('/student/profile')
     return { success: true, impactedBookingsCount: impactedBookings.length }
 }
 
@@ -497,7 +791,18 @@ export async function reportStudentPostSession(
     reason: string,
     customReason: string | null
 ) {
-    const supabase = await createClient()
+    const auth = await requireManagerRole()
+    if (auth.error) return { error: auth.error }
+    const { supabase } = auth
+
+    // Ensure the target is a student before issuing any violation
+    const adminSupabase = createAdminClient()
+    const { data: profile } = await adminSupabase
+        .from('profiles')
+        .select('role')
+        .eq('id', studentId)
+        .single()
+    if (!profile || profile.role !== 'student') return { error: 'Target user is not a student' }
 
     // Issue violation warning
     await supabase.from('student_violations').insert({
@@ -508,7 +813,25 @@ export async function reportStudentPostSession(
         reason: customReason || reason,
     })
 
+    // Deduct points for this specific student
+    const pointsDelta = POST_SESSION_POINTS[reason] ?? 0
+    if (pointsDelta !== 0) {
+        await applyPoints(adminSupabase, [studentId], pointsDelta)
+    }
+
+    // N13 — notify the reported student
+    const reasonLabel = reason.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+    const ptMsg = pointsDelta !== 0 ? ` Points: ${pointsDelta > 0 ? '+' : ''}${pointsDelta}.` : ''
+    await sendNotification({
+        recipientId: studentId,
+        type: 'violation_issued',
+        title: 'Post-Session Violation',
+        body: `A violation was issued against you: ${customReason || reasonLabel}.${ptMsg}`,
+        data: { booking_id: bookingId, violation_type: reason, points_delta: pointsDelta },
+    })
+
     revalidatePath('/admin/defaulters')
+    revalidatePath('/student/profile')
     return { success: true }
 }
 
@@ -517,7 +840,20 @@ export async function endSession(
     bookingId: string,
     equipmentConditions: { id: string; condition: 'good' | 'minor_damage' | 'damaged' }[]
 ) {
-    const supabase = await createClient()
+    const auth = await requireManagerRole()
+    if (auth.error) return { error: auth.error }
+    const { supabase } = auth
+
+    // Atomically mark as completed — if 0 rows affected the booking was already completed
+    // (prevents concurrent double-award when two manager calls race past a non-atomic status read).
+    const { data: markedRows } = await supabase
+        .from('bookings')
+        .update({ status: 'completed' })
+        .eq('id', bookingId)
+        .neq('status', 'completed')
+        .select('id')
+
+    if (!markedRows || markedRows.length === 0) return { already_handled: true }
 
     // 1. Update equipment conditions and free them
     for (const { id, condition } of equipmentConditions) {
@@ -543,15 +879,53 @@ export async function endSession(
         await freeBookingEquipment(supabase, bookingId)
     }
 
-    // 2. Mark booking completed
-    await supabase
-        .from('bookings')
-        .update({ status: 'completed' })
-        .eq('id', bookingId)
+    // 3. Award points to all players
+    //    Base: +8 for completing the session
+    //    Equipment bonus/penalty (worst condition across all items):
+    //      all good      → +2
+    //      any minor_dmg → -1
+    //      any damaged   → -8
+    const adminSupabase = createAdminClient()
+    const studentIds = await getBookingStudentIds(adminSupabase, bookingId)
+    if (studentIds.length > 0) {
+        let delta = 8 // base
+        if (equipmentConditions.length > 0) {
+            const hasDamaged   = equipmentConditions.some((e) => e.condition === 'damaged')
+            const hasMinorDmg  = equipmentConditions.some((e) => e.condition === 'minor_damage')
+            if (hasDamaged)       delta += -8
+            else if (hasMinorDmg) delta += -1
+            else                  delta += 2   // all good
+        }
+        await applyPoints(adminSupabase, studentIds, delta)
+    }
+
+    // N10 — notify all confirmed players session ended normally (include points earned)
+    if (studentIds.length > 0) {
+        const bkN10 = await getBookingForNotif(adminSupabase, bookingId)
+        if (bkN10) {
+            const court = (bkN10 as any).courts
+            // Determine equipment condition delta for message
+            const hasDamaged   = equipmentConditions.some((e) => e.condition === 'damaged')
+            const hasMinorDmg  = equipmentConditions.some((e) => e.condition === 'minor_damage')
+            const equipDelta   = hasDamaged ? -8 : hasMinorDmg ? -1 : equipmentConditions.length > 0 ? 2 : 0
+            const totalDelta   = 8 + equipDelta
+            const pointsMsg    = totalDelta >= 0 ? `+${totalDelta} pts` : `${totalDelta} pts`
+            await sendNotifications(
+                studentIds.map((id) => ({
+                    recipientId: id,
+                    type: 'session_ended',
+                    title: 'Session Completed',
+                    body: `Your ${court?.sport || ''} session at ${court?.name || 'court'} ended. Points: ${pointsMsg}.`,
+                    data: { booking_id: bookingId, points_delta: totalDelta },
+                })),
+            )
+        }
+    }
 
     revalidatePath('/manager')
     revalidatePath('/admin/reservations')
     revalidatePath('/student')
+    revalidatePath('/student/profile')
     return { success: true }
 }
 
@@ -559,7 +933,9 @@ export async function endSession(
 // Called from manager-approval-screen when booking isn't accepted within 10 mins.
 // Cancels booking, frees equipment, issues violations to all players.
 export async function expireBooking(bookingId: string, playerIds: string[]) {
-    const supabase = await createClient()
+    const auth = await requireManagerRole()
+    if (auth.error) return { error: auth.error }
+    const { supabase } = auth
 
     // 1. Check booking is still pending (avoid duplicate calls)
     const { data: booking } = await supabase
@@ -599,6 +975,25 @@ export async function expireBooking(bookingId: string, playerIds: string[]) {
                 reason: 'Booking was not approved within 10 minutes of start time and was auto-cancelled.',
             }))
             await supabase.from('student_violations').insert(violations)
+
+            // Deduct -8 points for no-show / timeout
+            const adminSupabase = createAdminClient()
+            await applyPoints(adminSupabase, studentIds, -8)
+
+            // N7 — notify all players of auto-expiry
+            const bkExp = await getBookingForNotif(adminSupabase, bookingId)
+            if (bkExp) {
+                const court = (bkExp as any).courts
+                await sendNotifications(
+                    studentIds.map((id) => ({
+                        recipientId: id,
+                        type: 'booking_expired',
+                        title: 'Booking Expired — No-Show',
+                        body: `Your ${court?.sport || ''} booking at ${court?.name || 'court'} was auto-cancelled (no manager approval within 10 minutes). −8 pts.`,
+                        data: { booking_id: bookingId, points_delta: -8 },
+                    })),
+                )
+            }
         }
     }
 

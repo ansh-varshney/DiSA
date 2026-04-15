@@ -1,7 +1,7 @@
 'use client'
 
 import { LogOut } from 'lucide-react'
-import { signOut } from '@/app/(auth)/login/actions'
+import { signOut } from '@/actions/auth'
 import { cn } from '@/lib/utils'
 
 interface SignOutButtonProps {

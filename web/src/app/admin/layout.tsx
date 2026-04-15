@@ -1,6 +1,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { AdminNav } from '@/components/admin-nav'
+import { NotificationPopup } from '@/components/notification-popup'
+import { getMyNotifications } from '@/actions/notifications'
 
 export default async function AdminLayout({
     children,
@@ -27,8 +29,11 @@ export default async function AdminLayout({
         redirect('/')
     }
 
+    const initialNotifications = await getMyNotifications(true, 10)
+
     return (
         <div className="min-h-screen bg-gray-50 pb-20 md:pb-0 md:pl-64">
+            <NotificationPopup initial={initialNotifications} />
             {children}
             <AdminNav />
         </div>

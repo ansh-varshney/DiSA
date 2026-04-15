@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { LayoutDashboard, CheckSquare, ClipboardList, UserCog } from 'lucide-react'
+import { LayoutDashboard, CheckSquare, ClipboardList, BellRing } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { SignOutButton } from '@/components/sign-out-button'
@@ -13,6 +13,7 @@ export function ManagerNav() {
         { href: '/manager', label: 'Dashboard', icon: LayoutDashboard },
         { href: '/manager/approvals', label: 'Approvals', icon: CheckSquare },
         { href: '/manager/active', label: 'Active Sessions', icon: ClipboardList },
+        { href: '/manager/notifications', label: 'Notifications', icon: BellRing },
     ]
 
     return (

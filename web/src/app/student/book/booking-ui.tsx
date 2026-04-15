@@ -34,7 +34,7 @@ const formatTime = (time: string) => {
 }
 
 // ─── Main Component ──────────────────────────────────────────────────────────
-export default function BookingUI({ initialCourts }: { initialCourts: Court[] }) {
+export default function BookingUI({ initialCourts, hasPriorityBooking }: { initialCourts: Court[], hasPriorityBooking: boolean }) {
     // Get unique sports from courts (normalize to lowercase)
     const sports = useMemo(() => {
         const set = new Set(initialCourts.map(c => c.sport.toLowerCase().trim()))
@@ -50,7 +50,7 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
 
     // Booking dialog state
     const [selectedSlot, setSelectedSlot] = useState<{ courtId: string; courtName: string; time: string } | null>(null)
-    const [duration, setDuration] = useState<30 | 60>(30)
+    const [duration, setDuration] = useState<30 | 60 | 90>(30)
     const [selectedPlayers, setSelectedPlayers] = useState<Player[]>([])
     const [playerSearch, setPlayerSearch] = useState('')
     const [searchResults, setSearchResults] = useState<Player[]>([])
@@ -390,7 +390,24 @@ export default function BookingUI({ initialCourts }: { initialCourts: Court[] })
                                         {d} min
                                     </button>
                                 ))}
+                                {hasPriorityBooking && (
+                                    <button
+                                        onClick={() => setDuration(90)}
+                                        className={cn(
+                                            "flex-1 py-2 text-sm font-bold rounded-lg border transition-all",
+                                            duration === 90
+                                                ? "bg-yellow-500 text-white border-yellow-500"
+                                                : "bg-yellow-50 text-yellow-700 border-yellow-300"
+                                        )}
+                                        title="Monthly leaderboard reward — one-time 90-min slot"
+                                    >
+                                        90 min ✦
+                                    </button>
+                                )}
                             </div>
+                            {hasPriorityBooking && duration === 90 && (
+                                <p className="text-[11px] text-yellow-700 mt-1">Using your monthly leaderboard reward (one-time use)</p>
+                            )}
                         </div>
 
                         {/* Players */}

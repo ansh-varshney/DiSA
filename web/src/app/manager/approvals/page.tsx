@@ -24,7 +24,7 @@ export default async function ApprovalsPage() {
 
     return (
         <div className="p-4 space-y-4">
-            <h1 className="text-xl font-bold text-gray-900">Today's Bookings</h1>
+            <h1 className="text-xl font-bold text-gray-900">Today&apos;s Bookings</h1>
             <p className="text-sm text-gray-500 -mt-2">Tap a booking to manage it</p>
 
             {bookings.length === 0 ? (

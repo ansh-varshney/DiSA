@@ -1,10 +1,11 @@
 import { createClient } from '@/utils/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { redirect } from 'next/navigation'
-import { format } from 'date-fns'
-import { AlertTriangle, CheckCircle, Star, Calendar, Shield, MessageSquare, Clock } from 'lucide-react'
+import { format, formatDistanceToNow } from 'date-fns'
+import { AlertTriangle, CheckCircle, Star, Calendar, Shield, MessageSquare, Clock, GraduationCap, Ban, Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FeedbackForm } from '@/components/feedback-form'
+import { ProfileEditForm } from '@/components/profile-edit-form'
 
 // Helper: turn snake_case violation_type into readable label
 function readableViolationType(type: string) {
@@ -58,7 +59,12 @@ export default async function ProfilePage() {
         .limit(20)
 
     const violationCount = violations?.length || 0
-    const isBanned = violationCount >= 3
+    // Active time-ban (3 late arrivals → 14 days)
+    const isBanned = profile?.banned_until && new Date(profile.banned_until) > new Date()
+    // Suspension from 3+ total violations
+    const isSuspended = violationCount >= 3
+    // Late arrival strike count (from the last 2-month window already fetched)
+    const lateArrivalCount = (violations || []).filter((v: any) => v.violation_type === 'students_late').length
 
     return (
         <div className="p-4 md:p-8 space-y-6">
@@ -104,8 +110,67 @@ export default async function ProfilePage() {
                 </CardContent>
             </Card>
 
-            {/* Ban Warning */}
+            {/* Monthly leaderboard reward — top-5 priority booking */}
+            {(profile?.priority_booking_remaining ?? 0) > 0 && (
+                <Card className="border-2 border-yellow-400 bg-yellow-50">
+                    <CardContent className="p-4 flex items-start gap-3">
+                        <Trophy className="w-6 h-6 text-yellow-600 shrink-0 mt-0.5" />
+                        <div>
+                            <p className="font-bold text-yellow-700">Monthly Top-5 Reward Active!</p>
+                            <p className="text-sm text-yellow-600 mt-0.5">
+                                You finished in the top 5 last month. You have{' '}
+                                <span className="font-semibold">1 priority booking</span>{' '}
+                                available — book a{' '}
+                                <span className="font-semibold">90-minute session</span>{' '}
+                                anytime this month. The 90-min option will appear in the booking screen.
+                                This reward is one-time and expires at the next monthly reset.
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Academic Profile (editable) */}
+            <Card>
+                <CardHeader className="py-3">
+                    <CardTitle className="text-lg flex items-center gap-2 text-gray-800">
+                        <GraduationCap className="w-5 h-5 text-[#004d40]" />
+                        Academic Profile
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <ProfileEditForm
+                        current={{
+                            branch: profile?.branch ?? null,
+                            year: profile?.year ?? null,
+                            gender: profile?.gender ?? null,
+                        }}
+                    />
+                </CardContent>
+            </Card>
+
+            {/* Active 14-day ban (repeated late arrivals) */}
             {isBanned && (
+                <Card className="border-2 border-orange-500 bg-orange-50">
+                    <CardContent className="p-4 flex items-center gap-3">
+                        <Ban className="w-6 h-6 text-orange-600 shrink-0" />
+                        <div>
+                            <p className="font-bold text-orange-700">Temporarily Banned — Late Arrivals</p>
+                            <p className="text-sm text-orange-600">
+                                You have accumulated 3 late-arrival strikes. Booking is disabled until{' '}
+                                <span className="font-semibold">
+                                    {format(new Date(profile!.banned_until), 'MMMM d, yyyy')}
+                                </span>{' '}
+                                ({formatDistanceToNow(new Date(profile!.banned_until), { addSuffix: true })}).
+                                Contact admin for early clearance.
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Suspension warning (3+ total violations) */}
+            {!isBanned && isSuspended && (
                 <Card className="border-2 border-red-500 bg-red-50">
                     <CardContent className="p-4 flex items-center gap-3">
                         <AlertTriangle className="w-6 h-6 text-red-600 shrink-0" />
@@ -113,6 +178,27 @@ export default async function ProfilePage() {
                             <p className="font-bold text-red-700">Account Suspended</p>
                             <p className="text-sm text-red-600">
                                 {violationCount} violations recorded. Booking is disabled. Contact admin to resolve.
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Late arrival strike tracker (show if any strikes but not yet banned) */}
+            {!isBanned && lateArrivalCount > 0 && (
+                <Card className={cn(
+                    'border',
+                    lateArrivalCount >= 2 ? 'border-orange-300 bg-orange-50' : 'border-yellow-200 bg-yellow-50'
+                )}>
+                    <CardContent className="p-4 flex items-center gap-3">
+                        <Clock className={cn('w-5 h-5 shrink-0', lateArrivalCount >= 2 ? 'text-orange-500' : 'text-yellow-500')} />
+                        <div>
+                            <p className={cn('font-semibold text-sm', lateArrivalCount >= 2 ? 'text-orange-700' : 'text-yellow-700')}>
+                                Late Arrival Strikes: {lateArrivalCount} / 3
+                            </p>
+                            <p className="text-xs text-gray-600 mt-0.5">
+                                3 strikes will result in a 14-day booking ban.
+                                {lateArrivalCount === 2 && ' One more and you will be banned!'}
                             </p>
                         </div>
                     </CardContent>

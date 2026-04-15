@@ -51,7 +51,7 @@ export function MaintenanceFlashcard({ courts }: MaintenanceFlashcardProps) {
                         <CardHeader className="p-4 py-3 bg-orange-50/50 border-b border-orange-100">
                             <CardTitle className="text-sm font-bold text-orange-900 flex items-center gap-2">
                                 <AlertTriangle className="w-4 h-4 text-orange-600" />
-                                Today's Maintenance Schedule
+                                Today&apos;s Maintenance Schedule
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0 max-h-80 overflow-y-auto divide-y divide-gray-100">

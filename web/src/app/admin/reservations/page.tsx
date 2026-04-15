@@ -49,7 +49,7 @@ export default async function ReservationsManagement({ searchParams }: { searchP
                             </div>
                             <h3 className="text-lg font-semibold text-gray-900">Please Select a Sport</h3>
                             <p className="text-gray-500 text-sm max-w-md mx-auto">
-                                Choose a sport from the dropdown above to view reservations for that sport's courts.
+                                Choose a sport from the dropdown above to view reservations for that sport&apos;s courts.
                             </p>
                         </div>
                     </CardContent>

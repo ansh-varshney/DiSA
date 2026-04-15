@@ -9,6 +9,7 @@ import { format } from 'date-fns'
 const CATEGORY_LABELS: Record<string, { label: string; emoji: string; color: string }> = {
     general: { label: 'General', emoji: '💬', color: 'bg-gray-100 text-gray-700' },
     emergency_by_manager: { label: 'Emergency (Manager)', emoji: '🚨', color: 'bg-red-100 text-red-700' },
+    emergency_by_student: { label: 'Emergency (Student)', emoji: '🆘', color: 'bg-orange-100 text-orange-700' },
 }
 
 export default async function FeedbackManagement({

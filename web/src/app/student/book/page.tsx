@@ -19,6 +19,15 @@ export default async function BookingPage() {
 
     const isBanned = (violationCount ?? 0) >= 3
 
+    // Check if the student has an unused monthly priority booking (top-5 leaderboard reward)
+    const { data: profileData } = await supabase
+        .from('profiles')
+        .select('priority_booking_remaining')
+        .eq('id', user.id)
+        .single()
+
+    const hasPriorityBooking = (profileData?.priority_booking_remaining ?? 0) > 0
+
     const courts = await getActiveCourts()
 
     return (
@@ -52,7 +61,7 @@ export default async function BookingPage() {
                     No courts available. Please ask an admin to add courts.
                 </div>
             ) : (
-                <BookingUI initialCourts={courts} />
+                <BookingUI initialCourts={courts} hasPriorityBooking={hasPriorityBooking} />
             )}
         </div>
     )

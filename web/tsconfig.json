@@ -37,6 +37,9 @@
     "**/*.mts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "vitest.setup.ts",
+    "vitest.config.ts",
+    "src/__tests__"
   ]
 }

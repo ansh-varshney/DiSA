@@ -40,7 +40,7 @@ export default async function StudentHome() {
             <header className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Welcome, {userName}</h1>
-                    <p className="text-gray-500 text-sm">Let's play some sports!</p>
+                    <p className="text-gray-500 text-sm">Let&apos;s play some sports!</p>
                 </div>
                 <Link href="/student/profile">
                     <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden">
