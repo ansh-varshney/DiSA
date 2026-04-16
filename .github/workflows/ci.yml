@@ -1,0 +1,134 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs for the same branch/PR when a new commit is pushed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# All jobs run inside the web/ subdirectory.
+defaults:
+  run:
+    working-directory: web
+
+jobs:
+  # ─── 1. Quality checks (format, lint, type-check) ───────────────────────────
+  quality:
+    name: Quality (format · lint · types)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Prettier — fail fast if any file is unformatted
+      - name: Check formatting (Prettier)
+        run: npm run format:check
+
+      # ESLint — rules defined in eslint.config.mjs
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      # TypeScript — app source (tsconfig.json, excludes tests)
+      - name: Type-check app
+        run: npm run type-check
+
+      # TypeScript — test files (tsconfig.test.json)
+      - name: Type-check tests
+        run: npm run type-check:test
+
+  # ─── 2. Tests with coverage ──────────────────────────────────────────────────
+  test:
+    name: Tests + Coverage
+    runs-on: ubuntu-latest
+
+    # Supabase clients are fully mocked in vitest.setup.ts, so these only need
+    # to be non-empty strings for any import-time validation to pass.
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Vitest with coverage — thresholds enforced in vitest.config.ts:
+      #   lines: 70 · functions: 70 · branches: 60
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      # Upload the HTML + lcov reports so they're viewable from the Actions UI.
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: web/coverage/
+          retention-days: 14
+
+  # ─── 3. Next.js production build ─────────────────────────────────────────────
+  # Only runs after quality + tests both pass, so broken builds don't mask
+  # lint/type errors, and failed tests don't trigger an unnecessary build.
+  build:
+    name: Build (Next.js)
+    runs-on: ubuntu-latest
+    needs: [quality, test]
+
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Cache the Next.js build output (.next/cache) across runs.
+      # Key rotates on any change to source files, preserving the cache
+      # across runs that only touch docs/config/tests.
+      - name: Restore Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: web/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('web/src/**', 'web/package-lock.json') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-
+
+      - name: Build
+        run: npm run build

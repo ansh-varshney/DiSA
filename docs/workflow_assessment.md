@@ -456,3 +456,172 @@
 - [ ] Profile card reflects new values immediately
 - [ ] Violations list shows last 2 months only (max 10)
 - [ ] Feedbacks/complaints section shows submitted items with status badges
+
+---
+
+### WORKFLOW 26 — Concurrency & Race Conditions
+
+> **Setup note**: All sub-tests below require two separate browser sessions (e.g., two incognito windows or two different browsers) logged in as two different students (Student A and Student B), unless stated otherwise.
+
+**26a. Same court slot — simultaneous booking (slot race)**
+- [ ] Student A and Student B both open `/student/book`, select the same court, same date, same time slot
+- [ ] Both open the booking dialog at the same time and click Confirm within seconds of each other
+- [ ] Exactly **one** booking succeeds (status `confirmed`)
+- [ ] The other student receives the error "Time slot is already booked"
+- [ ] The slot in the calendar grid shows as booked (only one booking in the DB for that court + time)
+
+**26b. Same equipment — simultaneous booking (equipment lock race)**
+- [ ] Student A and Student B both open booking dialogs for different courts but select the **same equipment item** at the same overlapping time slot
+- [ ] Both click Confirm at the same time
+- [ ] Exactly **one** booking succeeds with that equipment assigned
+- [ ] The other student receives the error "One or more equipment items are no longer available. Please refresh and try again."
+- [ ] `equipment.is_available` in the DB is `false` (locked by the winner)
+- [ ] No booking is left in a broken state (partial insert cleaned up)
+
+**26c. Double-tap "End Session" (idempotency)**
+- [ ] Manager has an active session open; clicks "End Session" twice rapidly (or opens the booking in two tabs and clicks in both)
+- [ ] Booking status transitions to `completed` exactly once
+- [ ] Points are awarded to each student exactly once (check `profiles.points` before and after — no double credit)
+- [ ] Equipment `total_usage_count` incremented by exactly 1 per item (not 2)
+
+**26d. Accept play request after booking is already cancelled**
+- [ ] Student A creates a booking and invites Student B
+- [ ] Before Student B responds, Student A cancels the booking
+- [ ] Student B then clicks Accept on the now-stale play request
+- [ ] Student B receives error: "The booking has already been cancelled or completed"
+- [ ] Play request status updated to `expired`
+- [ ] No ghost entries created in `players_list`
+
+**26e. Double-reject of the same play request**
+- [ ] Student B has a pending play request
+- [ ] Student B opens the play request page in two browser tabs simultaneously and clicks Reject in both within milliseconds
+- [ ] Exactly **one** reject goes through (booking cancelled or player removed)
+- [ ] The second call returns error "Already responded to this request"
+- [ ] Booking is not double-cancelled; equipment is freed exactly once if applicable
+
+**26f. Parallel accept + reject of the same play request**
+- [ ] Student B has the play request open in two tabs — clicks Accept in Tab 1 and Reject in Tab 2 almost simultaneously
+- [ ] Exactly **one** action wins (whichever hit the server first)
+- [ ] The other returns "Already responded to this request"
+- [ ] Booking's `players_list` reflects only the winning outcome (confirmed or removed, not both)
+
+**26g. 10-minute expiry race with manager approval**
+- [ ] A booking is in `waiting_manager` status right at the 10-minute boundary
+- [ ] Manager loads the booking detail (triggering lazy expiry check) at the exact same moment as another manager tries to approve it
+- [ ] If expiry wins: booking is `cancelled`, violation logged, manager approval returns a stale-state error or no-op
+- [ ] If approval wins: booking goes `active`, expiry check on next load finds status `active` and does not cancel it
+- [ ] In neither case is the booking left in an inconsistent state (half-cancelled + active)
+
+**26h. Two students booking the same slot on different sports (valid — no conflict)**
+- [ ] Student A books Badminton Court 1 at 10:00
+- [ ] Student B books Tennis Court 1 at 10:00 simultaneously
+- [ ] **Both bookings succeed** — different courts, no conflict
+- [ ] Both bookings appear in their respective reservation lists
+- [ ] Calendar grids for each sport show the correct booking independently
+
+---
+
+### WORKFLOW 27 — Points System Verification
+
+> **Setup note**: Before each sub-test, note the student's current `points` value from their profile page. After the action, reload the profile and verify the delta is exactly as specified. Use the admin `/admin/defaulters` page to confirm violations are logged.
+
+**27a. Session completed — all equipment good (+10 pts)**
+- [ ] Record student's points before session
+- [ ] Complete a session; manager marks all equipment as **Good**
+- [ ] Student's points = before + 10
+- [ ] Notification body includes "+10 pts"
+
+**27b. Session completed — no equipment selected (+8 pts)**
+- [ ] Complete a session with no equipment reserved
+- [ ] Student's points = before + 8
+- [ ] Notification body includes "+8 pts"
+
+**27c. Session completed — any equipment minor damage (+7 pts)**
+- [ ] Complete a session; manager marks at least one item as **Minor Damage** (rest Good)
+- [ ] Student's points = before + 7
+- [ ] Notification body includes "+7 pts"
+
+**27d. Session completed — any equipment damaged (+0 pts)**
+- [ ] Complete a session; manager marks at least one item as **Damaged**
+- [ ] Student's points = before + 0 (net zero: +8 base −8 penalty)
+- [ ] Notification body includes "+0 pts" or "0 pts"
+
+**27e. Late cancellation penalty (−3 pts)**
+- [ ] Student cancels a booking that starts in less than 3 hours
+- [ ] Student's points = before − 3
+- [ ] No violation record created (this is a points deduction only, not a violation)
+
+**27f. Manager rejection — students late (−6 pts)**
+- [ ] Manager rejects a booking with reason "Students Late"
+- [ ] Each student in the booking: points = before − 6
+- [ ] `student_violations` row created per student with `violation_type = 'students_late'`
+
+**27g. Manager rejection — improper gear (−4 pts)**
+- [ ] Manager rejects with reason "Improper Gear"
+- [ ] Each student: points = before − 4
+- [ ] `student_violations` row created with `violation_type = 'improper_gear'`
+
+**27h. Manager rejection — inappropriate behaviour (−8 pts)**
+- [ ] Manager rejects with reason "Inappropriate Behaviour"
+- [ ] Each student: points = before − 8
+- [ ] `student_violations` row created with `violation_type = 'inappropriate_behaviour'`
+
+**27i. Manager rejection — other (0 pts, violation still logged)**
+- [ ] Manager rejects with reason "Other" + custom text
+- [ ] Each student: points = before + 0 (no change)
+- [ ] `student_violations` row still created with `violation_type = 'other'`
+
+**27j. Booking auto-expiry / no-show (−8 pts)**
+- [ ] Booking in `waiting_manager` auto-expires after 10 minutes past start
+- [ ] Each student: points = before − 8
+- [ ] `student_violations` row created with `violation_type = 'booking_timeout'`
+
+**27k. Post-session report — late end (−4 pts)**
+- [ ] Manager reports a specific student post-session with reason "Late End"
+- [ ] That student's points = before − 4
+- [ ] `student_violations` row created with `violation_type = 'late_end'`
+
+**27l. Post-session report — vandalism (−15 pts)**
+- [ ] Manager reports with reason "Vandalism"
+- [ ] That student's points = before − 15
+- [ ] `student_violations` row created with `violation_type = 'vandalism'`
+
+**27m. Equipment lost (−20 pts per player)**
+- [ ] Manager reports equipment as lost during an active session
+- [ ] Every confirmed player in the booking: points = before − 20
+- [ ] `student_violations` row (severity: severe) created per player with `violation_type = 'lost_equipment'`
+
+**27n. Points are atomic — no lost updates under rapid actions**
+- [ ] Start with a student at exactly 0 points
+- [ ] Trigger two point-awarding events back-to-back rapidly (e.g., end session giving +10, then a rejection deducting −6 on a different booking, nearly simultaneously)
+- [ ] Final points = 0 + 10 − 6 = **4** (not 10, not −6, not 0)
+- [ ] No intermediate read-modify-write race: verify by checking profile.points after both events settle
+
+**27o. Suspension threshold (3 violations → cannot book)**
+- [ ] Student accumulates exactly 2 violations of any type → can still book
+- [ ] Student receives a 3rd violation (any type) → profile shows "Suspended"
+- [ ] Student attempts to create a new booking → error "Your account has been suspended due to 3 or more violations"
+- [ ] Admin clears defaulter → violations deleted → student can book again
+
+**27p. Late-arrival ban threshold (3 × students_late → 14-day ban)**
+- [ ] Student gets `students_late` violation × 1 → no ban, can book
+- [ ] Student gets `students_late` violation × 2 → no ban, can book
+- [ ] Student gets `students_late` violation × 3 → `banned_until = now + 14 days`
+- [ ] Student receives `ban_applied` notification with ban expiry date
+- [ ] Student attempts to book → error showing ban expiry date
+- [ ] Profile page shows ban status + exact expiry date
+- [ ] Admin clears defaulter → `banned_until = null` → student can book again
+
+**27q. Monthly reset resets all points to 0**
+- [ ] Multiple students have non-zero points
+- [ ] Simulate a new calendar month (or manually trigger `reset_monthly_points` RPC)
+- [ ] All students' `points` = 0
+- [ ] `last_points_reset` updated to current date for all students
+- [ ] Running reset again in the same month → no change (idempotent, returns `reset_count: 0`)
+
+**27r. Monthly reset awards priority booking to top 5 only**
+- [ ] Before reset: identify the top 5 students by points
+- [ ] After reset: those 5 students have `priority_booking_remaining = 1`
+- [ ] All other students have `priority_booking_remaining = 0` (unchanged or 0)
+- [ ] Each top-5 student receives `priority_booking_awarded` notification
+- [ ] Students ranked 6th and below receive no priority booking notification
