@@ -436,7 +436,7 @@ describe('acceptPlayRequest', () => {
         // Intercept bookings calls to capture the update payload
         let bookingsUpdateArgs: any = null
         let bookingsCallCount = 0
-        const originalFrom = adminDb.client.from as ReturnType<typeof vi.fn>
+        const originalFrom = adminDb.client.from
         adminDb.client.from = vi.fn((table: string) => {
             if (table === 'bookings') {
                 bookingsCallCount++

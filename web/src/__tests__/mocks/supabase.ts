@@ -88,7 +88,7 @@ function makeChain(responseGetter: () => Promise<DbResponse>) {
 // ─── Client builder ───────────────────────────────────────────────────────────
 
 export interface MockSupabaseClient {
-    from: ReturnType<typeof vi.fn>
+    from: ((table: string) => any) & ReturnType<typeof vi.fn>
     rpc: ReturnType<typeof vi.fn>
     auth: {
         getUser: ReturnType<typeof vi.fn>

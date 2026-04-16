@@ -349,7 +349,10 @@ describe('priorityReserveSlot', () => {
     const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
     function setupPriorityAdmin(
-        bookingInsertResult = { data: { id: 'priority-new' }, error: null }
+        bookingInsertResult: { data: { id: string } | null; error: { message: string } | null } = {
+            data: { id: 'priority-new' },
+            error: null,
+        }
     ) {
         // verifyAdmin() calls createClient → profiles
         const db = makeMockDb()

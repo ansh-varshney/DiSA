@@ -8,5 +8,6 @@
         "vitest.config.ts",
         "src/__tests__/**/*.ts",
         "src/__tests__/**/*.tsx"
-    ]
+    ],
+    "exclude": ["node_modules"]
 }
