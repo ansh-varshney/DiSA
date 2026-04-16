@@ -34,7 +34,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       # Prettier — fail fast if any file is unformatted
       - name: Check formatting (Prettier)
@@ -76,7 +76,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       # Vitest with coverage — thresholds enforced in vitest.config.ts:
       #   lines: 70 · functions: 70 · branches: 60
@@ -117,7 +117,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       # Cache the Next.js build output (.next/cache) across runs.
       # Key rotates on any change to source files, preserving the cache
