@@ -11,7 +11,10 @@
       "Read(//c/Users/Ansh/ Varshney/Desktop/IIITD/Semester/ 8/DiSA/web/src/actions/**)",
       "Bash(find web/database -name \"*.sql\" -exec grep -l \"admin_notes\" {} \\\\;)",
       "Bash(grep -r \"MIN\\\\|MAX\\\\|duration\\\\|length\\\\|slot\" web/src/components/booking* --include=\"*.tsx\")",
-      "Read(//c/Users/Ansh Varshney/.claude/projects/c--Users-Ansh-Varshney-Desktop-IIITD-Semester-8-DiSA/memory/**)"
+      "Read(//c/Users/Ansh Varshney/.claude/projects/c--Users-Ansh-Varshney-Desktop-IIITD-Semester-8-DiSA/memory/**)",
+      "Bash(npm ci *)",
+      "Bash(grep -E \"\\\\.ts$|\\\\.tsx$|\\\\.js$\")",
+      "Read(//tmp/**)"
     ]
   }
 }
