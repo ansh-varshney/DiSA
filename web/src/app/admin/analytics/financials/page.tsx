@@ -34,7 +34,15 @@ export default async function FinancialsDashboard({
 
     const data = await getFinancialsData(selectedVendor === 'all' ? undefined : selectedVendor)
 
-    const { vendors, total, avgLifespanSessions, totalCost, costBySport, countBySport, lifespanBySport } = data
+    const {
+        vendors,
+        total,
+        avgLifespanSessions,
+        totalCost,
+        costBySport,
+        countBySport,
+        lifespanBySport,
+    } = data
 
     // For bar chart scaling
     const maxCost = Math.max(...Object.values(costBySport), 1)
@@ -74,7 +82,9 @@ export default async function FinancialsDashboard({
                     </button>
                 </div>
                 {selectedVendor !== 'all' && (
-                    <p className="text-xs text-gray-500 italic">* Filtered by vendor: {selectedVendor}</p>
+                    <p className="text-xs text-gray-500 italic">
+                        * Filtered by vendor: {selectedVendor}
+                    </p>
                 )}
                 {selectedVendor === 'all' && (
                     <p className="text-xs text-gray-500 italic">* Filter by vendor</p>
@@ -105,7 +115,9 @@ export default async function FinancialsDashboard({
                         <span className="text-sm text-gray-700">
                             Total Equipment Cost:{' '}
                             <span className="font-bold text-gray-900">
-                                {totalCost ? `₹${totalCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : '—'}
+                                {totalCost
+                                    ? `₹${totalCost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+                                    : '—'}
                             </span>
                         </span>
                     </div>
@@ -144,7 +156,9 @@ export default async function FinancialsDashboard({
                                         <div className="w-full bg-gray-100 rounded-full h-3">
                                             <div
                                                 className={`h-3 rounded-full ${getColor(sport)} transition-all`}
-                                                style={{ width: `${Math.round((days / maxLifespan) * 100)}%` }}
+                                                style={{
+                                                    width: `${Math.round((days / maxLifespan) * 100)}%`,
+                                                }}
                                             />
                                         </div>
                                     </div>
@@ -178,16 +192,23 @@ export default async function FinancialsDashboard({
                                             <div className="flex justify-between text-xs text-gray-600 mb-1">
                                                 <span className="font-medium">
                                                     {capitalize(sport)}{' '}
-                                                    <span className="text-gray-400">({count} items)</span>
+                                                    <span className="text-gray-400">
+                                                        ({count} items)
+                                                    </span>
                                                 </span>
                                                 <span>
-                                                    ₹{cost.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                                    ₹
+                                                    {cost.toLocaleString('en-IN', {
+                                                        maximumFractionDigits: 0,
+                                                    })}
                                                 </span>
                                             </div>
                                             <div className="w-full bg-gray-100 rounded-full h-3">
                                                 <div
                                                     className={`h-3 rounded-full ${getColor(sport)} transition-all`}
-                                                    style={{ width: `${Math.round((cost / maxCost) * 100)}%` }}
+                                                    style={{
+                                                        width: `${Math.round((cost / maxCost) * 100)}%`,
+                                                    }}
                                                 />
                                             </div>
                                         </div>
@@ -204,7 +225,10 @@ export default async function FinancialsDashboard({
                     <p className="text-sm font-semibold text-gray-700 mb-1">Drill-Down</p>
                     <p className="text-sm text-gray-500">
                         View detailed equipment inventory per sport in{' '}
-                        <Link href="/admin/equipment" className="text-[#004d40] font-medium underline">
+                        <Link
+                            href="/admin/equipment"
+                            className="text-[#004d40] font-medium underline"
+                        >
                             Equipment Management
                         </Link>
                         .

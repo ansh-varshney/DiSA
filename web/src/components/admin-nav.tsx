@@ -44,11 +44,11 @@ export function AdminNav() {
                             key={href}
                             href={href}
                             className={cn(
-                                "flex flex-col items-center justify-center min-w-[20%] h-full space-y-1 transition-colors",
-                                isActive ? "text-[#004d40]" : "text-gray-500 hover:text-gray-900"
+                                'flex flex-col items-center justify-center min-w-[20%] h-full space-y-1 transition-colors',
+                                isActive ? 'text-[#004d40]' : 'text-gray-500 hover:text-gray-900'
                             )}
                         >
-                            <Icon className={cn("w-5 h-5", isActive && "stroke-[2.5px]")} />
+                            <Icon className={cn('w-5 h-5', isActive && 'stroke-[2.5px]')} />
                             <span className="text-[9px] font-medium">{label}</span>
                         </Link>
                     )
@@ -70,8 +70,10 @@ export function AdminNav() {
                             key={href}
                             href={href}
                             className={cn(
-                                "flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors",
-                                isActive ? "bg-[#004d40] text-white" : "text-gray-600 hover:bg-gray-100"
+                                'flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors',
+                                isActive
+                                    ? 'bg-[#004d40] text-white'
+                                    : 'text-gray-600 hover:bg-gray-100'
                             )}
                         >
                             <Icon className="w-5 h-5" />

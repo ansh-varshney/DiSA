@@ -41,10 +41,27 @@ export interface MockDb {
 
 function makeChain(responseGetter: () => Promise<DbResponse>) {
     const chainMethods = [
-        'select', 'insert', 'update', 'delete', 'upsert',
-        'eq', 'neq', 'in', 'not', 'is', 'or',
-        'gte', 'lte', 'lt', 'gt', 'ilike', 'like',
-        'order', 'limit', 'range', 'match',
+        'select',
+        'insert',
+        'update',
+        'delete',
+        'upsert',
+        'eq',
+        'neq',
+        'in',
+        'not',
+        'is',
+        'or',
+        'gte',
+        'lte',
+        'lt',
+        'gt',
+        'ilike',
+        'like',
+        'order',
+        'limit',
+        'range',
+        'match',
     ] as const
 
     const chain: Record<string, any> = {}
@@ -60,8 +77,7 @@ function makeChain(responseGetter: () => Promise<DbResponse>) {
     })
 
     // Awaiting the chain itself (insert/update/delete without .single())
-    chain.then = (resolve: any, reject: any) =>
-        responseGetter().then(resolve, reject)
+    chain.then = (resolve: any, reject: any) => responseGetter().then(resolve, reject)
 
     // count variant
     Object.defineProperty(chain, Symbol.toStringTag, { value: 'MockChain' })
@@ -100,7 +116,9 @@ export function makeMockDb(): MockDb {
     const storageMock = {
         from: vi.fn().mockReturnValue({
             upload: vi.fn().mockResolvedValue({ error: null }),
-            getPublicUrl: vi.fn().mockReturnValue({ data: { publicUrl: 'https://mock.url/img.jpg' } }),
+            getPublicUrl: vi
+                .fn()
+                .mockReturnValue({ data: { publicUrl: 'https://mock.url/img.jpg' } }),
             remove: vi.fn().mockResolvedValue({ error: null }),
         }),
     }

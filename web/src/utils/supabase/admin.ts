@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js'
 
 export const createAdminClient = () => {
@@ -8,8 +7,8 @@ export const createAdminClient = () => {
         {
             auth: {
                 autoRefreshToken: false,
-                persistSession: false
-            }
+                persistSession: false,
+            },
         }
     )
 }

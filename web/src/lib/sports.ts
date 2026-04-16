@@ -2,16 +2,16 @@
  * Sport code mapping for equipment ID generation
  */
 export const SPORT_CODES: Record<string, string> = {
-    'badminton': 'bad',
-    'tennis': 'ten',
-    'squash': 'squ',
-    'cricket': 'cri',
-    'football': 'foo',
+    badminton: 'bad',
+    tennis: 'ten',
+    squash: 'squ',
+    cricket: 'cri',
+    football: 'foo',
     'table tennis': 'tab',
-    'volleyball': 'vol',
-    'basketball': 'bas',
-    'pool': 'poo',
-    'snooker': 'sno'
+    volleyball: 'vol',
+    basketball: 'bas',
+    pool: 'poo',
+    snooker: 'sno',
 }
 
 /**
@@ -19,16 +19,16 @@ export const SPORT_CODES: Record<string, string> = {
  * Using 'C' prefix to differentiate from equipment (e.g., C-BAD1)
  */
 export const COURT_CODES: Record<string, string> = {
-    'badminton': 'BAD',
-    'tennis': 'TEN',
-    'squash': 'SQU',
-    'cricket': 'CRI',
-    'football': 'FOO',
+    badminton: 'BAD',
+    tennis: 'TEN',
+    squash: 'SQU',
+    cricket: 'CRI',
+    football: 'FOO',
     'table tennis': 'TAB',
-    'volleyball': 'VOL',
-    'basketball': 'BAS',
-    'pool': 'POO',
-    'snooker': 'SNO'
+    volleyball: 'VOL',
+    basketball: 'BAS',
+    pool: 'POO',
+    snooker: 'SNO',
 }
 
 /**
@@ -44,10 +44,10 @@ export const SPORTS_LIST = [
     'volleyball',
     'basketball',
     'pool',
-    'snooker'
+    'snooker',
 ] as const
 
-export type Sport = typeof SPORTS_LIST[number]
+export type Sport = (typeof SPORTS_LIST)[number]
 
 /**
  * Generate the next equipment ID for a given sport

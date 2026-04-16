@@ -43,7 +43,9 @@ export default function CompleteProfilePage() {
                     <div className="mx-auto w-12 h-12 bg-[#004d40]/10 rounded-xl flex items-center justify-center mb-3">
                         <UserCircle className="w-6 h-6 text-[#004d40]" />
                     </div>
-                    <CardTitle className="text-xl font-bold text-gray-900">Complete Your Profile</CardTitle>
+                    <CardTitle className="text-xl font-bold text-gray-900">
+                        Complete Your Profile
+                    </CardTitle>
                     <CardDescription className="text-sm text-gray-500">
                         A few more details to set up your student account.
                     </CardDescription>
@@ -51,51 +53,76 @@ export default function CompleteProfilePage() {
                 <CardContent>
                     <form action={handleSubmit} className="space-y-4">
                         <div className="space-y-1">
-                            <label className="text-xs font-medium text-gray-600">Roll Number (optional)</label>
-                            <Input name="studentId" type="text" placeholder="e.g. 2022XXX" className="h-11" />
+                            <label className="text-xs font-medium text-gray-600">
+                                Roll Number (optional)
+                            </label>
+                            <Input
+                                name="studentId"
+                                type="text"
+                                placeholder="e.g. 2022XXX"
+                                className="h-11"
+                            />
                         </div>
 
                         <div className="space-y-1">
-                            <label className="text-xs font-medium text-gray-600">Branch <span className="text-red-500">*</span></label>
+                            <label className="text-xs font-medium text-gray-600">
+                                Branch <span className="text-red-500">*</span>
+                            </label>
                             <select
                                 name="branch"
                                 required
                                 defaultValue=""
                                 className="w-full h-11 border border-input rounded-md px-3 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]"
                             >
-                                <option value="" disabled>Select Branch</option>
-                                {BRANCHES.map(b => (
-                                    <option key={b.value} value={b.value}>{b.label}</option>
+                                <option value="" disabled>
+                                    Select Branch
+                                </option>
+                                {BRANCHES.map((b) => (
+                                    <option key={b.value} value={b.value}>
+                                        {b.label}
+                                    </option>
                                 ))}
                             </select>
                         </div>
 
                         <div className="space-y-1">
-                            <label className="text-xs font-medium text-gray-600">Academic Year <span className="text-red-500">*</span></label>
+                            <label className="text-xs font-medium text-gray-600">
+                                Academic Year <span className="text-red-500">*</span>
+                            </label>
                             <select
                                 name="year"
                                 required
                                 defaultValue=""
                                 className="w-full h-11 border border-input rounded-md px-3 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]"
                             >
-                                <option value="" disabled>Select Year</option>
-                                {YEARS.map(y => (
-                                    <option key={y} value={y}>{y}</option>
+                                <option value="" disabled>
+                                    Select Year
+                                </option>
+                                {YEARS.map((y) => (
+                                    <option key={y} value={y}>
+                                        {y}
+                                    </option>
                                 ))}
                             </select>
                         </div>
 
                         <div className="space-y-1">
-                            <label className="text-xs font-medium text-gray-600">Gender <span className="text-red-500">*</span></label>
+                            <label className="text-xs font-medium text-gray-600">
+                                Gender <span className="text-red-500">*</span>
+                            </label>
                             <select
                                 name="gender"
                                 required
                                 defaultValue=""
                                 className="w-full h-11 border border-input rounded-md px-3 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]"
                             >
-                                <option value="" disabled>Select Gender</option>
-                                {GENDERS.map(g => (
-                                    <option key={g} value={g}>{g}</option>
+                                <option value="" disabled>
+                                    Select Gender
+                                </option>
+                                {GENDERS.map((g) => (
+                                    <option key={g} value={g}>
+                                        {g}
+                                    </option>
                                 ))}
                             </select>
                         </div>

@@ -21,7 +21,7 @@ vi.mock('@/utils/supabase/admin')
 
 // Mock notification helpers but keep real acceptPlayRequest / rejectPlayRequest / broadcastToAllStudents
 vi.mock('@/actions/notifications', async (importOriginal) => {
-    const actual = await importOriginal() as Record<string, unknown>
+    const actual = (await importOriginal()) as Record<string, unknown>
     return {
         ...actual,
         sendNotification: vi.fn().mockResolvedValue('n-1'),
@@ -40,7 +40,11 @@ import { createAdminClient } from '@/utils/supabase/admin'
 import { sendNotifications } from '@/actions/notifications'
 
 import { endSession } from '@/actions/manager'
-import { rejectPlayRequest, acceptPlayRequest, broadcastToAllStudents } from '@/actions/notifications'
+import {
+    rejectPlayRequest,
+    acceptPlayRequest,
+    broadcastToAllStudents,
+} from '@/actions/notifications'
 import { createBooking } from '@/actions/bookings'
 
 // ─── 1. Atomic Points: concurrent endSession ───────────────────────────────────
@@ -62,26 +66,41 @@ describe('Concurrent endSession — points must use RPC not manual read-modify-w
                 // requireManagerRole profiles check
                 if (table === 'profiles') {
                     const c: any = {}
-                    for (const m of ['select','update','eq','neq','in','single','then']) c[m] = vi.fn().mockReturnValue(c)
-                    c.single = vi.fn().mockResolvedValue({ data: { id: 'manager-1', role: 'manager' }, error: null })
+                    for (const m of ['select', 'update', 'eq', 'neq', 'in', 'single', 'then'])
+                        c[m] = vi.fn().mockReturnValue(c)
+                    c.single = vi.fn().mockResolvedValue({
+                        data: { id: 'manager-1', role: 'manager' },
+                        error: null,
+                    })
                     c.then = (resolve: any) => resolve({ data: null, error: null })
                     return c
                 }
                 const c: any = {}
-                for (const m of ['select','update','eq','neq','in','single','then']) {
+                for (const m of ['select', 'update', 'eq', 'neq', 'in', 'single', 'then']) {
                     c[m] = vi.fn().mockReturnValue(c)
                 }
-                c.single = vi.fn().mockResolvedValue({ data: { total_usage_count: 0, status: 'active' }, error: null })
+                c.single = vi.fn().mockResolvedValue({
+                    data: { total_usage_count: 0, status: 'active' },
+                    error: null,
+                })
                 // endSession's idempotency check uses .update().eq().neq().select() and awaits
                 // the chain directly (no .single()). Return non-empty array so the guard passes.
                 c.then = (resolve: any) => resolve({ data: [{ id: 'b-x' }], error: null })
                 return c
             })
             const adminDb = makeMockDb()
-            adminDb.mockTableOnce('bookings', { data: { user_id: studentId, players_list: [] }, error: null })
+            adminDb.mockTableOnce('bookings', {
+                data: { user_id: studentId, players_list: [] },
+                error: null,
+            })
             adminDb.mockTableOnce('profiles', { data: [{ id: studentId }], error: null })
             adminDb.mockTableOnce('bookings', {
-                data: { id: 'b-x', start_time: FIXTURES.booking.start_time, user_id: studentId, courts: { name: 'Ct', sport: 'badminton' } },
+                data: {
+                    id: 'b-x',
+                    start_time: FIXTURES.booking.start_time,
+                    user_id: studentId,
+                    courts: { name: 'Ct', sport: 'badminton' },
+                },
                 error: null,
             })
             return { db, adminDb }
@@ -108,12 +127,19 @@ describe('Concurrent endSession — points must use RPC not manual read-modify-w
         expect(r2).toEqual({ success: true })
 
         // Both MUST use RPC — never read points then add
-        expect(adb1.rpc).toHaveBeenCalledWith('update_student_points', { p_student_id: 'student-A', p_delta: 10 })
-        expect(adb2.rpc).toHaveBeenCalledWith('update_student_points', { p_student_id: 'student-B', p_delta: 10 })
+        expect(adb1.rpc).toHaveBeenCalledWith('update_student_points', {
+            p_student_id: 'student-A',
+            p_delta: 10,
+        })
+        expect(adb2.rpc).toHaveBeenCalledWith('update_student_points', {
+            p_student_id: 'student-B',
+            p_delta: 10,
+        })
 
         // Critically: profiles.points was NEVER directly written (no update on profiles table for points)
-        const adb1ProfileUpdates = (adb1.client.from as any).mock.calls
-            .filter((c: any[]) => c[0] === 'profiles')
+        const adb1ProfileUpdates = (adb1.client.from as any).mock.calls.filter(
+            (c: any[]) => c[0] === 'profiles'
+        )
         // profiles select is fine; but there must not be an update({points:...}) call
         expect(adb1ProfileUpdates.length).toBeLessThanOrEqual(1) // at most one select
     })
@@ -130,18 +156,21 @@ describe('Concurrent endSession — points must use RPC not manual read-modify-w
         db.auth.getUser.mockResolvedValue({ data: { user: { id: 'm-1' } } })
         db.client.from = vi.fn((table: string) => {
             const c: any = {}
-            for (const m of ['select','update','eq','neq','in','single','then']) c[m] = vi.fn().mockReturnValue(c)
+            for (const m of ['select', 'update', 'eq', 'neq', 'in', 'single', 'then'])
+                c[m] = vi.fn().mockReturnValue(c)
             // requireManagerRole profiles check returns manager role; all other tables return a
             // valid booking status so the idempotency guard passes
             c.single = vi.fn().mockResolvedValue({
-                data: table === 'profiles'
-                    ? { id: 'm-1', role: 'manager' }
-                    : { total_usage_count: 0, status: 'active' },
+                data:
+                    table === 'profiles'
+                        ? { id: 'm-1', role: 'manager' }
+                        : { total_usage_count: 0, status: 'active' },
                 error: null,
             })
             // endSession's idempotency check awaits the chain directly (no .single()).
             // Return a non-empty array for non-profile tables so markedRows.length > 0.
-            c.then = (r: any) => r({ data: table === 'profiles' ? null : [{ id: 'b-1' }], error: null })
+            c.then = (r: any) =>
+                r({ data: table === 'profiles' ? null : [{ id: 'b-1' }], error: null })
             return c
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -149,10 +178,18 @@ describe('Concurrent endSession — points must use RPC not manual read-modify-w
         const adminDb = makeMockDb()
         // Queue two sets of responses (for two calls)
         for (let i = 0; i < 2; i++) {
-            adminDb.mockTableOnce('bookings', { data: { user_id: 's1', players_list: [] }, error: null })
+            adminDb.mockTableOnce('bookings', {
+                data: { user_id: 's1', players_list: [] },
+                error: null,
+            })
             adminDb.mockTableOnce('profiles', { data: [{ id: 's1' }], error: null })
             adminDb.mockTableOnce('bookings', {
-                data: { id: 'b-1', start_time: FIXTURES.booking.start_time, user_id: 's1', courts: { name: 'Ct', sport: 'b' } },
+                data: {
+                    id: 'b-1',
+                    start_time: FIXTURES.booking.start_time,
+                    user_id: 's1',
+                    courts: { name: 'Ct', sport: 'b' },
+                },
                 error: null,
             })
         }
@@ -189,14 +226,18 @@ describe('Concurrent createBooking — slot conflict detection', () => {
             const db = makeMockDb()
             db.auth.getUser.mockResolvedValue({ data: { user: { id: 'student-1' } } })
             const violationsChain = {
-                select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
+                select: vi.fn().mockReturnThis(),
+                eq: vi.fn().mockReturnThis(),
                 then: (r: any) => r({ count: 0, error: null }),
             }
             db.client.from = vi.fn((table: string) => {
                 if (table === 'profiles') {
                     return {
-                        select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
-                        single: vi.fn().mockResolvedValue({ data: { banned_until: null }, error: null }),
+                        select: vi.fn().mockReturnThis(),
+                        eq: vi.fn().mockReturnThis(),
+                        single: vi
+                            .fn()
+                            .mockResolvedValue({ data: { banned_until: null }, error: null }),
                     }
                 }
                 if (table === 'student_violations') return violationsChain
@@ -209,9 +250,12 @@ describe('Concurrent createBooking — slot conflict detection', () => {
                         neq: vi.fn().mockReturnThis(),
                         or: vi.fn().mockReturnThis(),
                         // .single() used after insert — returns new booking id
-                        single: vi.fn().mockResolvedValue({ data: { id: 'new-booking-id' }, error: null }),
+                        single: vi
+                            .fn()
+                            .mockResolvedValue({ data: { id: 'new-booking-id' }, error: null }),
                         // Conflict check (select … or … then) returns existing booking for "B", empty for "A"
-                        then: (r: any) => r({ data: hasConflict ? [{ id: 'existing' }] : [], error: null }),
+                        then: (r: any) =>
+                            r({ data: hasConflict ? [{ id: 'existing' }] : [], error: null }),
                     }
                 }
                 return makeMockDb().client.from(table)
@@ -220,7 +264,7 @@ describe('Concurrent createBooking — slot conflict detection', () => {
         }
 
         const dbA = makeSlotBookingDb(false) // A sees no conflict
-        const dbB = makeSlotBookingDb(true)  // B sees A's booking
+        const dbB = makeSlotBookingDb(true) // B sees A's booking
 
         vi.mocked(createClient)
             .mockResolvedValueOnce(dbA.client as any)
@@ -307,7 +351,7 @@ describe('Play request race conditions', () => {
                 status: 'confirmed',
                 user_id: 'student-booker',
                 start_time: FIXTURES.booking.start_time,
-                num_players: 2,          // at minimum — one rejection drops below
+                num_players: 2, // at minimum — one rejection drops below
                 equipment_ids: [],
                 players_list: [{ id: 'student-2', status: 'pending' }],
                 courts: { name: 'Ct A', sport: 'badminton' },
@@ -346,8 +390,10 @@ describe('Play request race conditions', () => {
 
         // First call succeeded, second was blocked by the idempotency check
         const results = [firstResult, secondResult]
-        const successes = results.filter(r => (r as any).success)
-        const alreadyResponded = results.filter(r => (r as any).error === 'Already responded to this request')
+        const successes = results.filter((r) => (r as any).success)
+        const alreadyResponded = results.filter(
+            (r) => (r as any).error === 'Already responded to this request'
+        )
 
         expect(successes).toHaveLength(1)
         expect(alreadyResponded).toHaveLength(1)
@@ -386,7 +432,16 @@ describe('Play request race conditions', () => {
         const makeAcceptDb = () => {
             const db = makeMockDb()
             db.auth.getUser.mockResolvedValue({ data: { user: { id: 'student-1' } } })
-            db.mockTable('profiles', { data: { id: 'student-1', full_name: 'Alice', branch: 'CSE', gender: 'female', year: '2' }, error: null })
+            db.mockTable('profiles', {
+                data: {
+                    id: 'student-1',
+                    full_name: 'Alice',
+                    branch: 'CSE',
+                    gender: 'female',
+                    year: '2',
+                },
+                error: null,
+            })
             return db
         }
 
@@ -407,7 +462,9 @@ describe('Play request race conditions', () => {
                 status: 'pending',
                 notification_id: null,
                 bookings: {
-                    id: 'b-1', status: 'confirmed', user_id: 'student-2',
+                    id: 'b-1',
+                    status: 'confirmed',
+                    user_id: 'student-2',
                     start_time: FIXTURES.booking.start_time,
                     courts: { name: 'Ct', sport: 'badminton' },
                 },
@@ -457,7 +514,8 @@ describe('Concurrent createBooking — equipment reservation collision', () => {
             db.auth.getUser.mockResolvedValue({ data: { user: { id: 'student-1' } } })
 
             const violationsChain = {
-                select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
+                select: vi.fn().mockReturnThis(),
+                eq: vi.fn().mockReturnThis(),
                 then: (r: any) => r({ count: 0, error: null }),
             }
             // Equipment lock chain: returns locked rows only if lockSucceeds
@@ -472,15 +530,22 @@ describe('Concurrent createBooking — equipment reservation collision', () => {
             db.client.from = vi.fn((table: string) => {
                 if (table === 'profiles') {
                     return {
-                        select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
-                        single: vi.fn().mockResolvedValue({ data: { banned_until: null }, error: null }),
+                        select: vi.fn().mockReturnThis(),
+                        eq: vi.fn().mockReturnThis(),
+                        single: vi
+                            .fn()
+                            .mockResolvedValue({ data: { banned_until: null }, error: null }),
                     }
                 }
                 if (table === 'student_violations') return violationsChain
                 if (table === 'courts') {
                     return {
-                        select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
-                        single: vi.fn().mockResolvedValue({ data: { sport: 'badminton', name: 'Court A' }, error: null }),
+                        select: vi.fn().mockReturnThis(),
+                        eq: vi.fn().mockReturnThis(),
+                        single: vi.fn().mockResolvedValue({
+                            data: { sport: 'badminton', name: 'Court A' },
+                            error: null,
+                        }),
                     }
                 }
                 if (table === 'bookings') {
@@ -488,7 +553,9 @@ describe('Concurrent createBooking — equipment reservation collision', () => {
                         select: vi.fn().mockReturnThis(),
                         insert: vi.fn().mockReturnValue({
                             select: vi.fn().mockReturnThis(),
-                            single: vi.fn().mockResolvedValue({ data: { id: 'new-booking' }, error: null }),
+                            single: vi
+                                .fn()
+                                .mockResolvedValue({ data: { id: 'new-booking' }, error: null }),
                         }),
                         eq: vi.fn().mockReturnThis(),
                         neq: vi.fn().mockReturnThis(),
@@ -547,7 +614,9 @@ describe('Broadcast notification ordering', () => {
         await broadcastToAllStudents({ type: 'announcement', title: 'T', body: 'B' })
 
         // Insert called exactly once (batch insert, not 500 individual calls)
-        const notifCalls = (adminDb.client.from as any).mock.calls.filter((c: any[]) => c[0] === 'notifications')
+        const notifCalls = (adminDb.client.from as any).mock.calls.filter(
+            (c: any[]) => c[0] === 'notifications'
+        )
         expect(notifCalls.length).toBe(1)
     })
 })

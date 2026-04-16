@@ -1,10 +1,4 @@
-export type Json =
-    | string
-    | number
-    | boolean
-    | null
-    | { [key: string]: Json | undefined }
-    | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
     public: {
@@ -118,7 +112,14 @@ export type Database = {
                     court_id: string
                     start_time: string
                     end_time: string
-                    status: 'pending_confirmation' | 'confirmed' | 'waiting_manager' | 'active' | 'completed' | 'cancelled' | 'rejected'
+                    status:
+                        | 'pending_confirmation'
+                        | 'confirmed'
+                        | 'waiting_manager'
+                        | 'active'
+                        | 'completed'
+                        | 'cancelled'
+                        | 'rejected'
                     players_list: Json | null
                     equipment_ids: string[] | null
                     created_at: string
@@ -129,7 +130,14 @@ export type Database = {
                     court_id: string
                     start_time: string
                     end_time: string
-                    status?: 'pending_confirmation' | 'confirmed' | 'waiting_manager' | 'active' | 'completed' | 'cancelled' | 'rejected'
+                    status?:
+                        | 'pending_confirmation'
+                        | 'confirmed'
+                        | 'waiting_manager'
+                        | 'active'
+                        | 'completed'
+                        | 'cancelled'
+                        | 'rejected'
                     players_list?: Json | null
                     equipment_ids?: string[] | null
                     created_at?: string
@@ -140,7 +148,14 @@ export type Database = {
                     court_id?: string
                     start_time?: string
                     end_time?: string
-                    status?: 'pending_confirmation' | 'confirmed' | 'waiting_manager' | 'active' | 'completed' | 'cancelled' | 'rejected'
+                    status?:
+                        | 'pending_confirmation'
+                        | 'confirmed'
+                        | 'waiting_manager'
+                        | 'active'
+                        | 'completed'
+                        | 'cancelled'
+                        | 'rejected'
                     players_list?: Json | null
                     equipment_ids?: string[] | null
                     created_at?: string

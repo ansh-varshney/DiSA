@@ -29,11 +29,11 @@ export function StudentNav() {
                             key={href}
                             href={href}
                             className={cn(
-                                "flex flex-col items-center justify-center w-full h-full space-y-1",
-                                isActive ? "text-[#004d40]" : "text-gray-500 hover:text-gray-900"
+                                'flex flex-col items-center justify-center w-full h-full space-y-1',
+                                isActive ? 'text-[#004d40]' : 'text-gray-500 hover:text-gray-900'
                             )}
                         >
-                            <Icon className={cn("w-6 h-6", isActive && "fill-current")} />
+                            <Icon className={cn('w-6 h-6', isActive && 'fill-current')} />
                             <span className="text-[10px] font-medium">{label}</span>
                         </Link>
                     )
@@ -52,8 +52,10 @@ export function StudentNav() {
                             key={href}
                             href={href}
                             className={cn(
-                                "flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors",
-                                isActive ? "bg-[#004d40]/10 text-[#004d40]" : "text-gray-600 hover:bg-gray-50"
+                                'flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors',
+                                isActive
+                                    ? 'bg-[#004d40]/10 text-[#004d40]'
+                                    : 'text-gray-600 hover:bg-gray-50'
                             )}
                         >
                             <Icon className="w-5 h-5" />

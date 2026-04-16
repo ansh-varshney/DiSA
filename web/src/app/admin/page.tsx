@@ -12,13 +12,15 @@ import {
     BarChart3,
     DollarSign,
     TrendingUp,
-    ScrollText
+    ScrollText,
 } from 'lucide-react'
 
 export default async function AdminHome() {
     const supabase = await createClient()
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     const { data: profile } = await supabase
         .from('profiles')
         .select('*')
@@ -41,8 +43,6 @@ export default async function AdminHome() {
                 </div>
             </header>
 
-
-
             {/* Core Management Modules */}
             <section>
                 <h2 className="text-lg font-bold text-gray-900 mb-4">Core Management</h2>
@@ -56,7 +56,9 @@ export default async function AdminHome() {
                                             <div className="w-10 h-10 bg-[#004d40]/10 rounded-lg flex items-center justify-center group-hover:bg-[#004d40]/20 transition-colors">
                                                 <Package className="w-5 h-5 text-[#004d40]" />
                                             </div>
-                                            <h3 className="font-bold text-gray-900">Equipment Management</h3>
+                                            <h3 className="font-bold text-gray-900">
+                                                Equipment Management
+                                            </h3>
                                         </div>
                                         <p className="text-sm text-gray-500">
                                             Track condition, usage, and manage inventory
@@ -76,7 +78,9 @@ export default async function AdminHome() {
                                             <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center group-hover:bg-blue-100 transition-colors">
                                                 <MapPin className="w-5 h-5 text-blue-600" />
                                             </div>
-                                            <h3 className="font-bold text-gray-900">Court Management</h3>
+                                            <h3 className="font-bold text-gray-900">
+                                                Court Management
+                                            </h3>
                                         </div>
                                         <p className="text-sm text-gray-500">
                                             Manage courts, maintenance, and availability
@@ -96,7 +100,9 @@ export default async function AdminHome() {
                                             <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center group-hover:bg-red-100 transition-colors">
                                                 <AlertTriangle className="w-5 h-5 text-red-600" />
                                             </div>
-                                            <h3 className="font-bold text-gray-900">Defaulter Students</h3>
+                                            <h3 className="font-bold text-gray-900">
+                                                Defaulter Students
+                                            </h3>
                                         </div>
                                         <p className="text-sm text-gray-500">
                                             View flagged students and violation history
@@ -116,7 +122,9 @@ export default async function AdminHome() {
                                             <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center group-hover:bg-purple-100 transition-colors">
                                                 <Calendar className="w-5 h-5 text-purple-600" />
                                             </div>
-                                            <h3 className="font-bold text-gray-900">Reservations</h3>
+                                            <h3 className="font-bold text-gray-900">
+                                                Reservations
+                                            </h3>
                                         </div>
                                         <p className="text-sm text-gray-500">
                                             View and manage court reservations
@@ -136,7 +144,9 @@ export default async function AdminHome() {
                                             <div className="w-10 h-10 bg-yellow-50 rounded-lg flex items-center justify-center group-hover:bg-yellow-100 transition-colors">
                                                 <Bell className="w-5 h-5 text-yellow-600" />
                                             </div>
-                                            <h3 className="font-bold text-gray-900">Announcements</h3>
+                                            <h3 className="font-bold text-gray-900">
+                                                Announcements
+                                            </h3>
                                         </div>
                                         <p className="text-sm text-gray-500">
                                             Add and edit facility announcements
@@ -156,7 +166,9 @@ export default async function AdminHome() {
                                             <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
                                                 <MessageSquare className="w-5 h-5 text-indigo-600" />
                                             </div>
-                                            <h3 className="font-bold text-gray-900">Feedback & Complaints</h3>
+                                            <h3 className="font-bold text-gray-900">
+                                                Feedback & Complaints
+                                            </h3>
                                         </div>
                                         <p className="text-sm text-gray-500">
                                             Review student feedback and complaints
@@ -196,7 +208,9 @@ export default async function AdminHome() {
                                             <div className="w-10 h-10 bg-cyan-50 rounded-lg flex items-center justify-center group-hover:bg-cyan-100 transition-colors">
                                                 <ScrollText className="w-5 h-5 text-cyan-600" />
                                             </div>
-                                            <h3 className="font-bold text-gray-900">Booking Logs</h3>
+                                            <h3 className="font-bold text-gray-900">
+                                                Booking Logs
+                                            </h3>
                                         </div>
                                         <p className="text-sm text-gray-500">
                                             View all bookings by sport and date

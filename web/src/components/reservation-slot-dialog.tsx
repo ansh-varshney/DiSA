@@ -1,11 +1,30 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogBody, DialogFooter } from './ui/dialog'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogClose,
+    DialogBody,
+    DialogFooter,
+} from './ui/dialog'
 import { Button } from './ui/button'
 import { cancelReservation, priorityReserveSlot, reserveForMaintenance } from '@/actions/admin'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, Crown, Wrench, Minus, Plus, ChevronDown, Check, ArrowLeft, Users, Dumbbell } from 'lucide-react'
+import {
+    AlertTriangle,
+    Crown,
+    Wrench,
+    Minus,
+    Plus,
+    ChevronDown,
+    Check,
+    ArrowLeft,
+    Users,
+    Dumbbell,
+} from 'lucide-react'
 import { getPlayerLimits } from '@/lib/sport-config'
 
 interface Equipment {
@@ -54,7 +73,7 @@ export function ReservationSlotDialog({
     reservation,
     sport,
     equipment,
-    unavailableEquipmentIds = []
+    unavailableEquipmentIds = [],
 }: ReservationSlotDialogProps) {
     const [loading, setLoading] = useState(false)
     const [step, setStep] = useState<BookingStep>('info')
@@ -138,19 +157,18 @@ export function ReservationSlotDialog({
     }
 
     const toggleEquipment = (equipId: string) => {
-        setSelectedEquipment(prev =>
-            prev.includes(equipId)
-                ? prev.filter(id => id !== equipId)
-                : [...prev, equipId]
+        setSelectedEquipment((prev) =>
+            prev.includes(equipId) ? prev.filter((id) => id !== equipId) : [...prev, equipId]
         )
     }
 
     const isReserved = !!reservation
 
     // Get equipment details for existing reservation
-    const reservedEquipment = reservation?.equipment_ids?.map(id =>
-        equipment.find(e => e.id === id)
-    ).filter(Boolean) || []
+    const reservedEquipment =
+        reservation?.equipment_ids
+            ?.map((id) => equipment.find((e) => e.id === id))
+            .filter(Boolean) || []
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -160,8 +178,8 @@ export function ReservationSlotDialog({
                         {isReserved
                             ? 'Reservation Details'
                             : step === 'details'
-                                ? 'Priority Reservation'
-                                : 'Reserve Slot'}
+                              ? 'Priority Reservation'
+                              : 'Reserve Slot'}
                     </DialogTitle>
                     <DialogClose onClose={onClose} />
                 </DialogHeader>
@@ -172,11 +190,15 @@ export function ReservationSlotDialog({
                         <div className="bg-gray-50 p-4 rounded-lg space-y-2">
                             <div className="flex justify-between">
                                 <span className="text-sm font-medium text-gray-600">Court:</span>
-                                <span className="text-sm font-semibold text-gray-900">{courtName}</span>
+                                <span className="text-sm font-semibold text-gray-900">
+                                    {courtName}
+                                </span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-sm font-medium text-gray-600">Sport:</span>
-                                <span className="text-sm font-semibold text-gray-900 capitalize">{sport}</span>
+                                <span className="text-sm font-semibold text-gray-900 capitalize">
+                                    {sport}
+                                </span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-sm font-medium text-gray-600">Date:</span>
@@ -185,13 +207,15 @@ export function ReservationSlotDialog({
                                         weekday: 'short',
                                         year: 'numeric',
                                         month: 'short',
-                                        day: 'numeric'
+                                        day: 'numeric',
                                     })}
                                 </span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-sm font-medium text-gray-600">Time:</span>
-                                <span className="text-sm font-semibold text-gray-900">{formatTime(time)}</span>
+                                <span className="text-sm font-semibold text-gray-900">
+                                    {formatTime(time)}
+                                </span>
                             </div>
                         </div>
 
@@ -202,7 +226,9 @@ export function ReservationSlotDialog({
                                     <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg flex items-start gap-3">
                                         <Wrench className="w-5 h-5 text-orange-600 mt-0.5" />
                                         <div>
-                                            <h4 className="font-semibold text-orange-900 mb-1">Maintenance Reservation</h4>
+                                            <h4 className="font-semibold text-orange-900 mb-1">
+                                                Maintenance Reservation
+                                            </h4>
                                             <p className="text-sm text-orange-700">
                                                 This slot has been reserved for court maintenance.
                                             </p>
@@ -212,23 +238,32 @@ export function ReservationSlotDialog({
                                     <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg flex items-start gap-3">
                                         <Crown className="w-5 h-5 text-purple-600 mt-0.5" />
                                         <div>
-                                            <h4 className="font-semibold text-purple-900 mb-1">Admin Priority Reservation</h4>
+                                            <h4 className="font-semibold text-purple-900 mb-1">
+                                                Admin Priority Reservation
+                                            </h4>
                                             <p className="text-sm text-purple-700">
-                                                This slot has been reserved by an administrator with priority status.
+                                                This slot has been reserved by an administrator with
+                                                priority status.
                                             </p>
                                         </div>
                                     </div>
                                 ) : (
                                     <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg space-y-2">
-                                        <h4 className="font-semibold text-blue-900 mb-2">Student Reservation</h4>
+                                        <h4 className="font-semibold text-blue-900 mb-2">
+                                            Student Reservation
+                                        </h4>
                                         <div className="flex justify-between">
-                                            <span className="text-sm font-medium text-blue-700">Name:</span>
+                                            <span className="text-sm font-medium text-blue-700">
+                                                Name:
+                                            </span>
                                             <span className="text-sm font-semibold text-blue-900">
                                                 {reservation.profiles?.full_name}
                                             </span>
                                         </div>
                                         <div className="flex justify-between">
-                                            <span className="text-sm font-medium text-blue-700">Student ID:</span>
+                                            <span className="text-sm font-medium text-blue-700">
+                                                Student ID:
+                                            </span>
                                             <span className="text-sm font-semibold text-blue-900">
                                                 {reservation.profiles?.student_id}
                                             </span>
@@ -241,7 +276,9 @@ export function ReservationSlotDialog({
                                     <div className="bg-gray-50 p-3 rounded-lg">
                                         <div className="flex items-center gap-2 mb-1">
                                             <Users className="w-4 h-4 text-gray-500" />
-                                            <span className="text-xs font-medium text-gray-500">Players</span>
+                                            <span className="text-xs font-medium text-gray-500">
+                                                Players
+                                            </span>
                                         </div>
                                         <span className="text-sm font-semibold text-gray-900">
                                             {reservation.num_players || 2}
@@ -250,18 +287,25 @@ export function ReservationSlotDialog({
                                     <div className="bg-gray-50 p-3 rounded-lg">
                                         <div className="flex items-center gap-2 mb-1">
                                             <Dumbbell className="w-4 h-4 text-gray-500" />
-                                            <span className="text-xs font-medium text-gray-500">Equipment</span>
+                                            <span className="text-xs font-medium text-gray-500">
+                                                Equipment
+                                            </span>
                                         </div>
                                         {reservedEquipment.length > 0 ? (
                                             <div className="flex flex-wrap gap-1">
                                                 {reservedEquipment.map((item: any) => (
-                                                    <span key={item.id} className="text-xs bg-white border border-gray-200 px-1.5 py-0.5 rounded text-gray-700">
+                                                    <span
+                                                        key={item.id}
+                                                        className="text-xs bg-white border border-gray-200 px-1.5 py-0.5 rounded text-gray-700"
+                                                    >
                                                         {item.name}
                                                     </span>
                                                 ))}
                                             </div>
                                         ) : (
-                                            <span className="text-sm text-gray-400 italic">None</span>
+                                            <span className="text-sm text-gray-400 italic">
+                                                None
+                                            </span>
                                         )}
                                     </div>
                                 </div>
@@ -269,16 +313,20 @@ export function ReservationSlotDialog({
                                 <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg flex items-start gap-2">
                                     <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5" />
                                     <p className="text-xs text-yellow-800">
-                                        Cancelling this reservation will notify the student and manager.
+                                        Cancelling this reservation will notify the student and
+                                        manager.
                                     </p>
                                 </div>
                             </>
                         ) : step === 'info' ? (
                             /* Step 1: Available slot - choose booking type */
                             <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
-                                <h4 className="font-semibold text-green-900 mb-2">Available Slot</h4>
+                                <h4 className="font-semibold text-green-900 mb-2">
+                                    Available Slot
+                                </h4>
                                 <p className="text-sm text-green-700">
-                                    This time slot is currently available. Choose a reservation type below.
+                                    This time slot is currently available. Choose a reservation type
+                                    below.
                                 </p>
                             </div>
                         ) : (
@@ -291,27 +339,38 @@ export function ReservationSlotDialog({
                                         const atMax = limits.max ? numPlayers >= limits.max : false
                                         return (
                                             <>
-                                                <label className="text-sm font-medium text-gray-700">Number of Players</label>
+                                                <label className="text-sm font-medium text-gray-700">
+                                                    Number of Players
+                                                </label>
                                                 <div className="flex items-center gap-3">
                                                     <button
                                                         type="button"
-                                                        onClick={() => setNumPlayers(Math.max(2, numPlayers - 1))}
+                                                        onClick={() =>
+                                                            setNumPlayers(
+                                                                Math.max(2, numPlayers - 1)
+                                                            )
+                                                        }
                                                         disabled={numPlayers <= 2}
                                                         className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                                     >
                                                         <Minus className="w-4 h-4 text-gray-700" />
                                                     </button>
-                                                    <span className="text-lg font-bold text-gray-900 w-8 text-center">{numPlayers}</span>
+                                                    <span className="text-lg font-bold text-gray-900 w-8 text-center">
+                                                        {numPlayers}
+                                                    </span>
                                                     <button
                                                         type="button"
-                                                        onClick={() => !atMax && setNumPlayers(numPlayers + 1)}
+                                                        onClick={() =>
+                                                            !atMax && setNumPlayers(numPlayers + 1)
+                                                        }
                                                         disabled={atMax}
                                                         className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                                     >
                                                         <Plus className="w-4 h-4 text-gray-700" />
                                                     </button>
                                                     <span className="text-xs text-gray-500 ml-1">
-                                                        (min. {limits.min}{limits.max ? `, max. ${limits.max}` : ''})
+                                                        (min. {limits.min}
+                                                        {limits.max ? `, max. ${limits.max}` : ''})
                                                     </span>
                                                 </div>
                                             </>
@@ -321,52 +380,83 @@ export function ReservationSlotDialog({
 
                                 {/* Equipment Selection */}
                                 <div className="space-y-2">
-                                    <label className="text-sm font-medium text-gray-700">Equipment (optional)</label>
+                                    <label className="text-sm font-medium text-gray-700">
+                                        Equipment (optional)
+                                    </label>
                                     {equipment.length === 0 ? (
-                                        <p className="text-xs text-gray-400 italic">No equipment available for {sport}</p>
+                                        <p className="text-xs text-gray-400 italic">
+                                            No equipment available for {sport}
+                                        </p>
                                     ) : (
                                         <div className="relative">
                                             <button
                                                 type="button"
-                                                onClick={() => setEquipmentDropdownOpen(!equipmentDropdownOpen)}
+                                                onClick={() =>
+                                                    setEquipmentDropdownOpen(!equipmentDropdownOpen)
+                                                }
                                                 className="w-full flex items-center justify-between px-3 py-2.5 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-sm transition-colors"
                                             >
-                                                <span className={selectedEquipment.length > 0 ? 'text-gray-900' : 'text-gray-500'}>
+                                                <span
+                                                    className={
+                                                        selectedEquipment.length > 0
+                                                            ? 'text-gray-900'
+                                                            : 'text-gray-500'
+                                                    }
+                                                >
                                                     {selectedEquipment.length > 0
                                                         ? `${selectedEquipment.length} item${selectedEquipment.length > 1 ? 's' : ''} selected`
                                                         : 'Select equipment...'}
                                                 </span>
-                                                <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${equipmentDropdownOpen ? 'rotate-180' : ''}`} />
+                                                <ChevronDown
+                                                    className={`w-4 h-4 text-gray-500 transition-transform ${equipmentDropdownOpen ? 'rotate-180' : ''}`}
+                                                />
                                             </button>
 
                                             {equipmentDropdownOpen && (
                                                 <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                                    {equipment.map(item => {
-                                                        const isUnavailable = unavailableEquipmentIds.includes(item.id)
+                                                    {equipment.map((item) => {
+                                                        const isUnavailable =
+                                                            unavailableEquipmentIds.includes(
+                                                                item.id
+                                                            )
                                                         return (
                                                             <button
                                                                 key={item.id}
                                                                 type="button"
-                                                                onClick={() => !isUnavailable && toggleEquipment(item.id)}
+                                                                onClick={() =>
+                                                                    !isUnavailable &&
+                                                                    toggleEquipment(item.id)
+                                                                }
                                                                 disabled={isUnavailable}
-                                                                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${isUnavailable
-                                                                    ? 'opacity-50 cursor-not-allowed bg-gray-50'
-                                                                    : 'hover:bg-gray-50 cursor-pointer'
-                                                                    }`}
+                                                                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                                                                    isUnavailable
+                                                                        ? 'opacity-50 cursor-not-allowed bg-gray-50'
+                                                                        : 'hover:bg-gray-50 cursor-pointer'
+                                                                }`}
                                                             >
-                                                                <div className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${selectedEquipment.includes(item.id)
-                                                                    ? 'bg-[#004d40] border-[#004d40]'
-                                                                    : 'border-gray-300'
-                                                                    }`}>
-                                                                    {selectedEquipment.includes(item.id) && (
+                                                                <div
+                                                                    className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
+                                                                        selectedEquipment.includes(
+                                                                            item.id
+                                                                        )
+                                                                            ? 'bg-[#004d40] border-[#004d40]'
+                                                                            : 'border-gray-300'
+                                                                    }`}
+                                                                >
+                                                                    {selectedEquipment.includes(
+                                                                        item.id
+                                                                    ) && (
                                                                         <Check className="w-3 h-3 text-white" />
                                                                     )}
                                                                 </div>
                                                                 <div className="flex-1 min-w-0">
-                                                                    <span className="text-gray-900 font-medium">{item.name}</span>
+                                                                    <span className="text-gray-900 font-medium">
+                                                                        {item.name}
+                                                                    </span>
                                                                     <span className="text-gray-500 ml-1 text-xs">
                                                                         ({item.equipment_id})
-                                                                        {isUnavailable && ' - Booked'}
+                                                                        {isUnavailable &&
+                                                                            ' - Booked'}
                                                                     </span>
                                                                 </div>
                                                             </button>
@@ -378,8 +468,10 @@ export function ReservationSlotDialog({
                                             {/* Selected equipment tags */}
                                             {selectedEquipment.length > 0 && (
                                                 <div className="flex flex-wrap gap-1.5 mt-2">
-                                                    {selectedEquipment.map(eqId => {
-                                                        const item = equipment.find(e => e.id === eqId)
+                                                    {selectedEquipment.map((eqId) => {
+                                                        const item = equipment.find(
+                                                            (e) => e.id === eqId
+                                                        )
                                                         return item ? (
                                                             <span
                                                                 key={eqId}
@@ -388,7 +480,9 @@ export function ReservationSlotDialog({
                                                                 {item.name}
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => toggleEquipment(eqId)}
+                                                                    onClick={() =>
+                                                                        toggleEquipment(eqId)
+                                                                    }
                                                                     className="hover:text-red-600 transition-colors"
                                                                 >
                                                                     ×
@@ -410,10 +504,20 @@ export function ReservationSlotDialog({
                     {isReserved ? (
                         /* Reserved: Close + Cancel */
                         <>
-                            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={onClose}
+                                disabled={loading}
+                            >
                                 Close
                             </Button>
-                            <Button type="button" variant="destructive" onClick={handleCancel} disabled={loading}>
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                onClick={handleCancel}
+                                disabled={loading}
+                            >
                                 {loading ? 'Cancelling...' : 'Cancel Reservation'}
                             </Button>
                         </>
@@ -425,7 +529,10 @@ export function ReservationSlotDialog({
                             </Button>
                             <Button
                                 type="button"
-                                onClick={() => { setBookingType('priority'); setStep('details') }}
+                                onClick={() => {
+                                    setBookingType('priority')
+                                    setStep('details')
+                                }}
                                 className="bg-purple-600 hover:bg-purple-700"
                             >
                                 Priority Reserve

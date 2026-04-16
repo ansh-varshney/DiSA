@@ -11,9 +11,16 @@ const PARAMETERS = [
 ]
 
 const BAR_COLORS = [
-    'bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-orange-500',
-    'bg-pink-500', 'bg-cyan-500', 'bg-yellow-500', 'bg-indigo-500',
-    'bg-red-500', 'bg-teal-500',
+    'bg-blue-500',
+    'bg-emerald-500',
+    'bg-purple-500',
+    'bg-orange-500',
+    'bg-pink-500',
+    'bg-cyan-500',
+    'bg-yellow-500',
+    'bg-indigo-500',
+    'bg-red-500',
+    'bg-teal-500',
 ]
 
 export default async function ParticipationStatsPage({
@@ -29,7 +36,7 @@ export default async function ParticipationStatsPage({
     const { barData, genderData } = await getParticipationStats(
         parameter,
         startDate || undefined,
-        endDate || undefined,
+        endDate || undefined
     )
 
     const maxCount = Math.max(...barData.map((d) => d.count), 1)
@@ -92,7 +99,9 @@ export default async function ParticipationStatsPage({
                 </CardHeader>
                 <CardContent>
                     {barData.length === 0 ? (
-                        <p className="text-center text-gray-400 text-sm py-8">No data for the selected filters</p>
+                        <p className="text-center text-gray-400 text-sm py-8">
+                            No data for the selected filters
+                        </p>
                     ) : (
                         <div className="space-y-3">
                             {barData.map(({ label, count }, i) => (
@@ -104,7 +113,9 @@ export default async function ParticipationStatsPage({
                                     <div className="w-full bg-gray-100 rounded-full h-3">
                                         <div
                                             className={`h-3 rounded-full ${BAR_COLORS[i % BAR_COLORS.length]}`}
-                                            style={{ width: `${Math.round((count / maxCount) * 100)}%` }}
+                                            style={{
+                                                width: `${Math.round((count / maxCount) * 100)}%`,
+                                            }}
                                         />
                                     </div>
                                 </div>
@@ -117,14 +128,20 @@ export default async function ParticipationStatsPage({
             {/* Gender Split */}
             <Card className="border border-gray-200">
                 <CardContent className="p-4 space-y-3">
-                    <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Gender Split</p>
+                    <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                        Gender Split
+                    </p>
                     {totalGender === 0 ? (
                         <p className="text-sm text-gray-400">No gender data available</p>
                     ) : (
                         <>
                             <div className="flex gap-6 text-sm">
-                                <span className="text-blue-700 font-semibold">Male: {malePct}%</span>
-                                <span className="text-pink-600 font-semibold">Female: {femalePct}%</span>
+                                <span className="text-blue-700 font-semibold">
+                                    Male: {malePct}%
+                                </span>
+                                <span className="text-pink-600 font-semibold">
+                                    Female: {femalePct}%
+                                </span>
                             </div>
                             <Card className="border border-dashed border-gray-300">
                                 <CardContent className="p-4">
@@ -141,19 +158,19 @@ export default async function ParticipationStatsPage({
                                             </div>
                                         )}
                                         {femalePct > 0 && (
-                                            <div
-                                                className="bg-pink-400 flex-1 flex items-center justify-center text-[10px] text-white font-bold"
-                                            >
+                                            <div className="bg-pink-400 flex-1 flex items-center justify-center text-[10px] text-white font-bold">
                                                 {femalePct >= 10 ? `${femalePct}%` : ''}
                                             </div>
                                         )}
                                     </div>
                                     <div className="flex gap-4 mt-2 justify-center text-xs text-gray-500">
                                         <span className="flex items-center gap-1">
-                                            <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> Male
+                                            <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />{' '}
+                                            Male
                                         </span>
                                         <span className="flex items-center gap-1">
-                                            <span className="w-2 h-2 rounded-full bg-pink-400 inline-block" /> Female
+                                            <span className="w-2 h-2 rounded-full bg-pink-400 inline-block" />{' '}
+                                            Female
                                         </span>
                                     </div>
                                 </CardContent>

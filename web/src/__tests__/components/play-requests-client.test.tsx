@@ -117,7 +117,10 @@ describe('PlayRequestsClient', () => {
     it('shows Processing… label while request is in flight', async () => {
         let resolveAccept!: (v: any) => void
         vi.mocked(acceptPlayRequest).mockImplementationOnce(
-            () => new Promise((res) => { resolveAccept = res }),
+            () =>
+                new Promise((res) => {
+                    resolveAccept = res
+                })
         )
 
         render(<PlayRequestsClient requests={[makeRequest()]} />)
@@ -136,7 +139,10 @@ describe('PlayRequestsClient', () => {
     it('disables both buttons while one action is in flight', async () => {
         let resolveReject!: (v: any) => void
         vi.mocked(rejectPlayRequest).mockImplementationOnce(
-            () => new Promise((res) => { resolveReject = res }),
+            () =>
+                new Promise((res) => {
+                    resolveReject = res
+                })
         )
 
         render(<PlayRequestsClient requests={[makeRequest()]} />)
@@ -145,7 +151,7 @@ describe('PlayRequestsClient', () => {
 
         // Both buttons should be disabled while in-flight (both show "Processing…")
         const allButtons = screen.getAllByRole('button')
-        const allDisabled = allButtons.every(btn => btn.hasAttribute('disabled'))
+        const allDisabled = allButtons.every((btn) => btn.hasAttribute('disabled'))
         expect(allDisabled).toBe(true)
 
         // Resolve inside act so the resulting state update is handled
@@ -172,12 +178,19 @@ describe('PlayRequestsClient', () => {
 
     it('shows correct status badge for each status', () => {
         const statuses: Array<'pending' | 'accepted' | 'rejected' | 'expired'> = [
-            'pending', 'accepted', 'rejected', 'expired',
+            'pending',
+            'accepted',
+            'rejected',
+            'expired',
         ]
         for (const status of statuses) {
-            const { unmount } = render(<PlayRequestsClient requests={[makeRequest({ id: 'x', status })]} />)
+            const { unmount } = render(
+                <PlayRequestsClient requests={[makeRequest({ id: 'x', status })]} />
+            )
             const expectedLabel =
-                status === 'rejected' ? 'Declined' : status.charAt(0).toUpperCase() + status.slice(1)
+                status === 'rejected'
+                    ? 'Declined'
+                    : status.charAt(0).toUpperCase() + status.slice(1)
             expect(screen.getByText(expectedLabel)).toBeInTheDocument()
             unmount()
         }

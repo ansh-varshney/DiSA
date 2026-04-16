@@ -1,6 +1,13 @@
 import { getEquipmentList } from '@/actions/admin'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Plus, Pencil, Trash2, Image as ImageIcon } from 'lucide-react'
@@ -9,18 +16,22 @@ import { EquipmentForm } from '@/components/equipment-form'
 import { SportFilter } from '@/components/sport-filter'
 import { ImageGallery } from '@/components/image-gallery'
 
-export default async function EquipmentManagement({ searchParams }: { searchParams: Promise<{ sport?: string }> }) {
+export default async function EquipmentManagement({
+    searchParams,
+}: {
+    searchParams: Promise<{ sport?: string }>
+}) {
     const params = await searchParams
     const sport = params.sport || ''
 
     // Only fetch equipment if sport is selected
     const equipment = sport && sport !== 'all' ? await getEquipmentList(sport) : []
 
-    const conditionVariants: Record<string, "success" | "warning" | "danger"> = {
+    const conditionVariants: Record<string, 'success' | 'warning' | 'danger'> = {
         good: 'success',
         minor_damage: 'warning',
         damaged: 'danger',
-        lost: 'danger'
+        lost: 'danger',
     }
 
     return (
@@ -28,7 +39,9 @@ export default async function EquipmentManagement({ searchParams }: { searchPara
             <header className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Equipment Management</h1>
-                    <p className="text-gray-500 text-sm">Track condition, usage, and manage inventory</p>
+                    <p className="text-gray-500 text-sm">
+                        Track condition, usage, and manage inventory
+                    </p>
                 </div>
                 {sport && sport !== 'all' && (
                     <EquipmentForm mode="create" sport={sport}>
@@ -44,16 +57,19 @@ export default async function EquipmentManagement({ searchParams }: { searchPara
             <SportFilter />
 
             {/* No Sport Selected State */}
-            {(!sport || sport === 'all') ? (
+            {!sport || sport === 'all' ? (
                 <Card>
                     <CardContent className="p-12">
                         <div className="text-center space-y-3">
                             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
                                 <ImageIcon className="w-8 h-8 text-gray-400" />
                             </div>
-                            <h3 className="text-lg font-semibold text-gray-900">Please Select a Sport</h3>
+                            <h3 className="text-lg font-semibold text-gray-900">
+                                Please Select a Sport
+                            </h3>
                             <p className="text-gray-500 text-sm max-w-md mx-auto">
-                                Choose a sport from the dropdown above to view and manage equipment for that sport.
+                                Choose a sport from the dropdown above to view and manage equipment
+                                for that sport.
                             </p>
                         </div>
                     </CardContent>
@@ -62,7 +78,9 @@ export default async function EquipmentManagement({ searchParams }: { searchPara
                 /* Equipment Table */
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-lg font-bold text-gray-900">Equipment Inventory ({equipment.length})</CardTitle>
+                        <CardTitle className="text-lg font-bold text-gray-900">
+                            Equipment Inventory ({equipment.length})
+                        </CardTitle>
                     </CardHeader>
                     <CardContent>
                         {equipment.length === 0 ? (
@@ -81,14 +99,26 @@ export default async function EquipmentManagement({ searchParams }: { searchPara
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead className="font-semibold">ID/Name</TableHead>
-                                            <TableHead className="font-semibold">Condition</TableHead>
-                                            <TableHead className="font-semibold">Usage Count</TableHead>
+                                            <TableHead className="font-semibold">
+                                                Condition
+                                            </TableHead>
+                                            <TableHead className="font-semibold">
+                                                Usage Count
+                                            </TableHead>
                                             <TableHead className="font-semibold">Vendor</TableHead>
-                                            <TableHead className="font-semibold">Cost (₹)</TableHead>
-                                            <TableHead className="font-semibold">Lifespan</TableHead>
-                                            <TableHead className="font-semibold">Pictures</TableHead>
+                                            <TableHead className="font-semibold">
+                                                Cost (₹)
+                                            </TableHead>
+                                            <TableHead className="font-semibold">
+                                                Lifespan
+                                            </TableHead>
+                                            <TableHead className="font-semibold">
+                                                Pictures
+                                            </TableHead>
                                             <TableHead className="font-semibold">Notes</TableHead>
-                                            <TableHead className="text-right font-semibold">Actions</TableHead>
+                                            <TableHead className="text-right font-semibold">
+                                                Actions
+                                            </TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -96,12 +126,21 @@ export default async function EquipmentManagement({ searchParams }: { searchPara
                                             <TableRow key={item.id}>
                                                 <TableCell>
                                                     <div>
-                                                        <div className="font-semibold text-gray-900">{item.equipment_id || 'N/A'}</div>
-                                                        <div className="text-sm text-gray-600">{item.name}</div>
+                                                        <div className="font-semibold text-gray-900">
+                                                            {item.equipment_id || 'N/A'}
+                                                        </div>
+                                                        <div className="text-sm text-gray-600">
+                                                            {item.name}
+                                                        </div>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant={conditionVariants[item.condition] || 'default'}>
+                                                    <Badge
+                                                        variant={
+                                                            conditionVariants[item.condition] ||
+                                                            'default'
+                                                        }
+                                                    >
                                                         {item.condition.replace('_', ' ')}
                                                     </Badge>
                                                 </TableCell>
@@ -110,28 +149,41 @@ export default async function EquipmentManagement({ searchParams }: { searchPara
                                                         {item.total_usage_count || 0}
                                                     </span>
                                                 </TableCell>
-                                                <TableCell className="text-gray-900">{item.vendor_name || '-'}</TableCell>
+                                                <TableCell className="text-gray-900">
+                                                    {item.vendor_name || '-'}
+                                                </TableCell>
                                                 <TableCell className="text-gray-900 font-medium">
                                                     {item.cost ? `₹${item.cost.toFixed(2)}` : '-'}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {(item.condition === 'damaged' || item.condition === 'lost') ? (
+                                                    {item.condition === 'damaged' ||
+                                                    item.condition === 'lost' ? (
                                                         <span className="inline-flex items-center px-2 py-1 bg-red-50 text-red-700 rounded text-sm font-medium">
                                                             {item.total_usage_count || 0} uses
                                                         </span>
                                                     ) : (
-                                                        <span className="text-gray-500 text-sm">Active</span>
+                                                        <span className="text-gray-500 text-sm">
+                                                            Active
+                                                        </span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell>
                                                     {item.pictures && item.pictures.length > 0 ? (
-                                                        <ImageGallery images={item.pictures} equipmentName={item.name}>
+                                                        <ImageGallery
+                                                            images={item.pictures}
+                                                            equipmentName={item.name}
+                                                        >
                                                             <button className="text-sm text-blue-600 hover:text-blue-800 font-medium underline">
-                                                                {item.pictures.length} image{item.pictures.length > 1 ? 's' : ''}
+                                                                {item.pictures.length} image
+                                                                {item.pictures.length > 1
+                                                                    ? 's'
+                                                                    : ''}
                                                             </button>
                                                         </ImageGallery>
                                                     ) : (
-                                                        <span className="text-xs text-gray-400">None</span>
+                                                        <span className="text-xs text-gray-400">
+                                                            None
+                                                        </span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="max-w-xs truncate text-sm text-gray-900">
@@ -139,13 +191,25 @@ export default async function EquipmentManagement({ searchParams }: { searchPara
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="flex items-center justify-end gap-2">
-                                                        <EquipmentForm mode="edit" equipment={item} sport={sport}>
+                                                        <EquipmentForm
+                                                            mode="edit"
+                                                            equipment={item}
+                                                            sport={sport}
+                                                        >
                                                             <Button variant="ghost" size="sm">
                                                                 <Pencil className="w-4 h-4" />
                                                             </Button>
                                                         </EquipmentForm>
-                                                        <EquipmentForm mode="delete" equipment={item} sport={sport}>
-                                                            <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
+                                                        <EquipmentForm
+                                                            mode="delete"
+                                                            equipment={item}
+                                                            sport={sport}
+                                                        >
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-red-600 hover:text-red-700"
+                                                            >
                                                                 <Trash2 className="w-4 h-4" />
                                                             </Button>
                                                         </EquipmentForm>

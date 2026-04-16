@@ -7,7 +7,7 @@ export default async function ManagerDashboard() {
     // Parallel data fetching
     const [allCurrentBookings, maintenanceCourts] = await Promise.all([
         getCurrentBookings(),
-        getUnderMaintenanceCourts()
+        getUnderMaintenanceCourts(),
     ])
 
     // Filter out maintenance bookings from the main list (they are now handled by the Flashcard logic)
@@ -18,7 +18,9 @@ export default async function ManagerDashboard() {
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div className="text-center md:text-left space-y-1">
                     <h2 className="text-2xl font-bold text-gray-800">Manager Dashboard</h2>
-                    <p className="text-gray-500 font-medium tracking-wide text-sm uppercase">Current Bookings</p>
+                    <p className="text-gray-500 font-medium tracking-wide text-sm uppercase">
+                        Current Bookings
+                    </p>
                     <div className="h-1 w-20 bg-yellow-400 rounded-full mx-auto md:mx-0 mt-2"></div>
                 </div>
 
@@ -36,7 +38,9 @@ export default async function ManagerDashboard() {
                         </div>
                         <div>
                             <p className="text-lg font-medium text-gray-900">No active bookings</p>
-                            <p className="text-gray-500 text-sm">There are no bookings aimed for today right now.</p>
+                            <p className="text-gray-500 text-sm">
+                                There are no bookings aimed for today right now.
+                            </p>
                         </div>
                     </div>
                 ) : (

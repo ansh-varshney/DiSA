@@ -5,7 +5,9 @@ import { ReservationsList } from '@/components/reservations-list'
 
 export default async function ReservationsPage() {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
 
     if (!user) redirect('/login')
 
@@ -18,12 +20,7 @@ export default async function ReservationsPage() {
                 <p className="text-sm text-gray-500">Track your bookings and active sessions</p>
             </div>
 
-            <ReservationsList
-                current={current}
-                upcoming={upcoming}
-                past={past}
-                userId={user.id}
-            />
+            <ReservationsList current={current} upcoming={upcoming} past={past} userId={user.id} />
         </div>
     )
 }

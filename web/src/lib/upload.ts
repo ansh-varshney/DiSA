@@ -26,7 +26,7 @@ export async function uploadEquipmentImages(
             .from('equipment-images')
             .upload(filePath, file, {
                 cacheControl: '3600',
-                upsert: false
+                upsert: false,
             })
 
         if (error) {
@@ -35,9 +35,9 @@ export async function uploadEquipmentImages(
         }
 
         // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-            .from('equipment-images')
-            .getPublicUrl(filePath)
+        const {
+            data: { publicUrl },
+        } = supabase.storage.from('equipment-images').getPublicUrl(filePath)
 
         uploadedUrls.push(publicUrl)
     }
@@ -61,9 +61,7 @@ export async function deleteEquipmentImages(imageUrls: string[]): Promise<void> 
             const filePath = urlParts[1]
 
             // Delete from storage
-            const { error } = await supabase.storage
-                .from('equipment-images')
-                .remove([filePath])
+            const { error } = await supabase.storage.from('equipment-images').remove([filePath])
 
             if (error) {
                 console.error('Error deleting image:', error)

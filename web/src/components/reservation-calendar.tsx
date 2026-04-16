@@ -62,7 +62,13 @@ const formatTime = (time: string) => {
     return `${displayHour}:${minute.toString().padStart(2, '0')} ${period}`
 }
 
-export function ReservationCalendar({ courts, reservations, selectedDate, sport, equipment }: ReservationCalendarProps) {
+export function ReservationCalendar({
+    courts,
+    reservations,
+    selectedDate,
+    sport,
+    equipment,
+}: ReservationCalendarProps) {
     const [selectedSlot, setSelectedSlot] = useState<{
         courtId: string
         courtName: string
@@ -76,9 +82,11 @@ export function ReservationCalendar({ courts, reservations, selectedDate, sport,
     const isToday = (() => {
         const now = new Date()
         const selected = new Date(selectedDate)
-        return now.getFullYear() === selected.getFullYear() &&
+        return (
+            now.getFullYear() === selected.getFullYear() &&
             now.getMonth() === selected.getMonth() &&
             now.getDate() === selected.getDate()
+        )
     })()
 
     const isSlotInPast = (slotTime: string): boolean => {
@@ -92,8 +100,12 @@ export function ReservationCalendar({ courts, reservations, selectedDate, sport,
 
     // Find reservation for specific court and time slot
     const getReservationForSlot = (courtId: string, slotTime: string): Reservation | undefined => {
-        return reservations.find(res => {
-            const resStartTime = new Date(res.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+        return reservations.find((res) => {
+            const resStartTime = new Date(res.start_time).toLocaleTimeString('en-GB', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+            })
             return res.court_id === courtId && resStartTime === slotTime
         })
     }
@@ -104,7 +116,7 @@ export function ReservationCalendar({ courts, reservations, selectedDate, sport,
             courtId: court.id,
             courtName: court.name,
             time,
-            reservation
+            reservation,
         })
     }
 
@@ -127,14 +139,26 @@ export function ReservationCalendar({ courts, reservations, selectedDate, sport,
                     <div className="overflow-x-auto">
                         <div className="inline-block min-w-full">
                             {/* Calendar Grid */}
-                            <div className="grid" style={{ gridTemplateColumns: `80px repeat(${courts.length}, minmax(120px, 1fr))` }}>
+                            <div
+                                className="grid"
+                                style={{
+                                    gridTemplateColumns: `80px repeat(${courts.length}, minmax(120px, 1fr))`,
+                                }}
+                            >
                                 {/* Header Row */}
                                 <div className="sticky top-0 left-0 z-20 bg-gray-50 border-b border-r border-gray-200 p-3">
-                                    <span className="text-xs font-semibold text-gray-600">TIME</span>
+                                    <span className="text-xs font-semibold text-gray-600">
+                                        TIME
+                                    </span>
                                 </div>
-                                {courts.map(court => (
-                                    <div key={court.id} className="sticky top-0 z-10 bg-gray-50 border-b border-r border-gray-200 p-3">
-                                        <div className="font-semibold text-sm text-gray-900">{court.court_id}</div>
+                                {courts.map((court) => (
+                                    <div
+                                        key={court.id}
+                                        className="sticky top-0 z-10 bg-gray-50 border-b border-r border-gray-200 p-3"
+                                    >
+                                        <div className="font-semibold text-sm text-gray-900">
+                                            {court.court_id}
+                                        </div>
                                         <div className="text-xs text-gray-600">{court.name}</div>
                                     </div>
                                 ))}
@@ -143,15 +167,16 @@ export function ReservationCalendar({ courts, reservations, selectedDate, sport,
                                 {timeSlots.map((time, timeIndex) => (
                                     <React.Fragment key={time}>
                                         {/* Time Label */}
-                                        <div
-                                            className="sticky left-0 z-10 bg-white border-r border-b border-gray-200 p-2 text-xs text-gray-600 font-medium"
-                                        >
+                                        <div className="sticky left-0 z-10 bg-white border-r border-b border-gray-200 p-2 text-xs text-gray-600 font-medium">
                                             {formatTime(time)}
                                         </div>
 
                                         {/* Court Slots */}
-                                        {courts.map(court => {
-                                            const reservation = getReservationForSlot(court.id, time)
+                                        {courts.map((court) => {
+                                            const reservation = getReservationForSlot(
+                                                court.id,
+                                                time
+                                            )
                                             const isReserved = !!reservation
                                             const isPriority = reservation?.is_priority
                                             const isMaintenance = reservation?.is_maintenance
@@ -160,36 +185,51 @@ export function ReservationCalendar({ courts, reservations, selectedDate, sport,
                                             return (
                                                 <div
                                                     key={`${court.id}-${time}`}
-                                                    onClick={() => handleSlotClick(court, time, reservation)}
+                                                    onClick={() =>
+                                                        handleSlotClick(court, time, reservation)
+                                                    }
                                                     className={`
                                                         border-r border-b border-gray-200 p-2 min-h-[50px] transition-colors
-                                                        ${isPast
-                                                            ? 'bg-gray-100 cursor-not-allowed opacity-60'
-                                                            : isReserved
-                                                                ? isMaintenance
-                                                                    ? 'bg-orange-50 hover:bg-orange-100 border-l-4 border-l-orange-500 cursor-pointer'
-                                                                    : isPriority
+                                                        ${
+                                                            isPast
+                                                                ? 'bg-gray-100 cursor-not-allowed opacity-60'
+                                                                : isReserved
+                                                                  ? isMaintenance
+                                                                      ? 'bg-orange-50 hover:bg-orange-100 border-l-4 border-l-orange-500 cursor-pointer'
+                                                                      : isPriority
                                                                         ? 'bg-purple-50 hover:bg-purple-100 border-l-4 border-l-purple-500 cursor-pointer'
                                                                         : 'bg-blue-50 hover:bg-blue-100 border-l-4 border-l-blue-500 cursor-pointer'
-                                                                : 'bg-white hover:bg-gray-50 cursor-pointer'
+                                                                  : 'bg-white hover:bg-gray-50 cursor-pointer'
                                                         }
                                                     `}
                                                 >
                                                     {isPast && !isReserved ? (
-                                                        <div className="text-[10px] text-gray-400 italic">Passed</div>
+                                                        <div className="text-[10px] text-gray-400 italic">
+                                                            Passed
+                                                        </div>
                                                     ) : reservation ? (
                                                         <div className="text-xs">
                                                             {isMaintenance ? (
-                                                                <div className="font-semibold text-orange-700">🔧 Maintenance</div>
+                                                                <div className="font-semibold text-orange-700">
+                                                                    🔧 Maintenance
+                                                                </div>
                                                             ) : isPriority ? (
-                                                                <div className="font-semibold text-purple-700">Admin Priority</div>
+                                                                <div className="font-semibold text-purple-700">
+                                                                    Admin Priority
+                                                                </div>
                                                             ) : (
                                                                 <>
                                                                     <div className="font-semibold text-blue-700">
-                                                                        {reservation.profiles?.full_name}
+                                                                        {
+                                                                            reservation.profiles
+                                                                                ?.full_name
+                                                                        }
                                                                     </div>
                                                                     <div className="text-gray-500 text-[10px]">
-                                                                        {reservation.profiles?.student_id}
+                                                                        {
+                                                                            reservation.profiles
+                                                                                ?.student_id
+                                                                        }
                                                                     </div>
                                                                 </>
                                                             )}
@@ -216,28 +256,35 @@ export function ReservationCalendar({ courts, reservations, selectedDate, sport,
                     time={selectedSlot.time}
                     date={selectedDate}
                     courtId={selectedSlot.courtId}
-                    reservation={selectedSlot.reservation ? {
-                        ...selectedSlot.reservation,
-                        equipment_ids: selectedSlot.reservation.equipment_ids || []
-                    } : undefined}
+                    reservation={
+                        selectedSlot.reservation
+                            ? {
+                                  ...selectedSlot.reservation,
+                                  equipment_ids: selectedSlot.reservation.equipment_ids || [],
+                              }
+                            : undefined
+                    }
                     sport={sport}
                     equipment={equipment}
                     unavailableEquipmentIds={(() => {
                         // Find all reservations that overlap with this time slot across ALL courts
                         // Simple 30 min slot logic: start times match
-                        const concurrentReservations = reservations.filter(res => {
-                            const resStartTime = new Date(res.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })
+                        const concurrentReservations = reservations.filter((res) => {
+                            const resStartTime = new Date(res.start_time).toLocaleTimeString(
+                                'en-GB',
+                                { hour: '2-digit', minute: '2-digit', hour12: false }
+                            )
                             return resStartTime === selectedSlot.time
                         })
 
                         // Collect all equipment IDs from these reservations (excluding current reservation if editing)
                         const ids = new Set<string>()
-                        concurrentReservations.forEach(res => {
+                        concurrentReservations.forEach((res) => {
                             // If we were editing, we'd exclude current res. But here we just want to know what's TAKEN.
                             // If I am viewing my own reservation, my equipment is "taken" by me, which is fine.
                             // But for a NEW reservation (selectedSlot.reservation is undefined), we need to know what's taken by others.
                             if (res.equipment_ids) {
-                                res.equipment_ids.forEach(id => ids.add(id))
+                                res.equipment_ids.forEach((id) => ids.add(id))
                             }
                         })
                         return Array.from(ids)

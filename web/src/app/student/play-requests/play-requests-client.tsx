@@ -22,10 +22,26 @@ type PlayRequest = {
 }
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-    pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-700', icon: <Clock className="w-4 h-4" /> },
-    accepted: { label: 'Accepted', color: 'bg-green-100 text-green-700', icon: <CheckCircle className="w-4 h-4" /> },
-    rejected: { label: 'Declined', color: 'bg-red-100 text-red-700', icon: <XCircle className="w-4 h-4" /> },
-    expired: { label: 'Expired', color: 'bg-gray-100 text-gray-500', icon: <Clock className="w-4 h-4" /> },
+    pending: {
+        label: 'Pending',
+        color: 'bg-yellow-100 text-yellow-700',
+        icon: <Clock className="w-4 h-4" />,
+    },
+    accepted: {
+        label: 'Accepted',
+        color: 'bg-green-100 text-green-700',
+        icon: <CheckCircle className="w-4 h-4" />,
+    },
+    rejected: {
+        label: 'Declined',
+        color: 'bg-red-100 text-red-700',
+        icon: <XCircle className="w-4 h-4" />,
+    },
+    expired: {
+        label: 'Expired',
+        color: 'bg-gray-100 text-gray-500',
+        icon: <Clock className="w-4 h-4" />,
+    },
 }
 
 function sportLabel(sport: string) {
@@ -46,7 +62,9 @@ export function PlayRequestsClient({ requests }: { requests: PlayRequest[] }) {
             setResponding(null)
             return
         }
-        setList((prev) => prev.map((r) => r.id === id ? { ...r, status: 'accepted' as const } : r))
+        setList((prev) =>
+            prev.map((r) => (r.id === id ? { ...r, status: 'accepted' as const } : r))
+        )
         setResponding(null)
         startTransition(() => router.refresh())
     }
@@ -59,7 +77,9 @@ export function PlayRequestsClient({ requests }: { requests: PlayRequest[] }) {
             setResponding(null)
             return
         }
-        setList((prev) => prev.map((r) => r.id === id ? { ...r, status: 'rejected' as const } : r))
+        setList((prev) =>
+            prev.map((r) => (r.id === id ? { ...r, status: 'rejected' as const } : r))
+        )
         setResponding(null)
         startTransition(() => router.refresh())
     }
@@ -84,17 +104,26 @@ export function PlayRequestsClient({ requests }: { requests: PlayRequest[] }) {
         const isLoading = responding === r.id
 
         return (
-            <div className={cn(
-                'p-4 rounded-xl border bg-white space-y-3',
-                isPending ? 'border-blue-200 shadow-sm' : 'border-gray-100 opacity-80',
-            )}>
+            <div
+                className={cn(
+                    'p-4 rounded-xl border bg-white space-y-3',
+                    isPending ? 'border-blue-200 shadow-sm' : 'border-gray-100 opacity-80'
+                )}
+            >
                 {/* Header row */}
                 <div className="flex items-start justify-between gap-2">
                     <div>
-                        <p className="text-sm font-semibold text-gray-900">{r.requester?.full_name}</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                            {r.requester?.full_name}
+                        </p>
                         <p className="text-xs text-gray-400">{r.requester?.student_id}</p>
                     </div>
-                    <span className={cn('flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full', cfg.color)}>
+                    <span
+                        className={cn(
+                            'flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full',
+                            cfg.color
+                        )}
+                    >
                         {cfg.icon}
                         {cfg.label}
                     </span>
@@ -105,7 +134,9 @@ export function PlayRequestsClient({ requests }: { requests: PlayRequest[] }) {
                     <div className="space-y-1.5">
                         <div className="flex items-center gap-2 text-sm text-gray-700">
                             <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
-                            <span>{court?.name} — {sportLabel(court?.sport || '')}</span>
+                            <span>
+                                {court?.name} — {sportLabel(court?.sport || '')}
+                            </span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-700">
                             <CalendarDays className="w-4 h-4 text-gray-400 shrink-0" />
@@ -153,7 +184,9 @@ export function PlayRequestsClient({ requests }: { requests: PlayRequest[] }) {
                     <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
                         Pending ({pending.length})
                     </h2>
-                    {pending.map((r) => <RequestCard key={r.id} r={r} />)}
+                    {pending.map((r) => (
+                        <RequestCard key={r.id} r={r} />
+                    ))}
                 </section>
             )}
 
@@ -162,7 +195,9 @@ export function PlayRequestsClient({ requests }: { requests: PlayRequest[] }) {
                     <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
                         History
                     </h2>
-                    {past.map((r) => <RequestCard key={r.id} r={r} />)}
+                    {past.map((r) => (
+                        <RequestCard key={r.id} r={r} />
+                    ))}
                 </section>
             )}
         </div>

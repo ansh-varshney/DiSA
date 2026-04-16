@@ -8,7 +8,9 @@ import { cn } from '@/lib/utils'
 export default async function StudentHome() {
     const supabase = await createClient()
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     const { data: profile } = await supabase
         .from('profiles')
         .select('*')
@@ -44,7 +46,13 @@ export default async function StudentHome() {
                 </div>
                 <Link href="/student/profile">
                     <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden">
-                        {profile?.avatar_url && <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />}
+                        {profile?.avatar_url && (
+                            <img
+                                src={profile.avatar_url}
+                                alt="Profile"
+                                className="w-full h-full object-cover"
+                            />
+                        )}
                     </div>
                 </Link>
             </header>
@@ -67,8 +75,12 @@ export default async function StudentHome() {
                     <Card className="hover:border-[#004d40]/20 transition-colors">
                         <CardContent className="p-6 flex items-center justify-between">
                             <div>
-                                <h2 className="text-xl font-bold text-gray-900 mb-1">Leaderboard</h2>
-                                <p className="text-gray-500 text-sm">{profile?.points || 0} pts · See your rank</p>
+                                <h2 className="text-xl font-bold text-gray-900 mb-1">
+                                    Leaderboard
+                                </h2>
+                                <p className="text-gray-500 text-sm">
+                                    {profile?.points || 0} pts · See your rank
+                                </p>
                             </div>
                             <Trophy className="w-10 h-10 text-yellow-500" />
                         </CardContent>
@@ -80,7 +92,10 @@ export default async function StudentHome() {
             <section>
                 <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold text-lg">Upcoming</h3>
-                    <Link href="/student/reservations" className="text-[#004d40] text-sm font-medium hover:underline">
+                    <Link
+                        href="/student/reservations"
+                        className="text-[#004d40] text-sm font-medium hover:underline"
+                    >
                         View all →
                     </Link>
                 </div>
@@ -88,7 +103,10 @@ export default async function StudentHome() {
                     <Card className="bg-gray-50 border-dashed">
                         <CardContent className="p-8 text-center text-gray-400">
                             <p>No upcoming bookings.</p>
-                            <Link href="/student/book" className="text-[#004d40] font-medium text-sm mt-2 inline-block">
+                            <Link
+                                href="/student/book"
+                                className="text-[#004d40] font-medium text-sm mt-2 inline-block"
+                            >
                                 Book now →
                             </Link>
                         </CardContent>
@@ -97,25 +115,39 @@ export default async function StudentHome() {
                     <div className="space-y-2">
                         {upcomingBookings.map((booking: any) => (
                             <Link key={booking.id} href="/student/reservations" className="block">
-                                <Card className={cn(
-                                    "transition-colors hover:shadow-sm",
-                                    booking.status === 'active' && "border-l-4 border-l-green-500"
-                                )}>
+                                <Card
+                                    className={cn(
+                                        'transition-colors hover:shadow-sm',
+                                        booking.status === 'active' &&
+                                            'border-l-4 border-l-green-500'
+                                    )}
+                                >
                                     <CardContent className="p-4 flex justify-between items-center">
                                         <div>
-                                            <h4 className="font-semibold text-gray-800">{booking.courts?.name}</h4>
+                                            <h4 className="font-semibold text-gray-800">
+                                                {booking.courts?.name}
+                                            </h4>
                                             <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
                                                 <Clock className="w-3 h-3" />
-                                                {format(new Date(booking.start_time), 'MMM d, h:mm a')}
+                                                {format(
+                                                    new Date(booking.start_time),
+                                                    'MMM d, h:mm a'
+                                                )}
                                             </p>
                                         </div>
-                                        <span className={cn(
-                                            "px-2 py-1 text-xs rounded-full font-semibold capitalize",
-                                            booking.status === 'active' ? 'bg-green-100 text-green-800' :
-                                                booking.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
-                                                    'bg-yellow-100 text-yellow-800'
-                                        )}>
-                                            {booking.status === 'pending_confirmation' ? 'pending' : booking.status}
+                                        <span
+                                            className={cn(
+                                                'px-2 py-1 text-xs rounded-full font-semibold capitalize',
+                                                booking.status === 'active'
+                                                    ? 'bg-green-100 text-green-800'
+                                                    : booking.status === 'confirmed'
+                                                      ? 'bg-blue-100 text-blue-800'
+                                                      : 'bg-yellow-100 text-yellow-800'
+                                            )}
+                                        >
+                                            {booking.status === 'pending_confirmation'
+                                                ? 'pending'
+                                                : booking.status}
                                         </span>
                                     </CardContent>
                                 </Card>
@@ -144,9 +176,13 @@ export default async function StudentHome() {
                                 <CardContent className="p-4 flex gap-3">
                                     <AlertCircle className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
                                     <div>
-                                        <p className="font-medium text-sm text-gray-800">{ann.title}</p>
+                                        <p className="font-medium text-sm text-gray-800">
+                                            {ann.title}
+                                        </p>
                                         {ann.content && (
-                                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">{ann.content}</p>
+                                            <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                                                {ann.content}
+                                            </p>
                                         )}
                                         <p className="text-xs text-gray-400 mt-1">
                                             {format(new Date(ann.created_at), 'MMM d, h:mm a')}

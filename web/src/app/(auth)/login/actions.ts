@@ -15,7 +15,7 @@ export async function loginWithGoogle(role: string = 'student') {
         path: '/',
         maxAge: 60 * 5, // 5 minutes
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production'
+        secure: process.env.NODE_ENV === 'production',
     })
 
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -62,14 +62,17 @@ export async function signUpWithEmail(prevState: any, formData: FormData) {
     const password = formData.get('password') as string
     const fullName = formData.get('fullName') as string
     const role = formData.get('role') as string
-    const branch = formData.get('branch') as string || null
-    const year = formData.get('year') as string || null
-    const gender = formData.get('gender') as string || null
+    const branch = (formData.get('branch') as string) || null
+    const year = (formData.get('year') as string) || null
+    const gender = (formData.get('gender') as string) || null
 
     const supabase = await createClient()
 
     // 1. Sign Up
-    const { data: { user }, error } = await supabase.auth.signUp({
+    const {
+        data: { user },
+        error,
+    } = await supabase.auth.signUp({
         email,
         password,
     })
@@ -82,9 +85,8 @@ export async function signUpWithEmail(prevState: any, formData: FormData) {
         const { createAdminClient } = await import('@/utils/supabase/admin')
         const supabaseAdmin = createAdminClient()
 
-        const { error: profileError } = await supabaseAdmin
-            .from('profiles')
-            .upsert({
+        const { error: profileError } = await supabaseAdmin.from('profiles').upsert(
+            {
                 id: user.id,
                 email: email,
                 full_name: fullName,
@@ -92,7 +94,9 @@ export async function signUpWithEmail(prevState: any, formData: FormData) {
                 branch,
                 year,
                 gender,
-            }, { onConflict: 'id' })
+            },
+            { onConflict: 'id' }
+        )
 
         if (profileError) {
             console.error('Profile update error:', profileError)
@@ -105,7 +109,7 @@ export async function signUpWithEmail(prevState: any, formData: FormData) {
 
 export async function signInWithPhone(prevState: any, formData: FormData) {
     const phone = formData.get('phone') as string
-    const role = formData.get('role') as string || 'student'
+    const role = (formData.get('role') as string) || 'student'
 
     if (!phone) return { error: 'Phone number is required' }
 
@@ -114,9 +118,9 @@ export async function signInWithPhone(prevState: any, formData: FormData) {
         phone,
         options: {
             data: {
-                role: role
-            }
-        }
+                role: role,
+            },
+        },
     })
 
     if (error) {
@@ -131,7 +135,10 @@ export async function verifyOtp(prevState: any, formData: FormData) {
     const token = formData.get('token') as string
 
     const supabase = await createClient()
-    const { data: { user }, error } = await supabase.auth.verifyOtp({
+    const {
+        data: { user },
+        error,
+    } = await supabase.auth.verifyOtp({
         phone,
         token,
         type: 'sms',
@@ -179,4 +186,3 @@ export async function verifyOtp(prevState: any, formData: FormData) {
     revalidatePath('/', 'layout')
     redirect('/')
 }
-

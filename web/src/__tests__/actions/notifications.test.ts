@@ -202,8 +202,7 @@ describe('getUnreadCount', () => {
             select: vi.fn().mockReturnThis(),
             eq: vi.fn().mockReturnThis(),
             not: vi.fn().mockReturnThis(),
-            then: (resolve: any) =>
-                resolve({ count: 5, error: null }),
+            then: (resolve: any) => resolve({ count: 5, error: null }),
         }
         db.client.from = vi.fn().mockReturnValue(chain)
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -350,7 +349,13 @@ describe('acceptPlayRequest', () => {
         db.auth.getUser.mockResolvedValue({ data: { user: { id: 'student-1' } } })
         // Profile query for accepting player
         db.mockTable('profiles', {
-            data: { id: 'student-1', full_name: 'Alice', branch: 'CSE', gender: 'female', year: '2' },
+            data: {
+                id: 'student-1',
+                full_name: 'Alice',
+                branch: 'CSE',
+                gender: 'female',
+                year: '2',
+            },
             error: null,
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -363,7 +368,13 @@ describe('acceptPlayRequest', () => {
                 booking_id: 'booking-1',
                 status: 'pending',
                 notification_id: 'notif-1',
-                bookings: { id: 'booking-1', status: 'confirmed', user_id: 'student-2', start_time: FIXTURES.booking.start_time, courts: { name: 'Badminton Court A', sport: 'badminton' } },
+                bookings: {
+                    id: 'booking-1',
+                    status: 'confirmed',
+                    user_id: 'student-2',
+                    start_time: FIXTURES.booking.start_time,
+                    courts: { name: 'Badminton Court A', sport: 'badminton' },
+                },
             },
             error: null,
         })
@@ -390,7 +401,13 @@ describe('acceptPlayRequest', () => {
         const db = makeDb()
         db.auth.getUser.mockResolvedValue({ data: { user: { id: 'student-1' } } })
         db.mockTable('profiles', {
-            data: { id: 'student-1', full_name: 'Alice', branch: 'CSE', gender: 'female', year: '2' },
+            data: {
+                id: 'student-1',
+                full_name: 'Alice',
+                branch: 'CSE',
+                gender: 'female',
+                year: '2',
+            },
             error: null,
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -437,7 +454,10 @@ describe('acceptPlayRequest', () => {
                 }
                 // Second call: .update({...}).eq()
                 const updateChain = {
-                    update: vi.fn((args: any) => { bookingsUpdateArgs = args; return updateChain }),
+                    update: vi.fn((args: any) => {
+                        bookingsUpdateArgs = args
+                        return updateChain
+                    }),
                     eq: vi.fn().mockReturnThis(),
                     then: (resolve: any) => resolve({ data: null, error: null }),
                 }
@@ -574,24 +594,25 @@ describe('rejectPlayRequest', () => {
                 eq: vi.fn().mockReturnThis(),
                 in: vi.fn().mockReturnThis(),
                 single: vi.fn().mockResolvedValue({
-                    data: table === 'play_requests'
-                        ? {
-                            id: 'pr-1',
-                            booking_id: 'booking-1',
-                            status: 'pending',
-                            notification_id: null,
-                            bookings: {
-                                id: 'booking-1',
-                                status: 'confirmed',
-                                user_id: 'student-2',
-                                start_time: FIXTURES.booking.start_time,
-                                num_players: 1,
-                                equipment_ids: [],
-                                players_list: [{ id: 'student-1', status: 'confirmed' }],
-                                courts: { name: 'Badminton Court A', sport: 'badminton' },
-                            },
-                        }
-                        : null,
+                    data:
+                        table === 'play_requests'
+                            ? {
+                                  id: 'pr-1',
+                                  booking_id: 'booking-1',
+                                  status: 'pending',
+                                  notification_id: null,
+                                  bookings: {
+                                      id: 'booking-1',
+                                      status: 'confirmed',
+                                      user_id: 'student-2',
+                                      start_time: FIXTURES.booking.start_time,
+                                      num_players: 1,
+                                      equipment_ids: [],
+                                      players_list: [{ id: 'student-1', status: 'confirmed' }],
+                                      courts: { name: 'Badminton Court A', sport: 'badminton' },
+                                  },
+                              }
+                            : null,
                     error: null,
                 }),
                 then: (resolve: any) => resolve({ data: { id: 'n-x' }, error: null }),
@@ -653,14 +674,17 @@ describe('markNotificationRead — ownership guard', () => {
         expect(db.client.from).not.toHaveBeenCalled()
     })
 
-    it('scopes update to recipient_id so users cannot mark others\' notifications', async () => {
+    it("scopes update to recipient_id so users cannot mark others' notifications", async () => {
         const db = makeDb()
         db.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-42' } } })
 
-        let eqCalls: string[] = []
+        const eqCalls: string[] = []
         const chain = {
             update: vi.fn().mockReturnThis(),
-            eq: vi.fn((col: string) => { eqCalls.push(col); return chain }),
+            eq: vi.fn((col: string) => {
+                eqCalls.push(col)
+                return chain
+            }),
             then: (resolve: any) => resolve({ data: null, error: null }),
         }
         db.client.from = vi.fn().mockReturnValue(chain)

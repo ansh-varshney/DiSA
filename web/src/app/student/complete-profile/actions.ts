@@ -7,7 +7,9 @@ import { redirect } from 'next/navigation'
 export async function completeStudentProfile(formData: FormData) {
     const supabase = await createClient()
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return { error: 'Not authenticated' }
 
     const branch = formData.get('branch') as string
@@ -22,10 +24,7 @@ export async function completeStudentProfile(formData: FormData) {
     const updateData: Record<string, string> = { branch, year, gender }
     if (studentId?.trim()) updateData.student_id = studentId.trim()
 
-    const { error } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', user.id)
+    const { error } = await supabase.from('profiles').update(updateData).eq('id', user.id)
 
     if (error) return { error: error.message }
 

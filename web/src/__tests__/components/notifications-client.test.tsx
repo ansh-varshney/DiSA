@@ -116,10 +116,7 @@ describe('NotificationsClient', () => {
     })
 
     it('unread notifications have a visual indicator (unread dot)', () => {
-        const notifs = [
-            makeNotif({ is_read: false }),
-            makeNotif({ is_read: true }),
-        ]
+        const notifs = [makeNotif({ is_read: false }), makeNotif({ is_read: true })]
         render(<NotificationsClient notifications={notifs} />)
         // There is exactly 1 unread dot
         const dots = document.querySelectorAll('span.rounded-full.bg-\\[\\#004d40\\]')

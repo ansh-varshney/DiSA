@@ -55,26 +55,22 @@ export async function sendNotification(input: NotificationInput): Promise<string
 export async function sendNotifications(inputs: NotificationInput[]): Promise<void> {
     if (inputs.length === 0) return
     const adminSupabase = createAdminClient()
-    const { error } = await adminSupabase
-        .from('notifications')
-        .insert(
-            inputs.map((n) => ({
-                recipient_id: n.recipientId,
-                sender_id: n.senderId ?? null,
-                type: n.type,
-                title: n.title,
-                body: n.body,
-                data: n.data ?? {},
-            })),
-        )
+    const { error } = await adminSupabase.from('notifications').insert(
+        inputs.map((n) => ({
+            recipient_id: n.recipientId,
+            sender_id: n.senderId ?? null,
+            type: n.type,
+            title: n.title,
+            body: n.body,
+            data: n.data ?? {},
+        }))
+    )
 
     if (error) console.error('sendNotifications error:', error)
 }
 
 /** Broadcast to all managers */
-export async function notifyManagers(
-    input: Omit<NotificationInput, 'recipientId'>,
-): Promise<void> {
+export async function notifyManagers(input: Omit<NotificationInput, 'recipientId'>): Promise<void> {
     const adminSupabase = createAdminClient()
     const { data: managers } = await adminSupabase
         .from('profiles')
@@ -86,9 +82,7 @@ export async function notifyManagers(
 }
 
 /** Broadcast to all admins */
-export async function notifyAdmins(
-    input: Omit<NotificationInput, 'recipientId'>,
-): Promise<void> {
+export async function notifyAdmins(input: Omit<NotificationInput, 'recipientId'>): Promise<void> {
     const adminSupabase = createAdminClient()
     const { data: admins } = await adminSupabase
         .from('profiles')
@@ -101,7 +95,7 @@ export async function notifyAdmins(
 
 /** Broadcast to all managers AND admins */
 export async function notifyAdminsAndManagers(
-    input: Omit<NotificationInput, 'recipientId'>,
+    input: Omit<NotificationInput, 'recipientId'>
 ): Promise<void> {
     const adminSupabase = createAdminClient()
     const { data: staff } = await adminSupabase
@@ -115,7 +109,7 @@ export async function notifyAdminsAndManagers(
 
 /** Broadcast to all students */
 export async function broadcastToAllStudents(
-    input: Omit<NotificationInput, 'recipientId'>,
+    input: Omit<NotificationInput, 'recipientId'>
 ): Promise<void> {
     const adminSupabase = createAdminClient()
     const { data: students } = await adminSupabase
@@ -131,10 +125,12 @@ export async function broadcastToAllStudents(
 
 export async function getMyNotifications(
     unreadOnly = false,
-    limit = 60,
+    limit = 60
 ): Promise<AppNotification[]> {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return []
 
     let query = supabase
@@ -155,7 +151,9 @@ export async function getMyNotifications(
 /** Called by the popup's polling — returns notifications created after `since` */
 export async function getNewNotifications(since: string): Promise<AppNotification[]> {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return []
 
     const { data } = await supabase
@@ -172,7 +170,9 @@ export async function getNewNotifications(since: string): Promise<AppNotificatio
 
 export async function getUnreadCount(): Promise<number> {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return 0
 
     const { count } = await supabase
@@ -188,7 +188,9 @@ export async function getUnreadCount(): Promise<number> {
 
 export async function markNotificationRead(notificationId: string): Promise<void> {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return
 
     await supabase
@@ -203,7 +205,9 @@ export async function markNotificationRead(notificationId: string): Promise<void
 
 export async function markAllNotificationsRead(): Promise<void> {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return
 
     await supabase
@@ -221,19 +225,23 @@ export async function markAllNotificationsRead(): Promise<void> {
 
 export async function getMyPlayRequests() {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return []
 
     const { data } = await supabase
         .from('play_requests')
-        .select(`
+        .select(
+            `
             *,
             bookings (
                 id, start_time, end_time, status,
                 courts (name, sport)
             ),
             requester:profiles!play_requests_requester_id_fkey (full_name, student_id)
-        `)
+        `
+        )
         .eq('recipient_id', user.id)
         .order('created_at', { ascending: false })
         .limit(30)
@@ -244,7 +252,9 @@ export async function getMyPlayRequests() {
 export async function acceptPlayRequest(playRequestId: string) {
     const supabase = await createClient()
     const adminSupabase = createAdminClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
 
     // 1. Fetch the play request + booking details
@@ -323,8 +333,11 @@ export async function acceptPlayRequest(playRequestId: string) {
     // 6. Notify the booker — N2
     const courtName = booking.courts?.name || 'Court'
     const startDisplay = new Date(booking.start_time).toLocaleString('en-IN', {
-        weekday: 'short', month: 'short', day: 'numeric',
-        hour: '2-digit', minute: '2-digit',
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
     })
     await sendNotification({
         recipientId: booking.user_id,
@@ -343,13 +356,17 @@ export async function acceptPlayRequest(playRequestId: string) {
 export async function rejectPlayRequest(playRequestId: string) {
     const supabase = await createClient()
     const adminSupabase = createAdminClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
 
     // 1. Fetch play request + booking
     const { data: pr } = await adminSupabase
         .from('play_requests')
-        .select('*, bookings(id, status, user_id, start_time, num_players, equipment_ids, players_list, courts(name, sport))')
+        .select(
+            '*, bookings(id, status, user_id, start_time, num_players, equipment_ids, players_list, courts(name, sport))'
+        )
         .eq('id', playRequestId)
         .eq('recipient_id', user.id)
         .single()
@@ -367,7 +384,7 @@ export async function rejectPlayRequest(playRequestId: string) {
     // 2. Remove player from players_list
     const playersList = Array.isArray(booking.players_list) ? booking.players_list : []
     const updatedList = playersList.filter(
-        (p: any) => (typeof p === 'string' ? p : p.id) !== user.id,
+        (p: any) => (typeof p === 'string' ? p : p.id) !== user.id
     )
     const newNumPlayers = Math.max(1, (booking.num_players || 1) - 1)
 
@@ -376,8 +393,11 @@ export async function rejectPlayRequest(playRequestId: string) {
     const courtName = booking.courts?.name || 'Court'
     const limits = getPlayerLimits(sport)
     const startDisplay = new Date(booking.start_time).toLocaleString('en-IN', {
-        weekday: 'short', month: 'short', day: 'numeric',
-        hour: '2-digit', minute: '2-digit',
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
     })
 
     let bookingCancelled = false
@@ -386,10 +406,7 @@ export async function rejectPlayRequest(playRequestId: string) {
         // Cancel booking — free equipment
         const equipIds: string[] = booking.equipment_ids || []
         if (equipIds.length > 0) {
-            await adminSupabase
-                .from('equipment')
-                .update({ is_available: true })
-                .in('id', equipIds)
+            await adminSupabase.from('equipment').update({ is_available: true }).in('id', equipIds)
         }
         await adminSupabase
             .from('bookings')
@@ -419,7 +436,7 @@ export async function rejectPlayRequest(playRequestId: string) {
                     title: 'Booking Cancelled',
                     body: `The booking for ${courtName} on ${startDisplay} has been cancelled due to insufficient players.`,
                     data: { booking_id: pr.booking_id },
-                })),
+                }))
             )
         }
     } else {

@@ -34,30 +34,36 @@ export default async function ApprovalsPage() {
             ) : (
                 <div className="space-y-3">
                     {bookings.map((booking: any) => (
-                        <Link
-                            key={booking.id}
-                            href={`/manager/approvals/${booking.id}`}
-                        >
+                        <Link key={booking.id} href={`/manager/approvals/${booking.id}`}>
                             <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-yellow-400 mb-3">
                                 <CardContent className="p-4 flex items-center justify-between">
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <h3 className="font-bold text-gray-900">{booking.courts?.name}</h3>
-                                            <span className={cn(
-                                                'text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full border',
-                                                statusColors[booking.status] || 'bg-gray-100 text-gray-600'
-                                            )}>
+                                            <h3 className="font-bold text-gray-900">
+                                                {booking.courts?.name}
+                                            </h3>
+                                            <span
+                                                className={cn(
+                                                    'text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full border',
+                                                    statusColors[booking.status] ||
+                                                        'bg-gray-100 text-gray-600'
+                                                )}
+                                            >
                                                 {statusLabels[booking.status] || booking.status}
                                             </span>
                                         </div>
                                         <p className="text-sm text-gray-600 flex items-center gap-1">
                                             <Clock className="w-3 h-3" />
-                                            {format(new Date(booking.start_time), 'h:mm a')} – {format(new Date(booking.end_time), 'h:mm a')}
+                                            {format(new Date(booking.start_time), 'h:mm a')} –{' '}
+                                            {format(new Date(booking.end_time), 'h:mm a')}
                                         </p>
                                         <p className="text-xs text-gray-500 mt-1">
                                             {booking.profiles?.full_name || 'Unknown'}
                                             {booking.equipment_names?.length > 0 && (
-                                                <span className="text-gray-400"> · {booking.equipment_names.join(', ')}</span>
+                                                <span className="text-gray-400">
+                                                    {' '}
+                                                    · {booking.equipment_names.join(', ')}
+                                                </span>
                                             )}
                                         </p>
                                     </div>

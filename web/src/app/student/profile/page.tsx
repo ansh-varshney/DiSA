@@ -2,16 +2,25 @@ import { createClient } from '@/utils/supabase/server'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { redirect } from 'next/navigation'
 import { format, formatDistanceToNow } from 'date-fns'
-import { AlertTriangle, CheckCircle, Star, Calendar, Shield, MessageSquare, Clock, GraduationCap, Ban, Trophy } from 'lucide-react'
+import {
+    AlertTriangle,
+    CheckCircle,
+    Star,
+    Calendar,
+    Shield,
+    MessageSquare,
+    Clock,
+    GraduationCap,
+    Ban,
+    Trophy,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FeedbackForm } from '@/components/feedback-form'
 import { ProfileEditForm } from '@/components/profile-edit-form'
 
 // Helper: turn snake_case violation_type into readable label
 function readableViolationType(type: string) {
-    return type
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, (c) => c.toUpperCase())
+    return type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
 const statusColors: Record<string, string> = {
@@ -22,14 +31,12 @@ const statusColors: Record<string, string> = {
 
 export default async function ProfilePage() {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
 
     // Fetch violations — only past 2 months
     const twoMonthsAgo = new Date()
@@ -64,7 +71,9 @@ export default async function ProfilePage() {
     // Suspension from 3+ total violations
     const isSuspended = violationCount >= 3
     // Late arrival strike count (from the last 2-month window already fetched)
-    const lateArrivalCount = (violations || []).filter((v: any) => v.violation_type === 'students_late').length
+    const lateArrivalCount = (violations || []).filter(
+        (v: any) => v.violation_type === 'students_late'
+    ).length
 
     return (
         <div className="p-4 md:p-8 space-y-6">
@@ -78,10 +87,14 @@ export default async function ProfilePage() {
                             {profile?.full_name?.[0]?.toUpperCase() || 'U'}
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-gray-900">{profile?.full_name}</h2>
+                            <h2 className="text-xl font-bold text-gray-900">
+                                {profile?.full_name}
+                            </h2>
                             <p className="text-gray-500 text-sm">{profile?.email}</p>
                             {profile?.student_id && (
-                                <p className="text-gray-400 text-xs mt-0.5">Roll: {profile.student_id}</p>
+                                <p className="text-gray-400 text-xs mt-0.5">
+                                    Roll: {profile.student_id}
+                                </p>
                             )}
                             {profile?.phone_number && (
                                 <p className="text-gray-400 text-xs">{profile.phone_number}</p>
@@ -93,17 +106,23 @@ export default async function ProfilePage() {
                     <div className="grid grid-cols-3 gap-3 mt-4">
                         <div className="bg-[#004d40]/5 p-4 rounded-xl text-center">
                             <Star className="w-5 h-5 text-yellow-500 mx-auto mb-1" />
-                            <p className="text-2xl font-black text-[#004d40]">{profile?.points || 0}</p>
+                            <p className="text-2xl font-black text-[#004d40]">
+                                {profile?.points || 0}
+                            </p>
                             <p className="text-xs text-gray-500 font-medium">Points</p>
                         </div>
                         <div className="bg-gray-50 p-4 rounded-xl text-center">
                             <Calendar className="w-5 h-5 text-blue-500 mx-auto mb-1" />
-                            <p className="text-2xl font-black text-gray-800">{totalSessions || 0}</p>
+                            <p className="text-2xl font-black text-gray-800">
+                                {totalSessions || 0}
+                            </p>
                             <p className="text-xs text-gray-500 font-medium">Sessions</p>
                         </div>
                         <div className="bg-gray-50 p-4 rounded-xl text-center">
                             <Shield className="w-5 h-5 text-gray-400 mx-auto mb-1" />
-                            <p className="text-xl font-black text-gray-800 capitalize">{profile?.role}</p>
+                            <p className="text-xl font-black text-gray-800 capitalize">
+                                {profile?.role}
+                            </p>
                             <p className="text-xs text-gray-500 font-medium">Role</p>
                         </div>
                     </div>
@@ -116,14 +135,16 @@ export default async function ProfilePage() {
                     <CardContent className="p-4 flex items-start gap-3">
                         <Trophy className="w-6 h-6 text-yellow-600 shrink-0 mt-0.5" />
                         <div>
-                            <p className="font-bold text-yellow-700">Monthly Top-5 Reward Active!</p>
+                            <p className="font-bold text-yellow-700">
+                                Monthly Top-5 Reward Active!
+                            </p>
                             <p className="text-sm text-yellow-600 mt-0.5">
                                 You finished in the top 5 last month. You have{' '}
-                                <span className="font-semibold">1 priority booking</span>{' '}
-                                available — book a{' '}
-                                <span className="font-semibold">90-minute session</span>{' '}
-                                anytime this month. The 90-min option will appear in the booking screen.
-                                This reward is one-time and expires at the next monthly reset.
+                                <span className="font-semibold">1 priority booking</span> available
+                                — book a <span className="font-semibold">90-minute session</span>{' '}
+                                anytime this month. The 90-min option will appear in the booking
+                                screen. This reward is one-time and expires at the next monthly
+                                reset.
                             </p>
                         </div>
                     </CardContent>
@@ -155,14 +176,20 @@ export default async function ProfilePage() {
                     <CardContent className="p-4 flex items-center gap-3">
                         <Ban className="w-6 h-6 text-orange-600 shrink-0" />
                         <div>
-                            <p className="font-bold text-orange-700">Temporarily Banned — Late Arrivals</p>
+                            <p className="font-bold text-orange-700">
+                                Temporarily Banned — Late Arrivals
+                            </p>
                             <p className="text-sm text-orange-600">
-                                You have accumulated 3 late-arrival strikes. Booking is disabled until{' '}
+                                You have accumulated 3 late-arrival strikes. Booking is disabled
+                                until{' '}
                                 <span className="font-semibold">
                                     {format(new Date(profile!.banned_until), 'MMMM d, yyyy')}
                                 </span>{' '}
-                                ({formatDistanceToNow(new Date(profile!.banned_until), { addSuffix: true })}).
-                                Contact admin for early clearance.
+                                (
+                                {formatDistanceToNow(new Date(profile!.banned_until), {
+                                    addSuffix: true,
+                                })}
+                                ). Contact admin for early clearance.
                             </p>
                         </div>
                     </CardContent>
@@ -177,7 +204,8 @@ export default async function ProfilePage() {
                         <div>
                             <p className="font-bold text-red-700">Account Suspended</p>
                             <p className="text-sm text-red-600">
-                                {violationCount} violations recorded. Booking is disabled. Contact admin to resolve.
+                                {violationCount} violations recorded. Booking is disabled. Contact
+                                admin to resolve.
                             </p>
                         </div>
                     </CardContent>
@@ -186,14 +214,28 @@ export default async function ProfilePage() {
 
             {/* Late arrival strike tracker (show if any strikes but not yet banned) */}
             {!isBanned && lateArrivalCount > 0 && (
-                <Card className={cn(
-                    'border',
-                    lateArrivalCount >= 2 ? 'border-orange-300 bg-orange-50' : 'border-yellow-200 bg-yellow-50'
-                )}>
+                <Card
+                    className={cn(
+                        'border',
+                        lateArrivalCount >= 2
+                            ? 'border-orange-300 bg-orange-50'
+                            : 'border-yellow-200 bg-yellow-50'
+                    )}
+                >
                     <CardContent className="p-4 flex items-center gap-3">
-                        <Clock className={cn('w-5 h-5 shrink-0', lateArrivalCount >= 2 ? 'text-orange-500' : 'text-yellow-500')} />
+                        <Clock
+                            className={cn(
+                                'w-5 h-5 shrink-0',
+                                lateArrivalCount >= 2 ? 'text-orange-500' : 'text-yellow-500'
+                            )}
+                        />
                         <div>
-                            <p className={cn('font-semibold text-sm', lateArrivalCount >= 2 ? 'text-orange-700' : 'text-yellow-700')}>
+                            <p
+                                className={cn(
+                                    'font-semibold text-sm',
+                                    lateArrivalCount >= 2 ? 'text-orange-700' : 'text-yellow-700'
+                                )}
+                            >
                                 Late Arrival Strikes: {lateArrivalCount} / 3
                             </p>
                             <p className="text-xs text-gray-600 mt-0.5">
@@ -208,10 +250,12 @@ export default async function ProfilePage() {
             {/* Warnings & Violations */}
             <Card className={cn(violationCount > 0 ? 'border-red-200' : 'border-green-200')}>
                 <CardHeader className="py-3">
-                    <CardTitle className={cn(
-                        'text-lg flex items-center gap-2',
-                        violationCount > 0 ? 'text-red-700' : 'text-green-700'
-                    )}>
+                    <CardTitle
+                        className={cn(
+                            'text-lg flex items-center gap-2',
+                            violationCount > 0 ? 'text-red-700' : 'text-green-700'
+                        )}
+                    >
                         <AlertTriangle className="w-5 h-5" />
                         Warnings & Violations ({violationCount})
                     </CardTitle>
@@ -220,12 +264,17 @@ export default async function ProfilePage() {
                     {violationCount === 0 ? (
                         <div className="flex items-center gap-2 text-green-600">
                             <CheckCircle className="w-5 h-5" />
-                            <p className="text-sm font-medium">No violations. Keep up the good sportsmanship!</p>
+                            <p className="text-sm font-medium">
+                                No violations. Keep up the good sportsmanship!
+                            </p>
                         </div>
                     ) : (
                         <div className="space-y-3">
                             {violations?.map((v: any) => {
-                                const message = v.reason || v.description || readableViolationType(v.violation_type || 'Unknown')
+                                const message =
+                                    v.reason ||
+                                    v.description ||
+                                    readableViolationType(v.violation_type || 'Unknown')
                                 const severityColors: Record<string, string> = {
                                     critical: 'bg-red-200 text-red-800',
                                     severe: 'bg-red-200 text-red-800',
@@ -233,13 +282,19 @@ export default async function ProfilePage() {
                                     minor: 'bg-yellow-200 text-yellow-800',
                                 }
                                 return (
-                                    <div key={v.id} className="p-3 bg-red-50 rounded-lg border border-red-100">
+                                    <div
+                                        key={v.id}
+                                        className="p-3 bg-red-50 rounded-lg border border-red-100"
+                                    >
                                         <div className="flex items-center justify-between mb-1">
                                             <div className="flex items-center gap-2">
-                                                <span className={cn(
-                                                    'text-xs font-bold uppercase px-2 py-0.5 rounded-full',
-                                                    severityColors[v.severity] || 'bg-yellow-200 text-yellow-800'
-                                                )}>
+                                                <span
+                                                    className={cn(
+                                                        'text-xs font-bold uppercase px-2 py-0.5 rounded-full',
+                                                        severityColors[v.severity] ||
+                                                            'bg-yellow-200 text-yellow-800'
+                                                    )}
+                                                >
                                                     {v.severity || 'minor'}
                                                 </span>
                                                 <span className="text-xs text-gray-500 font-medium">
@@ -284,27 +339,41 @@ export default async function ProfilePage() {
                     <CardContent>
                         <div className="space-y-3">
                             {feedbacks.map((fb: any) => (
-                                <div key={fb.id} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                <div
+                                    key={fb.id}
+                                    className="p-3 bg-gray-50 rounded-lg border border-gray-100"
+                                >
                                     <div className="flex items-center justify-between mb-1">
                                         <div className="flex items-center gap-2">
-                                            <span className={cn(
-                                                'text-xs font-bold uppercase px-2 py-0.5 rounded-full',
-                                                statusColors[fb.status] || 'bg-gray-100 text-gray-600'
-                                            )}>
+                                            <span
+                                                className={cn(
+                                                    'text-xs font-bold uppercase px-2 py-0.5 rounded-full',
+                                                    statusColors[fb.status] ||
+                                                        'bg-gray-100 text-gray-600'
+                                                )}
+                                            >
                                                 {(fb.status || 'open').replace('_', ' ')}
                                             </span>
-                                            <span className="text-xs text-gray-400 capitalize">{fb.category || 'feedback'}</span>
+                                            <span className="text-xs text-gray-400 capitalize">
+                                                {fb.category || 'feedback'}
+                                            </span>
                                         </div>
                                         <span className="text-xs text-gray-400">
                                             {format(new Date(fb.created_at), 'MMM d, yyyy')}
                                         </span>
                                     </div>
-                                    <p className="text-sm font-semibold text-gray-900">{fb.title}</p>
+                                    <p className="text-sm font-semibold text-gray-900">
+                                        {fb.title}
+                                    </p>
                                     <p className="text-sm text-gray-600 mt-0.5">{fb.description}</p>
                                     {fb.admin_notes && (
                                         <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-100">
-                                            <p className="text-xs font-semibold text-blue-700">Admin Response:</p>
-                                            <p className="text-sm text-blue-800">{fb.admin_notes}</p>
+                                            <p className="text-xs font-semibold text-blue-700">
+                                                Admin Response:
+                                            </p>
+                                            <p className="text-sm text-blue-800">
+                                                {fb.admin_notes}
+                                            </p>
                                         </div>
                                     )}
                                 </div>

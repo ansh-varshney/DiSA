@@ -1,7 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogBody, DialogFooter } from './ui/dialog'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogClose,
+    DialogBody,
+    DialogFooter,
+} from './ui/dialog'
 import { Button } from './ui/button'
 import { createEquipment, updateEquipment, deleteEquipment } from '@/actions/admin'
 import { useRouter } from 'next/navigation'
@@ -61,12 +69,12 @@ export function EquipmentForm({ mode, equipment, sport, children }: EquipmentFor
         }
 
         // Add files and create previews
-        setSelectedFiles(prev => [...prev, ...files])
+        setSelectedFiles((prev) => [...prev, ...files])
 
-        files.forEach(file => {
+        files.forEach((file) => {
             const reader = new FileReader()
             reader.onloadend = () => {
-                setPreviewUrls(prev => [...prev, reader.result as string])
+                setPreviewUrls((prev) => [...prev, reader.result as string])
             }
             reader.readAsDataURL(file)
         })
@@ -76,9 +84,9 @@ export function EquipmentForm({ mode, equipment, sport, children }: EquipmentFor
         // If it's a new file (not yet uploaded)
         if (index >= (equipment?.pictures?.length || 0)) {
             const fileIndex = index - (equipment?.pictures?.length || 0)
-            setSelectedFiles(prev => prev.filter((_, i) => i !== fileIndex))
+            setSelectedFiles((prev) => prev.filter((_, i) => i !== fileIndex))
         }
-        setPreviewUrls(prev => prev.filter((_, i) => i !== index))
+        setPreviewUrls((prev) => prev.filter((_, i) => i !== index))
     }
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -92,15 +100,13 @@ export function EquipmentForm({ mode, equipment, sport, children }: EquipmentFor
             formData.append('sport', sport)
 
             // Add selected image files
-            selectedFiles.forEach(file => {
+            selectedFiles.forEach((file) => {
                 formData.append('images', file)
             })
 
             // For edit mode, include existing image URLs that weren't removed
             if (mode === 'edit' && equipment) {
-                const existingUrls = previewUrls.filter(url =>
-                    equipment.pictures?.includes(url)
-                )
+                const existingUrls = previewUrls.filter((url) => equipment.pictures?.includes(url))
                 formData.append('existingImages', JSON.stringify(existingUrls))
             }
 
@@ -145,11 +151,17 @@ export function EquipmentForm({ mode, equipment, sport, children }: EquipmentFor
                         </DialogHeader>
                         <DialogBody>
                             <p className="text-gray-600">
-                                Are you sure you want to delete <strong>{equipment?.name}</strong>? This action cannot be undone.
+                                Are you sure you want to delete <strong>{equipment?.name}</strong>?
+                                This action cannot be undone.
                             </p>
                         </DialogBody>
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setOpen(false)}
+                                disabled={loading}
+                            >
                                 Cancel
                             </Button>
                             <form onSubmit={handleSubmit}>
@@ -171,14 +183,19 @@ export function EquipmentForm({ mode, equipment, sport, children }: EquipmentFor
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <form onSubmit={handleSubmit}>
                         <DialogHeader>
-                            <DialogTitle>{mode === 'create' ? `Add Equipment (${sport})` : 'Edit Equipment'}</DialogTitle>
+                            <DialogTitle>
+                                {mode === 'create' ? `Add Equipment (${sport})` : 'Edit Equipment'}
+                            </DialogTitle>
                             <DialogClose onClose={() => setOpen(false)} />
                         </DialogHeader>
                         <DialogBody>
                             <div className="space-y-4">
                                 {/* Equipment ID (Auto-generated) */}
                                 <div>
-                                    <label htmlFor="equipment_id" className="block text-sm font-semibold text-gray-900 mb-1">
+                                    <label
+                                        htmlFor="equipment_id"
+                                        className="block text-sm font-semibold text-gray-900 mb-1"
+                                    >
                                         Equipment ID (Auto-generated)
                                     </label>
                                     <input
@@ -192,7 +209,10 @@ export function EquipmentForm({ mode, equipment, sport, children }: EquipmentFor
 
                                 {/* Equipment Name */}
                                 <div>
-                                    <label htmlFor="name" className="block text-sm font-semibold text-gray-900 mb-1">
+                                    <label
+                                        htmlFor="name"
+                                        className="block text-sm font-semibold text-gray-900 mb-1"
+                                    >
                                         Equipment Name *
                                     </label>
                                     <input
@@ -208,7 +228,10 @@ export function EquipmentForm({ mode, equipment, sport, children }: EquipmentFor
 
                                 {/* Condition */}
                                 <div>
-                                    <label htmlFor="condition" className="block text-sm font-semibold text-gray-900 mb-1">
+                                    <label
+                                        htmlFor="condition"
+                                        className="block text-sm font-semibold text-gray-900 mb-1"
+                                    >
                                         Condition *
                                     </label>
                                     <select
@@ -227,7 +250,10 @@ export function EquipmentForm({ mode, equipment, sport, children }: EquipmentFor
 
                                 {/* Vendor Name */}
                                 <div>
-                                    <label htmlFor="vendor_name" className="block text-sm font-semibold text-gray-900 mb-1">
+                                    <label
+                                        htmlFor="vendor_name"
+                                        className="block text-sm font-semibold text-gray-900 mb-1"
+                                    >
                                         Vendor Name *
                                     </label>
                                     <input
@@ -244,7 +270,10 @@ export function EquipmentForm({ mode, equipment, sport, children }: EquipmentFor
                                 <div className="grid grid-cols-2 gap-4">
                                     {/* Cost */}
                                     <div>
-                                        <label htmlFor="cost" className="block text-sm font-semibold text-gray-900 mb-1">
+                                        <label
+                                            htmlFor="cost"
+                                            className="block text-sm font-semibold text-gray-900 mb-1"
+                                        >
                                             Cost (₹) *
                                         </label>
                                         <input
@@ -262,7 +291,10 @@ export function EquipmentForm({ mode, equipment, sport, children }: EquipmentFor
 
                                     {/* Purchase Date */}
                                     <div>
-                                        <label htmlFor="purchase_date" className="block text-sm font-semibold text-gray-900 mb-1">
+                                        <label
+                                            htmlFor="purchase_date"
+                                            className="block text-sm font-semibold text-gray-900 mb-1"
+                                        >
                                             Purchase Date *
                                         </label>
                                         <input
@@ -330,7 +362,10 @@ export function EquipmentForm({ mode, equipment, sport, children }: EquipmentFor
 
                                 {/* Notes */}
                                 <div>
-                                    <label htmlFor="notes" className="block text-sm font-semibold text-gray-900 mb-1">
+                                    <label
+                                        htmlFor="notes"
+                                        className="block text-sm font-semibold text-gray-900 mb-1"
+                                    >
                                         Notes
                                     </label>
                                     <textarea
@@ -353,7 +388,9 @@ export function EquipmentForm({ mode, equipment, sport, children }: EquipmentFor
                                             <p className="text-lg font-semibold text-gray-900">
                                                 {equipment?.total_usage_count || 0}
                                             </p>
-                                            <p className="text-xs text-gray-500">Synced from bookings</p>
+                                            <p className="text-xs text-gray-500">
+                                                Synced from bookings
+                                            </p>
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-500 mb-1">
@@ -362,14 +399,21 @@ export function EquipmentForm({ mode, equipment, sport, children }: EquipmentFor
                                             <p className="text-lg font-semibold text-gray-900">
                                                 N/A
                                             </p>
-                                            <p className="text-xs text-gray-500">Synced from ratings</p>
+                                            <p className="text-xs text-gray-500">
+                                                Synced from ratings
+                                            </p>
                                         </div>
                                     </div>
                                 )}
                             </div>
                         </DialogBody>
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setOpen(false)}
+                                disabled={loading}
+                            >
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={loading}>

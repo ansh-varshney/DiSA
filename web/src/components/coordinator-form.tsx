@@ -1,7 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogBody, DialogFooter } from './ui/dialog'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogClose,
+    DialogBody,
+    DialogFooter,
+} from './ui/dialog'
 import { Button } from './ui/button'
 import { createCoordinator, updateCoordinator, deleteCoordinator } from '@/actions/admin'
 import { useRouter } from 'next/navigation'
@@ -64,11 +72,17 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                         </DialogHeader>
                         <DialogBody>
                             <p className="text-gray-600">
-                                Are you sure you want to delete <strong>{coordinator?.name}</strong>?
+                                Are you sure you want to delete <strong>{coordinator?.name}</strong>
+                                ?
                             </p>
                         </DialogBody>
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setOpen(false)}
+                                disabled={loading}
+                            >
                                 Cancel
                             </Button>
                             <form onSubmit={handleSubmit}>
@@ -90,13 +104,18 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                 <DialogContent className="max-w-lg">
                     <form onSubmit={handleSubmit}>
                         <DialogHeader>
-                            <DialogTitle>{mode === 'create' ? 'Add Coordinator' : 'Edit Coordinator'}</DialogTitle>
+                            <DialogTitle>
+                                {mode === 'create' ? 'Add Coordinator' : 'Edit Coordinator'}
+                            </DialogTitle>
                             <DialogClose onClose={() => setOpen(false)} />
                         </DialogHeader>
                         <DialogBody>
                             <div className="space-y-4">
                                 <div>
-                                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                                    <label
+                                        htmlFor="name"
+                                        className="block text-sm font-medium text-gray-700 mb-1"
+                                    >
                                         Full Name *
                                     </label>
                                     <input
@@ -112,7 +131,10 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+                                        <label
+                                            htmlFor="role"
+                                            className="block text-sm font-medium text-gray-700 mb-1"
+                                        >
                                             Role *
                                         </label>
                                         <select
@@ -131,7 +153,10 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                                     </div>
 
                                     <div>
-                                        <label htmlFor="sport" className="block text-sm font-medium text-gray-700 mb-1">
+                                        <label
+                                            htmlFor="sport"
+                                            className="block text-sm font-medium text-gray-700 mb-1"
+                                        >
                                             Sport *
                                         </label>
                                         <select
@@ -152,7 +177,10 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                                        <label
+                                            htmlFor="email"
+                                            className="block text-sm font-medium text-gray-700 mb-1"
+                                        >
                                             Email
                                         </label>
                                         <input
@@ -166,7 +194,10 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                                     </div>
 
                                     <div>
-                                        <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                                        <label
+                                            htmlFor="phone"
+                                            className="block text-sm font-medium text-gray-700 mb-1"
+                                        >
                                             Phone
                                         </label>
                                         <input
@@ -181,7 +212,10 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                                 </div>
 
                                 <div>
-                                    <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+                                    <label
+                                        htmlFor="notes"
+                                        className="block text-sm font-medium text-gray-700 mb-1"
+                                    >
                                         Notes
                                     </label>
                                     <textarea
@@ -196,7 +230,12 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                             </div>
                         </DialogBody>
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setOpen(false)}
+                                disabled={loading}
+                            >
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={loading}>

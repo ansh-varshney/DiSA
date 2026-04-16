@@ -41,23 +41,37 @@ export default async function BranchProfilePage({
 
             {/* Single unified form with one Apply button */}
             <form method="GET" className="border border-gray-900 rounded-lg p-4 space-y-4">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Filters</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    Filters
+                </p>
 
                 <div className="space-y-1">
                     <label className="text-sm font-medium text-gray-700">Select Branch</label>
-                    <select name="branch" defaultValue={branch}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]">
+                    <select
+                        name="branch"
+                        defaultValue={branch}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                    >
                         <option value="">Select...</option>
                         <option value="Overall">Overall (all branches)</option>
-                        {allBranches.map((b) => <option key={b} value={b}>{b}</option>)}
+                        {allBranches.map((b) => (
+                            <option key={b} value={b}>
+                                {b}
+                            </option>
+                        ))}
                     </select>
-                    <p className="text-xs text-gray-400 italic">* Must select — includes &apos;Overall&apos;</p>
+                    <p className="text-xs text-gray-400 italic">
+                        * Must select — includes &apos;Overall&apos;
+                    </p>
                 </div>
 
                 <div className="space-y-1">
                     <label className="text-sm font-medium text-gray-700">Parameter (X-axis)</label>
-                    <select name="xaxis" defaultValue={xAxis}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]">
+                    <select
+                        name="xaxis"
+                        defaultValue={xAxis}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                    >
                         <option value="sport">Sports</option>
                         <option value="year">Year</option>
                     </select>
@@ -70,29 +84,41 @@ export default async function BranchProfilePage({
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-0.5">
                             <p className="text-xs text-gray-500">Start Date</p>
-                            <input type="date" name="start" defaultValue={startDate}
+                            <input
+                                type="date"
+                                name="start"
+                                defaultValue={startDate}
                                 max={endDate || today}
-                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]" />
+                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                            />
                         </div>
                         <div className="space-y-0.5">
                             <p className="text-xs text-gray-500">End Date</p>
-                            <input type="date" name="end" defaultValue={endDate}
+                            <input
+                                type="date"
+                                name="end"
+                                defaultValue={endDate}
                                 min={startDate || undefined}
                                 max={today}
-                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]" />
+                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                            />
                         </div>
                     </div>
                 </div>
 
-                <button type="submit"
-                    className="w-full py-2.5 bg-[#004d40] text-white text-sm font-semibold rounded-md hover:bg-[#004d40]/90 transition-colors">
+                <button
+                    type="submit"
+                    className="w-full py-2.5 bg-[#004d40] text-white text-sm font-semibold rounded-md hover:bg-[#004d40]/90 transition-colors"
+                >
                     Apply
                 </button>
             </form>
 
             {/* Y-axis label */}
             {branch && (
-                <p className="text-sm text-gray-600 font-medium">Y-axis: Number of Successful Sessions</p>
+                <p className="text-sm text-gray-600 font-medium">
+                    Y-axis: Number of Successful Sessions
+                </p>
             )}
 
             {/* Dual-bar chart */}
@@ -106,9 +132,13 @@ export default async function BranchProfilePage({
                 </CardHeader>
                 <CardContent>
                     {!branch ? (
-                        <p className="text-center text-gray-400 text-sm py-8">Select a branch to load the chart</p>
+                        <p className="text-center text-gray-400 text-sm py-8">
+                            Select a branch to load the chart
+                        </p>
                     ) : chartData.length === 0 ? (
-                        <p className="text-center text-gray-400 text-sm py-8">No data found for the selected filters</p>
+                        <p className="text-center text-gray-400 text-sm py-8">
+                            No data found for the selected filters
+                        </p>
                     ) : (
                         <div className="space-y-4">
                             {chartData.map((item) => {
@@ -116,20 +146,36 @@ export default async function BranchProfilePage({
                                 const femalePct = Math.round((item.Female / maxVal) * 100)
                                 return (
                                     <div key={item.label}>
-                                        <p className="text-xs font-semibold text-gray-700 mb-1.5">{item.label}</p>
+                                        <p className="text-xs font-semibold text-gray-700 mb-1.5">
+                                            {item.label}
+                                        </p>
                                         <div className="flex items-center gap-2 mb-1">
-                                            <span className="text-[10px] text-blue-600 w-10 shrink-0">Male</span>
+                                            <span className="text-[10px] text-blue-600 w-10 shrink-0">
+                                                Male
+                                            </span>
                                             <div className="flex-1 bg-gray-100 rounded-full h-3">
-                                                <div className="h-3 rounded-full bg-blue-500" style={{ width: `${malePct}%` }} />
+                                                <div
+                                                    className="h-3 rounded-full bg-blue-500"
+                                                    style={{ width: `${malePct}%` }}
+                                                />
                                             </div>
-                                            <span className="text-[10px] text-gray-500 w-6 shrink-0">{item.Male}</span>
+                                            <span className="text-[10px] text-gray-500 w-6 shrink-0">
+                                                {item.Male}
+                                            </span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <span className="text-[10px] text-pink-500 w-10 shrink-0">Female</span>
+                                            <span className="text-[10px] text-pink-500 w-10 shrink-0">
+                                                Female
+                                            </span>
                                             <div className="flex-1 bg-gray-100 rounded-full h-3">
-                                                <div className="h-3 rounded-full bg-pink-400" style={{ width: `${femalePct}%` }} />
+                                                <div
+                                                    className="h-3 rounded-full bg-pink-400"
+                                                    style={{ width: `${femalePct}%` }}
+                                                />
                                             </div>
-                                            <span className="text-[10px] text-gray-500 w-6 shrink-0">{item.Female}</span>
+                                            <span className="text-[10px] text-gray-500 w-6 shrink-0">
+                                                {item.Female}
+                                            </span>
                                         </div>
                                         <p className="text-[10px] text-gray-400 mt-0.5 pl-12">
                                             Total: {item.Male + item.Female} sessions
@@ -157,7 +203,9 @@ export default async function BranchProfilePage({
                                 <span className="text-gray-700">Female</span>
                             </span>
                         </div>
-                        <p className="text-xs text-gray-400">Each bar shows successful sessions count</p>
+                        <p className="text-xs text-gray-400">
+                            Each bar shows successful sessions count
+                        </p>
                     </CardContent>
                 </Card>
             )}

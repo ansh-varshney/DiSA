@@ -1,7 +1,11 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { markNotificationRead, markAllNotificationsRead, type AppNotification } from '@/actions/notifications'
+import {
+    markNotificationRead,
+    markAllNotificationsRead,
+    type AppNotification,
+} from '@/actions/notifications'
 import { cn } from '@/lib/utils'
 import { Bell, CheckCheck, AlertTriangle, CheckCircle, Info, Wrench, Package } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
@@ -35,7 +39,12 @@ function groupByDate(notifications: AppNotification[]) {
         let label: string
         if (d.toDateString() === today.toDateString()) label = 'Today'
         else if (d.toDateString() === yesterday.toDateString()) label = 'Yesterday'
-        else label = d.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })
+        else
+            label = d.toLocaleDateString('en-IN', {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+            })
 
         if (!groups[label]) groups[label] = []
         groups[label].push(n)
@@ -49,7 +58,7 @@ export function AdminNotificationsClient({ notifications }: { notifications: App
     const [isPending, startTransition] = useTransition()
 
     function markRead(id: string) {
-        setList((prev) => prev.map((n) => n.id === id ? { ...n, is_read: true } : n))
+        setList((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)))
         startTransition(() => markNotificationRead(id))
     }
 
@@ -91,7 +100,9 @@ export function AdminNotificationsClient({ notifications }: { notifications: App
 
             {Object.entries(groups).map(([label, items]) => (
                 <section key={label} className="space-y-2">
-                    <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{label}</h2>
+                    <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                        {label}
+                    </h2>
                     {items.map((n) => (
                         <div
                             key={n.id}
@@ -100,23 +111,32 @@ export function AdminNotificationsClient({ notifications }: { notifications: App
                                 'p-4 rounded-xl border bg-white cursor-pointer transition-colors',
                                 n.is_read
                                     ? 'border-gray-100 opacity-70'
-                                    : 'border-[#004d40]/20 shadow-sm hover:border-[#004d40]/40',
+                                    : 'border-[#004d40]/20 shadow-sm hover:border-[#004d40]/40'
                             )}
                         >
                             <div className="flex items-start gap-3">
                                 {notifIcon(n.type)}
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-start justify-between gap-2">
-                                        <p className={cn('text-sm font-semibold text-gray-900', n.is_read && 'font-medium text-gray-600')}>
+                                        <p
+                                            className={cn(
+                                                'text-sm font-semibold text-gray-900',
+                                                n.is_read && 'font-medium text-gray-600'
+                                            )}
+                                        >
                                             {n.title}
                                         </p>
                                         {!n.is_read && (
                                             <span className="w-2 h-2 rounded-full bg-[#004d40] shrink-0 mt-1.5" />
                                         )}
                                     </div>
-                                    <p className="text-sm text-gray-600 mt-0.5 leading-snug">{n.body}</p>
+                                    <p className="text-sm text-gray-600 mt-0.5 leading-snug">
+                                        {n.body}
+                                    </p>
                                     <p className="text-xs text-gray-400 mt-1.5">
-                                        {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                                        {formatDistanceToNow(new Date(n.created_at), {
+                                            addSuffix: true,
+                                        })}
                                     </p>
                                 </div>
                             </div>

@@ -17,10 +17,14 @@ export default async function StudentWelfarePage() {
             {/* Always-visible top stats */}
             <Card className="border border-gray-900">
                 <CardContent className="p-5 space-y-3">
-                    <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Current Month</p>
+                    <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">
+                        Current Month
+                    </p>
                     <p className="text-base text-gray-900">
                         Successful Bookings:{' '}
-                        <span className="font-bold text-xl">{successfulBookings.toLocaleString()}</span>
+                        <span className="font-bold text-xl">
+                            {successfulBookings.toLocaleString()}
+                        </span>
                     </p>
                 </CardContent>
             </Card>
@@ -35,7 +39,9 @@ export default async function StudentWelfarePage() {
                                     <BarChart3 className="w-5 h-5 text-blue-600" />
                                 </div>
                                 <div>
-                                    <p className="font-semibold text-gray-900">Participation Stats</p>
+                                    <p className="font-semibold text-gray-900">
+                                        Participation Stats
+                                    </p>
                                     <p className="text-xs text-gray-500">Detailed Stats →</p>
                                 </div>
                             </div>
@@ -69,7 +75,9 @@ export default async function StudentWelfarePage() {
                                     <Trophy className="w-5 h-5 text-yellow-600" />
                                 </div>
                                 <div>
-                                    <p className="font-semibold text-gray-900">Student Leaderboard</p>
+                                    <p className="font-semibold text-gray-900">
+                                        Student Leaderboard
+                                    </p>
                                     <p className="text-xs text-gray-500">Leaderboard →</p>
                                 </div>
                             </div>

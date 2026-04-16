@@ -5,10 +5,7 @@ import { revalidatePath } from 'next/cache'
 
 export async function getCourts() {
     const supabase = await createClient()
-    const { data, error } = await supabase
-        .from('courts')
-        .select('*')
-        .order('name')
+    const { data, error } = await supabase.from('courts').select('*').order('name')
 
     if (error) {
         console.error('Error fetching courts:', error)
@@ -43,14 +40,12 @@ export async function createCourt(formData: FormData) {
     const type = formData.get('type') as string
     const capacity = Number(formData.get('capacity')) || 4
 
-    const { error } = await supabase
-        .from('courts')
-        .insert({
-            name,
-            sport,
-            type,
-            capacity
-        })
+    const { error } = await supabase.from('courts').insert({
+        name,
+        sport,
+        type,
+        capacity,
+    })
 
     if (error) {
         return { error: error.message }

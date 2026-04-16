@@ -1,7 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogBody, DialogFooter } from './ui/dialog'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogClose,
+    DialogBody,
+    DialogFooter,
+} from './ui/dialog'
 import { Button } from './ui/button'
 import { createAnnouncement, updateAnnouncement, deleteAnnouncement } from '@/actions/admin'
 import { useRouter } from 'next/navigation'
@@ -60,14 +68,26 @@ export function AnnouncementForm({ mode, announcement, children }: AnnouncementF
                         </DialogHeader>
                         <DialogBody>
                             <p className="text-gray-600">
-                                Are you sure you want to delete <strong>{announcement?.title}</strong>? This will remove it from the student portal.
+                                Are you sure you want to delete{' '}
+                                <strong>{announcement?.title}</strong>? This will remove it from the
+                                student portal.
                             </p>
                         </DialogBody>
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setOpen(false)}
+                                disabled={loading}
+                            >
                                 Cancel
                             </Button>
-                            <Button type="button" variant="destructive" onClick={handleSubmit} disabled={loading}>
+                            <Button
+                                type="button"
+                                variant="destructive"
+                                onClick={handleSubmit}
+                                disabled={loading}
+                            >
                                 {loading ? 'Deleting...' : 'Delete'}
                             </Button>
                         </DialogFooter>
@@ -84,13 +104,18 @@ export function AnnouncementForm({ mode, announcement, children }: AnnouncementF
                 <DialogContent className="max-w-lg">
                     <form onSubmit={handleSubmit}>
                         <DialogHeader>
-                            <DialogTitle>{mode === 'create' ? 'New Announcement' : 'Edit Announcement'}</DialogTitle>
+                            <DialogTitle>
+                                {mode === 'create' ? 'New Announcement' : 'Edit Announcement'}
+                            </DialogTitle>
                             <DialogClose onClose={() => setOpen(false)} />
                         </DialogHeader>
                         <DialogBody>
                             <div className="space-y-4">
                                 <div>
-                                    <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+                                    <label
+                                        htmlFor="title"
+                                        className="block text-sm font-medium text-gray-700 mb-1"
+                                    >
                                         Title *
                                     </label>
                                     <input
@@ -105,7 +130,10 @@ export function AnnouncementForm({ mode, announcement, children }: AnnouncementF
                                 </div>
 
                                 <div>
-                                    <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">
+                                    <label
+                                        htmlFor="content"
+                                        className="block text-sm font-medium text-gray-700 mb-1"
+                                    >
                                         Content *
                                     </label>
                                     <textarea
@@ -121,7 +149,12 @@ export function AnnouncementForm({ mode, announcement, children }: AnnouncementF
                             </div>
                         </DialogBody>
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setOpen(false)}
+                                disabled={loading}
+                            >
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={loading}>

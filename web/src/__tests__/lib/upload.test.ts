@@ -103,7 +103,9 @@ describe('uploadEquipmentImages', () => {
         vi.mocked(createClient).mockResolvedValue(db.client as any)
 
         const files = [makeFile('photo.jpg')]
-        await expect(uploadEquipmentImages(files, 'badminton', 'eq-1')).rejects.toThrow('Failed to upload photo.jpg')
+        await expect(uploadEquipmentImages(files, 'badminton', 'eq-1')).rejects.toThrow(
+            'Failed to upload photo.jpg'
+        )
     })
 })
 

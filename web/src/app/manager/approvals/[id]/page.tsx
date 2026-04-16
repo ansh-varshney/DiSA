@@ -2,11 +2,7 @@
 import { ManagerApprovalScreen } from '@/components/manager-approval-screen'
 import { notFound } from 'next/navigation'
 
-export default async function ManagerApprovalPage({
-    params
-}: {
-    params: Promise<{ id: string }>
-}) {
+export default async function ManagerApprovalPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
     const booking = await getBookingDetails(id)
 

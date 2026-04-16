@@ -8,7 +8,9 @@ import Link from 'next/link'
 
 export default async function BookingPage() {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
     // Check ban status: 3+ violations = suspended

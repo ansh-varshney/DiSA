@@ -4,13 +4,37 @@ import { useState, useTransition, useEffect, useMemo } from 'react'
 import { addDays, format, startOfDay } from 'date-fns'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { createBooking, getBookingsForDateRange, getAvailableEquipment, searchStudents } from '@/actions/bookings'
+import {
+    createBooking,
+    getBookingsForDateRange,
+    getAvailableEquipment,
+    searchStudents,
+} from '@/actions/bookings'
 import { getPlayerLimits } from '@/lib/sport-config'
-import { Loader2, CheckCircle, Clock, Users, Package, X, Search, UserPlus, ChevronRight } from 'lucide-react'
+import {
+    Loader2,
+    CheckCircle,
+    Clock,
+    Users,
+    Package,
+    X,
+    Search,
+    UserPlus,
+    ChevronRight,
+} from 'lucide-react'
 import React from 'react'
 
 type Court = { id: string; name: string; sport: string }
-type Booking = { id: string; court_id: string; start_time: string; end_time: string; status: string; user_id: string; profiles?: { full_name: string }; num_players?: number }
+type Booking = {
+    id: string
+    court_id: string
+    start_time: string
+    end_time: string
+    status: string
+    user_id: string
+    profiles?: { full_name: string }
+    num_players?: number
+}
 type Equipment = { id: string; name: string; sport: string; condition: string; in_use?: boolean }
 type Player = { id: string; full_name: string; student_id: string }
 
@@ -34,10 +58,16 @@ const formatTime = (time: string) => {
 }
 
 // ─── Main Component ──────────────────────────────────────────────────────────
-export default function BookingUI({ initialCourts, hasPriorityBooking }: { initialCourts: Court[], hasPriorityBooking: boolean }) {
+export default function BookingUI({
+    initialCourts,
+    hasPriorityBooking,
+}: {
+    initialCourts: Court[]
+    hasPriorityBooking: boolean
+}) {
     // Get unique sports from courts (normalize to lowercase)
     const sports = useMemo(() => {
-        const set = new Set(initialCourts.map(c => c.sport.toLowerCase().trim()))
+        const set = new Set(initialCourts.map((c) => c.sport.toLowerCase().trim()))
         return Array.from(set).sort()
     }, [initialCourts])
 
@@ -49,7 +79,11 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
     // Booking dialog state
-    const [selectedSlot, setSelectedSlot] = useState<{ courtId: string; courtName: string; time: string } | null>(null)
+    const [selectedSlot, setSelectedSlot] = useState<{
+        courtId: string
+        courtName: string
+        time: string
+    } | null>(null)
     const [duration, setDuration] = useState<30 | 60 | 90>(30)
     const [selectedPlayers, setSelectedPlayers] = useState<Player[]>([])
     const [playerSearch, setPlayerSearch] = useState('')
@@ -64,7 +98,7 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
     // Courts for selected sport
     const filteredCourts = useMemo(() => {
         if (!selectedSport) return []
-        return initialCourts.filter(c => c.sport.toLowerCase().trim() === selectedSport)
+        return initialCourts.filter((c) => c.sport.toLowerCase().trim() === selectedSport)
     }, [initialCourts, selectedSport])
 
     // Filter out past time slots
@@ -75,7 +109,7 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
         const isToday = selected.toDateString() === now.toDateString()
         if (!isToday) return allTimeSlots
         // Only show slots that haven't passed yet
-        return allTimeSlots.filter(time => {
+        return allTimeSlots.filter((time) => {
             const [hour, minute] = time.split(':').map(Number)
             const slotDate = new Date()
             slotDate.setHours(hour, minute, 0, 0)
@@ -118,10 +152,12 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
             const start = new Date(selectedDate)
             start.setHours(h, m, 0, 0)
             const end = new Date(start.getTime() + duration * 60 * 1000)
-            getAvailableEquipment(selectedSport, start.toISOString(), end.toISOString()).then(eq => {
-                setAvailableEquipment(eq)
-                setLoadingEquipment(false)
-            }).catch(() => setLoadingEquipment(false))
+            getAvailableEquipment(selectedSport, start.toISOString(), end.toISOString())
+                .then((eq) => {
+                    setAvailableEquipment(eq)
+                    setLoadingEquipment(false)
+                })
+                .catch(() => setLoadingEquipment(false))
         }
     }, [selectedCourtId, selectedSport, selectedTime, selectedDate, duration])
 
@@ -134,7 +170,7 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
         const timer = setTimeout(async () => {
             setSearchingPlayers(true)
             const results = await searchStudents(playerSearch)
-            setSearchResults(results.filter(r => !selectedPlayers.some(p => p.id === r.id)))
+            setSearchResults(results.filter((r) => !selectedPlayers.some((p) => p.id === r.id)))
             setSearchingPlayers(false)
         }, 300)
         return () => clearTimeout(timer)
@@ -147,7 +183,7 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
         slotDate.setHours(slotH, slotM, 0, 0)
         const slotMs = slotDate.getTime()
 
-        return bookings.find(b => {
+        return bookings.find((b) => {
             if (b.court_id !== courtId) return false
             const bStart = new Date(b.start_time).getTime()
             const bEnd = new Date(b.end_time).getTime()
@@ -185,11 +221,11 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
                 formData.append('equipmentIds', JSON.stringify(selectedEquipment))
             }
             if (selectedPlayers.length > 0) {
-                const playersList = selectedPlayers.map(p => ({
+                const playersList = selectedPlayers.map((p) => ({
                     id: p.id,
                     full_name: p.full_name,
                     student_id: p.student_id,
-                    status: 'confirmed'
+                    status: 'confirmed',
                 }))
                 formData.append('playersList', JSON.stringify(playersList))
             }
@@ -227,8 +263,10 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
                                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-[#004d40]"
                             >
                                 <option value="">Select Sport</option>
-                                {sports.map(s => (
-                                    <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                                {sports.map((s) => (
+                                    <option key={s} value={s}>
+                                        {s.charAt(0).toUpperCase() + s.slice(1)}
+                                    </option>
                                 ))}
                             </select>
                         </div>
@@ -262,7 +300,10 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
                                 <Package className="w-8 h-8 text-gray-400" />
                             </div>
                             <h3 className="text-lg font-semibold text-gray-900">Select a Sport</h3>
-                            <p className="text-gray-500 text-sm max-w-md mx-auto">Choose a sport from the dropdown above to see available courts and time slots.</p>
+                            <p className="text-gray-500 text-sm max-w-md mx-auto">
+                                Choose a sport from the dropdown above to see available courts and
+                                time slots.
+                            </p>
                         </div>
                     </CardContent>
                 </Card>
@@ -274,7 +315,9 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
                                 <Clock className="w-8 h-8 text-gray-400" />
                             </div>
                             <h3 className="text-lg font-semibold text-gray-900">Select a Date</h3>
-                            <p className="text-gray-500 text-sm max-w-md mx-auto">Choose a date to view available slots for {selectedSport} courts.</p>
+                            <p className="text-gray-500 text-sm max-w-md mx-auto">
+                                Choose a date to view available slots for {selectedSport} courts.
+                            </p>
                         </div>
                     </CardContent>
                 </Card>
@@ -300,47 +343,65 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
                     <CardContent className="p-0">
                         <div className="overflow-x-auto">
                             <div className="inline-block min-w-full">
-                                <div className="grid" style={{ gridTemplateColumns: `72px repeat(${filteredCourts.length}, minmax(120px, 1fr))` }}>
+                                <div
+                                    className="grid"
+                                    style={{
+                                        gridTemplateColumns: `72px repeat(${filteredCourts.length}, minmax(120px, 1fr))`,
+                                    }}
+                                >
                                     {/* Header Row */}
                                     <div className="sticky top-0 left-0 z-20 bg-[#004d40] border-b border-r border-[#003d33] p-2">
-                                        <span className="text-[10px] font-bold text-white/70 uppercase">Time</span>
+                                        <span className="text-[10px] font-bold text-white/70 uppercase">
+                                            Time
+                                        </span>
                                     </div>
-                                    {filteredCourts.map(court => (
-                                        <div key={court.id} className="sticky top-0 z-10 bg-[#004d40] border-b border-r border-[#003d33] p-2">
-                                            <div className="font-semibold text-xs text-white">{court.name}</div>
+                                    {filteredCourts.map((court) => (
+                                        <div
+                                            key={court.id}
+                                            className="sticky top-0 z-10 bg-[#004d40] border-b border-r border-[#003d33] p-2"
+                                        >
+                                            <div className="font-semibold text-xs text-white">
+                                                {court.name}
+                                            </div>
                                         </div>
                                     ))}
 
                                     {/* Only future time slots */}
-                                    {visibleTimeSlots.map(time => (
+                                    {visibleTimeSlots.map((time) => (
                                         <React.Fragment key={time}>
                                             <div className="sticky left-0 z-10 bg-gray-50 border-r border-b border-gray-200 p-1.5 text-[11px] text-gray-500 font-medium flex items-center">
                                                 {formatTime(time)}
                                             </div>
 
-                                            {filteredCourts.map(court => {
+                                            {filteredCourts.map((court) => {
                                                 const booking = getBookingForSlot(court.id, time)
                                                 const isBooked = !!booking
-                                                const isSelected = selectedSlot?.courtId === court.id && selectedSlot?.time === time
+                                                const isSelected =
+                                                    selectedSlot?.courtId === court.id &&
+                                                    selectedSlot?.time === time
 
                                                 return (
                                                     <div
                                                         key={`${court.id}-${time}`}
                                                         onClick={() => handleSlotClick(court, time)}
                                                         className={cn(
-                                                            "border-r border-b border-gray-200 p-1.5 min-h-[44px] transition-all text-xs",
+                                                            'border-r border-b border-gray-200 p-1.5 min-h-[44px] transition-all text-xs',
                                                             isSelected
-                                                                ? "bg-[#004d40] text-white ring-2 ring-[#004d40] ring-offset-1"
+                                                                ? 'bg-[#004d40] text-white ring-2 ring-[#004d40] ring-offset-1'
                                                                 : isBooked
-                                                                    ? "bg-blue-50 border-l-[3px] border-l-blue-500 cursor-default"
-                                                                    : "bg-white hover:bg-[#004d40]/5 cursor-pointer"
+                                                                  ? 'bg-blue-50 border-l-[3px] border-l-blue-500 cursor-default'
+                                                                  : 'bg-white hover:bg-[#004d40]/5 cursor-pointer'
                                                         )}
                                                     >
                                                         {isSelected ? (
-                                                            <span className="text-[10px] font-bold">✓ Selected</span>
+                                                            <span className="text-[10px] font-bold">
+                                                                ✓ Selected
+                                                            </span>
                                                         ) : booking ? (
                                                             <div>
-                                                                <div className="font-semibold text-blue-700 text-[11px]">Booked</div>
+                                                                <div className="font-semibold text-blue-700 text-[11px]">
+                                                                    Booked
+                                                                </div>
                                                             </div>
                                                         ) : null}
                                                     </div>
@@ -362,10 +423,17 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
                         {/* Header */}
                         <div className="flex items-center justify-between">
                             <div>
-                                <h3 className="font-bold text-gray-900">{selectedSlot.courtName}</h3>
-                                <p className="text-sm text-gray-500">{selectedDate} · {formatTime(selectedSlot.time)}</p>
+                                <h3 className="font-bold text-gray-900">
+                                    {selectedSlot.courtName}
+                                </h3>
+                                <p className="text-sm text-gray-500">
+                                    {selectedDate} · {formatTime(selectedSlot.time)}
+                                </p>
                             </div>
-                            <button onClick={() => setSelectedSlot(null)} className="p-1 hover:bg-gray-100 rounded-full">
+                            <button
+                                onClick={() => setSelectedSlot(null)}
+                                className="p-1 hover:bg-gray-100 rounded-full"
+                            >
                                 <X className="w-5 h-5 text-gray-400" />
                             </button>
                         </div>
@@ -376,15 +444,15 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
                                 <Clock className="w-3 h-3" /> Duration
                             </label>
                             <div className="flex gap-2">
-                                {([30, 60] as const).map(d => (
+                                {([30, 60] as const).map((d) => (
                                     <button
                                         key={d}
                                         onClick={() => setDuration(d)}
                                         className={cn(
-                                            "flex-1 py-2 text-sm font-bold rounded-lg border transition-all",
+                                            'flex-1 py-2 text-sm font-bold rounded-lg border transition-all',
                                             duration === d
-                                                ? "bg-[#004d40] text-white border-[#004d40]"
-                                                : "bg-white text-gray-600 border-gray-200"
+                                                ? 'bg-[#004d40] text-white border-[#004d40]'
+                                                : 'bg-white text-gray-600 border-gray-200'
                                         )}
                                     >
                                         {d} min
@@ -394,10 +462,10 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
                                     <button
                                         onClick={() => setDuration(90)}
                                         className={cn(
-                                            "flex-1 py-2 text-sm font-bold rounded-lg border transition-all",
+                                            'flex-1 py-2 text-sm font-bold rounded-lg border transition-all',
                                             duration === 90
-                                                ? "bg-yellow-500 text-white border-yellow-500"
-                                                : "bg-yellow-50 text-yellow-700 border-yellow-300"
+                                                ? 'bg-yellow-500 text-white border-yellow-500'
+                                                : 'bg-yellow-50 text-yellow-700 border-yellow-300'
                                         )}
                                         title="Monthly leaderboard reward — one-time 90-min slot"
                                     >
@@ -406,7 +474,9 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
                                 )}
                             </div>
                             {hasPriorityBooking && duration === 90 && (
-                                <p className="text-[11px] text-yellow-700 mt-1">Using your monthly leaderboard reward (one-time use)</p>
+                                <p className="text-[11px] text-yellow-700 mt-1">
+                                    Using your monthly leaderboard reward (one-time use)
+                                </p>
                             )}
                         </div>
 
@@ -420,32 +490,49 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
                                     <>
                                         <label className="flex items-center justify-between text-xs font-bold text-gray-500 uppercase mb-1.5">
                                             <span className="flex items-center gap-1">
-                                                <Users className="w-3 h-3" /> Players ({totalPlayers}{limits.max ? `/${limits.max}` : ''})
+                                                <Users className="w-3 h-3" /> Players (
+                                                {totalPlayers}
+                                                {limits.max ? `/${limits.max}` : ''})
                                             </span>
                                             {!atMax && (
                                                 <button
-                                                    onClick={() => setPlayerSearch(playerSearch ? '' : ' ')}
+                                                    onClick={() =>
+                                                        setPlayerSearch(playerSearch ? '' : ' ')
+                                                    }
                                                     className="flex items-center gap-1 text-[#004d40] text-xs font-bold normal-case"
                                                 >
                                                     <UserPlus className="w-3.5 h-3.5" /> Add
                                                 </button>
                                             )}
                                             {atMax && (
-                                                <span className="text-[10px] text-orange-500 font-semibold normal-case">Max reached</span>
+                                                <span className="text-[10px] text-orange-500 font-semibold normal-case">
+                                                    Max reached
+                                                </span>
                                             )}
                                         </label>
                                         {totalPlayers < limits.min && (
-                                            <p className="text-[11px] text-red-500 mb-1">Minimum {limits.min} players required</p>
+                                            <p className="text-[11px] text-red-500 mb-1">
+                                                Minimum {limits.min} players required
+                                            </p>
                                         )}
                                     </>
                                 )
                             })()}
                             {selectedPlayers.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5 mb-2">
-                                    {selectedPlayers.map(p => (
-                                        <span key={p.id} className="flex items-center gap-1 bg-[#004d40]/10 text-[#004d40] px-2 py-1 rounded-full text-xs font-medium">
+                                    {selectedPlayers.map((p) => (
+                                        <span
+                                            key={p.id}
+                                            className="flex items-center gap-1 bg-[#004d40]/10 text-[#004d40] px-2 py-1 rounded-full text-xs font-medium"
+                                        >
                                             {p.full_name}
-                                            <button onClick={() => setSelectedPlayers(prev => prev.filter(x => x.id !== p.id))}>
+                                            <button
+                                                onClick={() =>
+                                                    setSelectedPlayers((prev) =>
+                                                        prev.filter((x) => x.id !== p.id)
+                                                    )
+                                                }
+                                            >
                                                 <X className="w-3 h-3" />
                                             </button>
                                         </span>
@@ -467,15 +554,23 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
                                     </div>
                                     {searchResults.length > 0 && (
                                         <div className="absolute z-20 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-36 overflow-y-auto">
-                                            {searchResults.map(s => (
+                                            {searchResults.map((s) => (
                                                 <button
                                                     key={s.id}
-                                                    onClick={() => { setSelectedPlayers(p => [...p, s]); setPlayerSearch(''); setSearchResults([]) }}
+                                                    onClick={() => {
+                                                        setSelectedPlayers((p) => [...p, s])
+                                                        setPlayerSearch('')
+                                                        setSearchResults([])
+                                                    }}
                                                     className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between text-sm border-b last:border-0"
                                                 >
                                                     <div>
                                                         <p className="font-medium">{s.full_name}</p>
-                                                        {s.student_id && <p className="text-xs text-gray-400">Roll: {s.student_id}</p>}
+                                                        {s.student_id && (
+                                                            <p className="text-xs text-gray-400">
+                                                                Roll: {s.student_id}
+                                                            </p>
+                                                        )}
                                                     </div>
                                                     <UserPlus className="w-4 h-4 text-[#004d40]" />
                                                 </button>
@@ -495,23 +590,31 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
                                 <p className="text-xs text-gray-400">Loading equipment...</p>
                             ) : availableEquipment.length > 0 ? (
                                 <div className="flex flex-wrap gap-1.5">
-                                    {availableEquipment.map(eq => (
+                                    {availableEquipment.map((eq) => (
                                         <button
                                             key={eq.id}
-                                            onClick={() => !eq.in_use && setSelectedEquipment(prev =>
-                                                prev.includes(eq.id) ? prev.filter(id => id !== eq.id) : [...prev, eq.id]
-                                            )}
+                                            onClick={() =>
+                                                !eq.in_use &&
+                                                setSelectedEquipment((prev) =>
+                                                    prev.includes(eq.id)
+                                                        ? prev.filter((id) => id !== eq.id)
+                                                        : [...prev, eq.id]
+                                                )
+                                            }
                                             disabled={eq.in_use}
                                             className={cn(
-                                                "px-2.5 py-1 text-xs rounded-full border transition-all",
+                                                'px-2.5 py-1 text-xs rounded-full border transition-all',
                                                 eq.in_use
-                                                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                                                     : selectedEquipment.includes(eq.id)
-                                                        ? "bg-[#004d40] text-white border-[#004d40]"
-                                                        : "bg-white text-gray-600 border-gray-200 hover:border-[#004d40]"
+                                                      ? 'bg-[#004d40] text-white border-[#004d40]'
+                                                      : 'bg-white text-gray-600 border-gray-200 hover:border-[#004d40]'
                                             )}
                                         >
-                                            {eq.name} {eq.in_use ? '(In Use)' : selectedEquipment.includes(eq.id) && '✓'}
+                                            {eq.name}{' '}
+                                            {eq.in_use
+                                                ? '(In Use)'
+                                                : selectedEquipment.includes(eq.id) && '✓'}
                                         </button>
                                     ))}
                                 </div>
@@ -526,16 +629,24 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
                             disabled={isPending}
                             className="w-full py-3 bg-[#004d40] text-white font-bold rounded-xl flex items-center justify-center gap-2 disabled:opacity-50"
                         >
-                            {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                                <>Confirm Booking <ChevronRight className="w-4 h-4" /></>
+                            {isPending ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <>
+                                    Confirm Booking <ChevronRight className="w-4 h-4" />
+                                </>
                             )}
                         </button>
 
                         {message && (
-                            <div className={cn(
-                                "p-3 rounded-lg flex items-center gap-2 text-sm",
-                                message.type === 'success' ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
-                            )}>
+                            <div
+                                className={cn(
+                                    'p-3 rounded-lg flex items-center gap-2 text-sm',
+                                    message.type === 'success'
+                                        ? 'bg-green-50 text-green-700'
+                                        : 'bg-red-50 text-red-700'
+                                )}
+                            >
                                 <CheckCircle className="w-4 h-4" />
                                 {message.text}
                             </div>
@@ -546,10 +657,14 @@ export default function BookingUI({ initialCourts, hasPriorityBooking }: { initi
 
             {/* Success/error outside dialog */}
             {message && !selectedSlot && (
-                <div className={cn(
-                    "p-4 rounded-lg flex items-center gap-2",
-                    message.type === 'success' ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"
-                )}>
+                <div
+                    className={cn(
+                        'p-4 rounded-lg flex items-center gap-2',
+                        message.type === 'success'
+                            ? 'bg-green-50 text-green-700'
+                            : 'bg-red-50 text-red-700'
+                    )}
+                >
                     <CheckCircle className="w-5 h-5" />
                     {message.text}
                 </div>

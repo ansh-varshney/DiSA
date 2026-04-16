@@ -1,17 +1,31 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { markNotificationRead, markAllNotificationsRead, type AppNotification } from '@/actions/notifications'
+import {
+    markNotificationRead,
+    markAllNotificationsRead,
+    type AppNotification,
+} from '@/actions/notifications'
 import { cn } from '@/lib/utils'
 import { CheckCheck, Bell, AlertTriangle, CheckCircle, Info } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter } from 'next/navigation'
 
 function notifIcon(type: string) {
-    if (type.includes('violation') || type.includes('ban') || type.includes('cancelled') || type.includes('lost')) {
+    if (
+        type.includes('violation') ||
+        type.includes('ban') ||
+        type.includes('cancelled') ||
+        type.includes('lost')
+    ) {
         return <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
     }
-    if (type.includes('accepted') || type.includes('completed') || type.includes('cleared') || type.includes('active')) {
+    if (
+        type.includes('accepted') ||
+        type.includes('completed') ||
+        type.includes('cleared') ||
+        type.includes('active')
+    ) {
         return <CheckCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
     }
     return <Info className="w-5 h-5 text-[#004d40] shrink-0 mt-0.5" />
@@ -23,7 +37,7 @@ export function NotificationsClient({ notifications }: { notifications: AppNotif
     const [isPending, startTransition] = useTransition()
 
     function markRead(id: string) {
-        setList((prev) => prev.map((n) => n.id === id ? { ...n, is_read: true } : n))
+        setList((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)))
         startTransition(() => markNotificationRead(id))
     }
 
@@ -71,23 +85,32 @@ export function NotificationsClient({ notifications }: { notifications: AppNotif
                             'p-4 rounded-xl border cursor-pointer transition-colors',
                             n.is_read
                                 ? 'bg-white border-gray-100 opacity-70'
-                                : 'bg-white border-[#004d40]/20 shadow-sm hover:border-[#004d40]/40',
+                                : 'bg-white border-[#004d40]/20 shadow-sm hover:border-[#004d40]/40'
                         )}
                     >
                         <div className="flex items-start gap-3">
                             {notifIcon(n.type)}
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between gap-2">
-                                    <p className={cn('text-sm font-semibold text-gray-900', n.is_read && 'font-medium text-gray-600')}>
+                                    <p
+                                        className={cn(
+                                            'text-sm font-semibold text-gray-900',
+                                            n.is_read && 'font-medium text-gray-600'
+                                        )}
+                                    >
                                         {n.title}
                                     </p>
                                     {!n.is_read && (
                                         <span className="w-2 h-2 rounded-full bg-[#004d40] shrink-0 mt-1.5" />
                                     )}
                                 </div>
-                                <p className="text-sm text-gray-600 mt-0.5 leading-snug">{n.body}</p>
+                                <p className="text-sm text-gray-600 mt-0.5 leading-snug">
+                                    {n.body}
+                                </p>
                                 <p className="text-xs text-gray-400 mt-1.5">
-                                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                                    {formatDistanceToNow(new Date(n.created_at), {
+                                        addSuffix: true,
+                                    })}
                                 </p>
                             </div>
                         </div>

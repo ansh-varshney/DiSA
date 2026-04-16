@@ -15,7 +15,12 @@ vi.mock('@/lib/sport-config', () => ({
 
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
-import { sendNotification, sendNotifications, notifyManagers, notifyAdminsAndManagers } from '@/actions/notifications'
+import {
+    sendNotification,
+    sendNotifications,
+    notifyManagers,
+    notifyAdminsAndManagers,
+} from '@/actions/notifications'
 import { getPlayerLimits } from '@/lib/sport-config'
 
 import {
@@ -90,8 +95,20 @@ describe('getAvailableEquipment', () => {
         const db = makeMockDb()
         db.mockTableOnce('equipment', {
             data: [
-                { id: 'eq-1', name: 'Racket A', sport: 'badminton', condition: 'good', is_available: true },
-                { id: 'eq-2', name: 'Racket B', sport: 'badminton', condition: 'good', is_available: true },
+                {
+                    id: 'eq-1',
+                    name: 'Racket A',
+                    sport: 'badminton',
+                    condition: 'good',
+                    is_available: true,
+                },
+                {
+                    id: 'eq-2',
+                    name: 'Racket B',
+                    sport: 'badminton',
+                    condition: 'good',
+                    is_available: true,
+                },
             ],
             error: null,
         })
@@ -111,7 +128,15 @@ describe('getAvailableEquipment', () => {
     it('marks is_available=false equipment as in_use even without overlap', async () => {
         const db = makeMockDb()
         db.mockTableOnce('equipment', {
-            data: [{ id: 'eq-3', name: 'Net', sport: 'badminton', condition: 'good', is_available: false }],
+            data: [
+                {
+                    id: 'eq-3',
+                    name: 'Net',
+                    sport: 'badminton',
+                    condition: 'good',
+                    is_available: false,
+                },
+            ],
             error: null,
         })
         db.mockTableOnce('bookings', { data: [], error: null })
@@ -200,7 +225,8 @@ describe('createBooking', () => {
                         eq: vi.fn().mockReturnThis(),
                         neq: vi.fn().mockReturnThis(),
                         or: vi.fn().mockReturnThis(),
-                        then: (resolve: any) => resolve({ data: [{ id: 'existing-booking' }], error: null }),
+                        then: (resolve: any) =>
+                            resolve({ data: [{ id: 'existing-booking' }], error: null }),
                     }
                     return chain
                 }
@@ -222,17 +248,24 @@ describe('createBooking', () => {
         // Build a controlled from() that short-circuits all the way to court check
         const emptyChain = (resolve: any) => resolve({ data: [], error: null })
         const violationsChain = {
-            select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
             then: (resolve: any) => resolve({ count: 0, error: null }),
         }
         const conflictChain = {
-            select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
-            neq: vi.fn().mockReturnThis(), or: vi.fn().mockReturnThis(),
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            neq: vi.fn().mockReturnThis(),
+            or: vi.fn().mockReturnThis(),
             then: (resolve: any) => resolve({ data: [], error: null }),
         }
         const courtChain = {
-            select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
-            single: vi.fn().mockResolvedValue({ data: { sport: 'badminton', name: 'Badminton Court A' }, error: null }),
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+                data: { sport: 'badminton', name: 'Badminton Court A' },
+                error: null,
+            }),
         }
         db.client.from = vi.fn((table: string) => {
             if (table === 'student_violations') return violationsChain
@@ -253,17 +286,24 @@ describe('createBooking', () => {
         vi.mocked(getPlayerLimits).mockReturnValue({ min: 2, max: 4 })
 
         const violationsChain = {
-            select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
             then: (resolve: any) => resolve({ count: 0, error: null }),
         }
         const conflictChain = {
-            select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
-            neq: vi.fn().mockReturnThis(), or: vi.fn().mockReturnThis(),
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            neq: vi.fn().mockReturnThis(),
+            or: vi.fn().mockReturnThis(),
             then: (resolve: any) => resolve({ data: [], error: null }),
         }
         const courtChain = {
-            select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
-            single: vi.fn().mockResolvedValue({ data: { sport: 'table tennis', name: 'TT Court' }, error: null }),
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockResolvedValue({
+                data: { sport: 'table tennis', name: 'TT Court' },
+                error: null,
+            }),
         }
         db.client.from = vi.fn((table: string) => {
             if (table === 'student_violations') return violationsChain
@@ -284,32 +324,56 @@ describe('createBooking', () => {
         vi.mocked(getPlayerLimits).mockReturnValue({ min: 2, max: 6 })
 
         const violationsChain = {
-            select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
             then: (resolve: any) => resolve({ count: 0, error: null }),
         }
         const emptyConflict = {
-            select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
-            neq: vi.fn().mockReturnThis(), or: vi.fn().mockReturnThis(),
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            neq: vi.fn().mockReturnThis(),
+            or: vi.fn().mockReturnThis(),
             then: (resolve: any) => resolve({ data: [], error: null }),
         }
         let profileCallCount = 0
         const profileChain = {
-            select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
             in: vi.fn().mockReturnThis(),
             single: vi.fn(async () => {
                 profileCallCount++
                 if (profileCallCount === 1) return { data: { banned_until: null }, error: null }
-                return { data: { full_name: 'Alice', branch: 'CSE', gender: 'female', year: '2' }, error: null }
+                return {
+                    data: { full_name: 'Alice', branch: 'CSE', gender: 'female', year: '2' },
+                    error: null,
+                }
             }),
-            then: (resolve: any) => resolve({ data: [{ id: 'student-2', full_name: 'Bob', branch: 'ECE', gender: 'male', year: '3' }], error: null }),
+            then: (resolve: any) =>
+                resolve({
+                    data: [
+                        {
+                            id: 'student-2',
+                            full_name: 'Bob',
+                            branch: 'ECE',
+                            gender: 'male',
+                            year: '3',
+                        },
+                    ],
+                    error: null,
+                }),
         }
         const courtChain = {
-            select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
-            single: vi.fn().mockResolvedValue({ data: { sport: 'badminton', name: 'Court A' }, error: null }),
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            single: vi
+                .fn()
+                .mockResolvedValue({ data: { sport: 'badminton', name: 'Court A' }, error: null }),
         }
         const equipmentChain = {
-            update: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(), select: vi.fn().mockReturnThis(),
+            update: vi.fn().mockReturnThis(),
+            in: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            select: vi.fn().mockReturnThis(),
             then: (resolve: any) => resolve({ data: [{ id: 'eq-1' }], error: null }),
         }
         const insertChain = {
@@ -320,7 +384,21 @@ describe('createBooking', () => {
 
         db.client.from = vi.fn((table: string) => {
             if (table === 'student_violations') return violationsChain
-            if (table === 'bookings') return { ...emptyConflict, ...insertChain, select: vi.fn().mockReturnThis(), insert: vi.fn().mockReturnValue({ select: vi.fn().mockReturnThis(), single: vi.fn().mockResolvedValue({ data: { id: 'booking-new' }, error: null }) }), eq: emptyConflict.eq, neq: emptyConflict.neq, or: emptyConflict.or }
+            if (table === 'bookings')
+                return {
+                    ...emptyConflict,
+                    ...insertChain,
+                    select: vi.fn().mockReturnThis(),
+                    insert: vi.fn().mockReturnValue({
+                        select: vi.fn().mockReturnThis(),
+                        single: vi
+                            .fn()
+                            .mockResolvedValue({ data: { id: 'booking-new' }, error: null }),
+                    }),
+                    eq: emptyConflict.eq,
+                    neq: emptyConflict.neq,
+                    or: emptyConflict.or,
+                }
             if (table === 'profiles') return profileChain
             if (table === 'courts') return courtChain
             if (table === 'equipment') return equipmentChain
@@ -342,7 +420,7 @@ describe('createBooking', () => {
         // sendNotification should be called once per invited player
         expect(vi.mocked(sendNotification)).toHaveBeenCalledTimes(1)
         expect(vi.mocked(sendNotification)).toHaveBeenCalledWith(
-            expect.objectContaining({ recipientId: 'student-2', type: 'play_request_received' }),
+            expect.objectContaining({ recipientId: 'student-2', type: 'play_request_received' })
         )
     })
 
@@ -352,21 +430,29 @@ describe('createBooking', () => {
         vi.mocked(getPlayerLimits).mockReturnValue({ min: 2, max: 6 })
 
         const violationsChain = {
-            select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
             then: (resolve: any) => resolve({ count: 0, error: null }),
         }
         const emptyConflict = {
-            select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
-            neq: vi.fn().mockReturnThis(), or: vi.fn().mockReturnThis(),
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            neq: vi.fn().mockReturnThis(),
+            or: vi.fn().mockReturnThis(),
             then: (resolve: any) => resolve({ data: [], error: null }),
         }
         const courtChain = {
-            select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
-            single: vi.fn().mockResolvedValue({ data: { sport: 'badminton', name: 'Court A' }, error: null }),
+            select: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            single: vi
+                .fn()
+                .mockResolvedValue({ data: { sport: 'badminton', name: 'Court A' }, error: null }),
         }
         const equipmentUpdateChain = {
-            update: vi.fn().mockReturnThis(), in: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(), select: vi.fn().mockReturnThis(),
+            update: vi.fn().mockReturnThis(),
+            in: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            select: vi.fn().mockReturnThis(),
             then: (resolve: any) => resolve({ data: [{ id: 'eq-1' }], error: null }),
         }
         let bookingsCallCount = 0
@@ -377,7 +463,9 @@ describe('createBooking', () => {
             or: vi.fn().mockReturnThis(),
             insert: vi.fn().mockReturnValue({
                 select: vi.fn().mockReturnThis(),
-                single: vi.fn().mockResolvedValue({ data: null, error: { message: 'DB insert failed' } }),
+                single: vi
+                    .fn()
+                    .mockResolvedValue({ data: null, error: { message: 'DB insert failed' } }),
             }),
             then: (resolve: any) => {
                 bookingsCallCount++
@@ -564,8 +652,11 @@ describe('cancelBooking', () => {
         await cancelBooking('b-1')
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
             expect.arrayContaining([
-                expect.objectContaining({ recipientId: 'student-2', type: 'booking_cancelled_by_booker' }),
-            ]),
+                expect.objectContaining({
+                    recipientId: 'student-2',
+                    type: 'booking_cancelled_by_booker',
+                }),
+            ])
         )
     })
 
@@ -659,7 +750,7 @@ describe('withdrawFromBooking', () => {
 
         await withdrawFromBooking('b-1')
         expect(vi.mocked(sendNotification)).toHaveBeenCalledWith(
-            expect.objectContaining({ recipientId: 'student-booker', type: 'player_withdrew' }),
+            expect.objectContaining({ recipientId: 'student-booker', type: 'player_withdrew' })
         )
     })
 })
@@ -740,13 +831,13 @@ describe('studentEmergencyAlert', () => {
                 booking_id: 'b-1',
                 category: 'emergency_by_student',
                 status: 'open',
-            }),
+            })
         )
         expect(vi.mocked(notifyAdminsAndManagers)).toHaveBeenCalledWith(
             expect.objectContaining({
                 type: 'student_emergency_alert',
                 data: expect.objectContaining({ booking_id: 'b-1' }),
-            }),
+            })
         )
     })
 
@@ -759,7 +850,7 @@ describe('studentEmergencyAlert', () => {
 
         await studentEmergencyAlert('b-2', 'Lights not working')
         expect(vi.mocked(notifyAdminsAndManagers)).toHaveBeenCalledWith(
-            expect.objectContaining({ body: 'Lights not working' }),
+            expect.objectContaining({ body: 'Lights not working' })
         )
     })
 })
@@ -775,8 +866,8 @@ describe('getStudentBookings', () => {
         return {
             id: 'b-default',
             user_id: 'u-1',
-            start_time: new Date(now - 60 * 60 * 1000).toISOString(),  // 1 hr ago
-            end_time: new Date(now + 60 * 60 * 1000).toISOString(),     // 1 hr from now
+            start_time: new Date(now - 60 * 60 * 1000).toISOString(), // 1 hr ago
+            end_time: new Date(now + 60 * 60 * 1000).toISOString(), // 1 hr from now
             status: 'active',
             num_players: 2,
             equipment_ids: [],
@@ -791,7 +882,12 @@ describe('getStudentBookings', () => {
         db.auth.getUser.mockResolvedValue({ data: { user: { id: 'u-1' } } })
         let callCount = 0
         db.client.from = vi.fn((table: string) => {
-            if (table !== 'bookings') return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), then: (r: any) => r({ data: [], error: null }) }
+            if (table !== 'bookings')
+                return {
+                    select: vi.fn().mockReturnThis(),
+                    eq: vi.fn().mockReturnThis(),
+                    then: (r: any) => r({ data: [], error: null }),
+                }
             callCount++
             const isFirst = callCount === 1
             const data = isFirst ? ownData : playerData
@@ -869,12 +965,18 @@ describe('getStudentBookings', () => {
 
     it('cancelled and rejected bookings go to past', async () => {
         const now = Date.now()
-        const cancelled = makeBooking({ id: 'b-cancelled', status: 'cancelled',
+        const cancelled = makeBooking({
+            id: 'b-cancelled',
+            status: 'cancelled',
             start_time: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
-            end_time: new Date(now - 1 * 60 * 60 * 1000).toISOString() })
-        const rejected = makeBooking({ id: 'b-rejected', status: 'rejected',
+            end_time: new Date(now - 1 * 60 * 60 * 1000).toISOString(),
+        })
+        const rejected = makeBooking({
+            id: 'b-rejected',
+            status: 'rejected',
             start_time: new Date(now - 4 * 60 * 60 * 1000).toISOString(),
-            end_time: new Date(now - 3 * 60 * 60 * 1000).toISOString() })
+            end_time: new Date(now - 3 * 60 * 60 * 1000).toISOString(),
+        })
         const db = setupTwoQueryDb([cancelled, rejected])
         vi.mocked(createClient).mockResolvedValue(db.client as any)
 

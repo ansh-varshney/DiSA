@@ -80,8 +80,14 @@ export function ProfileEditForm({ current }: Props) {
                         defaultValue={current.branch || ''}
                         className="w-full h-10 border border-gray-300 rounded-lg px-3 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]"
                     >
-                        <option value="" disabled>Select</option>
-                        {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+                        <option value="" disabled>
+                            Select
+                        </option>
+                        {BRANCHES.map((b) => (
+                            <option key={b} value={b}>
+                                {b}
+                            </option>
+                        ))}
                     </select>
                 </div>
                 <div className="space-y-1">
@@ -92,8 +98,14 @@ export function ProfileEditForm({ current }: Props) {
                         defaultValue={current.year || ''}
                         className="w-full h-10 border border-gray-300 rounded-lg px-3 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]"
                     >
-                        <option value="" disabled>Select</option>
-                        {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                        <option value="" disabled>
+                            Select
+                        </option>
+                        {YEARS.map((y) => (
+                            <option key={y} value={y}>
+                                {y}
+                            </option>
+                        ))}
                     </select>
                 </div>
                 <div className="space-y-1">
@@ -104,8 +116,14 @@ export function ProfileEditForm({ current }: Props) {
                         defaultValue={current.gender || ''}
                         className="w-full h-10 border border-gray-300 rounded-lg px-3 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]"
                     >
-                        <option value="" disabled>Select</option>
-                        {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                        <option value="" disabled>
+                            Select
+                        </option>
+                        {GENDERS.map((g) => (
+                            <option key={g} value={g}>
+                                {g}
+                            </option>
+                        ))}
                     </select>
                 </div>
             </div>

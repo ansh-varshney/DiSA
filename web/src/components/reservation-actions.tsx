@@ -1,7 +1,15 @@
 'use client'
 
 import { Button } from './ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter, DialogClose } from './ui/dialog'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogBody,
+    DialogFooter,
+    DialogClose,
+} from './ui/dialog'
 import { forceCancelBooking } from '@/actions/admin'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -36,11 +44,7 @@ export function ReservationActions({ bookingId, currentStatus }: ReservationActi
 
     return (
         <>
-            <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setDialogOpen(true)}
-            >
+            <Button variant="destructive" size="sm" onClick={() => setDialogOpen(true)}>
                 Force Cancel
             </Button>
 
@@ -52,8 +56,8 @@ export function ReservationActions({ bookingId, currentStatus }: ReservationActi
                     </DialogHeader>
                     <DialogBody>
                         <p className="text-sm text-gray-600">
-                            Are you sure you want to force cancel this reservation? The booker and all
-                            confirmed players will be notified.
+                            Are you sure you want to force cancel this reservation? The booker and
+                            all confirmed players will be notified.
                         </p>
                     </DialogBody>
                     <DialogFooter>

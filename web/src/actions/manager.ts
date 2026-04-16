@@ -3,20 +3,17 @@
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
-import {
-    sendNotification,
-    sendNotifications,
-    notifyAdmins,
-} from '@/actions/notifications'
+import { sendNotification, sendNotifications, notifyAdmins } from '@/actions/notifications'
 
 // ─── Role guard ───────────────────────────────────────────────────────────────
 
 async function requireManagerRole(): Promise<
-    { user: any; supabase: any; error: null } |
-    { user: null; supabase: null; error: string }
+    { user: any; supabase: any; error: null } | { user: null; supabase: null; error: string }
 > {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return { user: null, supabase: null, error: 'Unauthorized' }
 
     const { data: profile } = await supabase
@@ -34,17 +31,17 @@ async function requireManagerRole(): Promise<
 
 // ─── Point deltas by event ────────────────────────────────────────────────────
 const REJECTION_POINTS: Record<string, number> = {
-    students_late:            -6,
-    inappropriate_behaviour:  -8,
-    improper_gear:            -4,
-    other:                     0,
+    students_late: -6,
+    inappropriate_behaviour: -8,
+    improper_gear: -4,
+    other: 0,
 }
 
 const POST_SESSION_POINTS: Record<string, number> = {
-    late_end:                -4,
+    late_end: -4,
     inappropriate_behaviour: -8,
-    vandalism:               -15,
-    other:                    0,
+    vandalism: -15,
+    other: 0,
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -53,7 +50,7 @@ const POST_SESSION_POINTS: Record<string, number> = {
  *  Entries with no status field are treated as confirmed for backward compatibility. */
 async function getBookingStudentIds(
     adminSupabase: ReturnType<typeof createAdminClient>,
-    bookingId: string,
+    bookingId: string
 ): Promise<string[]> {
     const { data: booking } = await adminSupabase
         .from('bookings')
@@ -81,7 +78,10 @@ async function getBookingStudentIds(
 }
 
 /** Fetch booking with court info for notification bodies. */
-async function getBookingForNotif(adminSupabase: ReturnType<typeof createAdminClient>, bookingId: string) {
+async function getBookingForNotif(
+    adminSupabase: ReturnType<typeof createAdminClient>,
+    bookingId: string
+) {
     const { data } = await adminSupabase
         .from('bookings')
         .select('id, start_time, user_id, courts(name, sport)')
@@ -94,17 +94,15 @@ async function getBookingForNotif(adminSupabase: ReturnType<typeof createAdminCl
 async function applyPoints(
     adminSupabase: ReturnType<typeof createAdminClient>,
     studentIds: string[],
-    delta: number,
+    delta: number
 ): Promise<void> {
     if (studentIds.length === 0 || delta === 0) return
     await Promise.all(
         studentIds.map((id) =>
-            adminSupabase.rpc('update_student_points', { p_student_id: id, p_delta: delta }),
-        ),
+            adminSupabase.rpc('update_student_points', { p_student_id: id, p_delta: delta })
+        )
     )
 }
-
-
 
 export async function getCurrentBookings() {
     const supabase = await createClient()
@@ -117,14 +115,18 @@ export async function getCurrentBookings() {
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000)
     const { data: bookings, error } = await supabase
         .from('bookings')
-        .select(`
+        .select(
+            `
             *,
             profiles:user_id (full_name, role),
             courts (name, sport)
-        `)
+        `
+        )
         .in('status', ['pending_confirmation', 'confirmed', 'waiting_manager', 'active'])
         .lte('start_time', next24h.toISOString())
-        .or(`and(status.eq.active,end_time.gte.${oneHourAgo.toISOString()}),end_time.gte.${now.toISOString()}`)
+        .or(
+            `and(status.eq.active,end_time.gte.${oneHourAgo.toISOString()}),end_time.gte.${now.toISOString()}`
+        )
         .order('start_time', { ascending: true })
 
     if (error) {
@@ -135,9 +137,7 @@ export async function getCurrentBookings() {
     if (!bookings || bookings.length === 0) return []
 
     // 2. Extract all unique equipment IDs
-    const allEquipmentIds = Array.from(new Set(
-        bookings.flatMap(b => b.equipment_ids || [])
-    ))
+    const allEquipmentIds = Array.from(new Set(bookings.flatMap((b) => b.equipment_ids || [])))
 
     // 3. Fetch equipment details if any exist
     const equipmentMap = new Map()
@@ -148,16 +148,16 @@ export async function getCurrentBookings() {
             .in('id', allEquipmentIds)
 
         if (equipmentList) {
-            equipmentList.forEach(eq => equipmentMap.set(eq.id, eq.name))
+            equipmentList.forEach((eq) => equipmentMap.set(eq.id, eq.name))
         }
     }
 
     // 4. Attach equipment names to bookings
-    return bookings.map(booking => ({
+    return bookings.map((booking) => ({
         ...booking,
         equipment_names: (booking.equipment_ids || [])
             .map((id: string) => equipmentMap.get(id))
-            .filter(Boolean)
+            .filter(Boolean),
     }))
 }
 
@@ -167,8 +167,8 @@ export async function getUnderMaintenanceCourts() {
         .from('courts')
         .select('*')
         .or('is_active.eq.false,maintenance_notes.neq.null')
-    // Note: checking if notes are not null AND not empty string would be ideal, 
-    // but Supabase/PostgREST 'neq' null is a good start. 
+    // Note: checking if notes are not null AND not empty string would be ideal,
+    // but Supabase/PostgREST 'neq' null is a good start.
     // We can filter client side or refine query if needed.
 
     if (error) {
@@ -177,7 +177,10 @@ export async function getUnderMaintenanceCourts() {
     }
 
     // Filter out active courts with empty string notes effectively
-    const disabledCourts = data.filter(court => !court.is_active || (court.maintenance_notes && court.maintenance_notes.trim() !== ''))
+    const disabledCourts = data.filter(
+        (court) =>
+            !court.is_active || (court.maintenance_notes && court.maintenance_notes.trim() !== '')
+    )
 
     // ALSO fetch courts with maintenance bookings for the ENTIRE DAY (not just right now)
     const now = new Date()
@@ -188,13 +191,15 @@ export async function getUnderMaintenanceCourts() {
 
     const { data: maintenanceBookings } = await supabase
         .from('bookings')
-        .select(`
+        .select(
+            `
             id,
             court_id,
             start_time,
             end_time,
             courts (id, name, sport)
-        `)
+        `
+        )
         .eq('is_maintenance', true)
         .not('status', 'eq', 'cancelled')
         .gte('start_time', startOfDay.toISOString())
@@ -202,22 +207,23 @@ export async function getUnderMaintenanceCourts() {
         .order('start_time', { ascending: true })
 
     // Build a list of maintenance slots (court + time window)
-    const maintenanceBookingCourts = maintenanceBookings?.map((b: any) => ({
-        id: b.id, // Use booking ID as key to allow multiple slots per court
-        court_id: b.courts.id,
-        name: b.courts.name,
-        sport: b.courts.sport,
-        maintenance_notes: 'Scheduled Maintenance',
-        start_time: b.start_time,
-        end_time: b.end_time,
-        is_active: true,
-        is_booking_slot: true
-    })) || []
+    const maintenanceBookingCourts =
+        maintenanceBookings?.map((b: any) => ({
+            id: b.id, // Use booking ID as key to allow multiple slots per court
+            court_id: b.courts.id,
+            name: b.courts.name,
+            sport: b.courts.sport,
+            maintenance_notes: 'Scheduled Maintenance',
+            start_time: b.start_time,
+            end_time: b.end_time,
+            is_active: true,
+            is_booking_slot: true,
+        })) || []
 
     // For courts that are permanently disabled, mark them differently
     const formattedDisabledCourts = disabledCourts.map((c: any) => ({
         ...c,
-        is_booking_slot: false
+        is_booking_slot: false,
     }))
 
     // Combine: permanently disabled courts + today's maintenance booking slots
@@ -229,11 +235,13 @@ export async function getPendingBookings() {
     const supabase = await createClient()
     const { data, error } = await supabase
         .from('bookings')
-        .select(`
+        .select(
+            `
             *,
             profiles:user_id (full_name, phone_number, student_id),
             courts (name, sport)
-        `)
+        `
+        )
         .eq('status', 'pending_confirmation')
         .order('start_time', { ascending: true })
 
@@ -244,7 +252,10 @@ export async function getPendingBookings() {
     return data
 }
 
-export async function updateBookingStatus(bookingId: string, status: 'confirmed' | 'rejected' | 'active' | 'completed' | 'cancelled') {
+export async function updateBookingStatus(
+    bookingId: string,
+    status: 'confirmed' | 'rejected' | 'active' | 'completed' | 'cancelled'
+) {
     const supabase = await createClient()
 
     // If ending/cancelling, first fetch the booking to get equipment_ids
@@ -262,11 +273,9 @@ export async function updateBookingStatus(bookingId: string, status: 'confirmed'
 
     // Update booking status; guard against overwriting terminal states (e.g. race with lazy expiry)
     const updateQuery = supabase.from('bookings').update({ status }).eq('id', bookingId)
-    const { error } = await (
-        status === 'active'
-            ? updateQuery.not('status', 'in', '("cancelled","completed","rejected")')
-            : updateQuery
-    )
+    const { error } = await (status === 'active'
+        ? updateQuery.not('status', 'in', '("cancelled","completed","rejected")')
+        : updateQuery)
 
     if (error) {
         return { error: error.message }
@@ -274,10 +283,7 @@ export async function updateBookingStatus(bookingId: string, status: 'confirmed'
 
     // Free equipment if terminal status
     if (equipmentIds.length > 0) {
-        await supabase
-            .from('equipment')
-            .update({ is_available: true })
-            .in('id', equipmentIds)
+        await supabase.from('equipment').update({ is_available: true }).in('id', equipmentIds)
     }
 
     // N5 — when session goes active, notify all confirmed players to report to the court
@@ -288,8 +294,11 @@ export async function updateBookingStatus(bookingId: string, status: 'confirmed'
             const studentIds = await getBookingStudentIds(adminSupabase, bookingId)
             const court = (bk as any).courts
             const startDisplay = new Date(bk.start_time).toLocaleString('en-IN', {
-                weekday: 'short', month: 'short', day: 'numeric',
-                hour: '2-digit', minute: '2-digit',
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
             })
             await sendNotifications(
                 studentIds.map((id) => ({
@@ -298,7 +307,7 @@ export async function updateBookingStatus(bookingId: string, status: 'confirmed'
                     title: 'Session Active — Report to Court',
                     body: `Your ${court?.sport || ''} session at ${court?.name || 'the court'} is now active (${startDisplay}). Head over now!`,
                     data: { booking_id: bookingId, court_name: court?.name, sport: court?.sport },
-                })),
+                }))
             )
         }
     }
@@ -315,11 +324,13 @@ export async function getBookingDetails(bookingId: string) {
     // 1. Fetch booking with core relations
     const { data: booking, error } = await supabase
         .from('bookings')
-        .select(`
+        .select(
+            `
             *,
             profiles:user_id (*),
             courts (*)
-        `)
+        `
+        )
         .eq('id', bookingId)
         .single()
 
@@ -340,10 +351,7 @@ export async function getBookingDetails(bookingId: string) {
         await freeBookingEquipment(supabase, bookingId)
 
         // Auto-cancel
-        await supabase
-            .from('bookings')
-            .update({ status: 'cancelled' })
-            .eq('id', bookingId)
+        await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId)
 
         booking.status = 'cancelled'
 
@@ -372,7 +380,7 @@ export async function getBookingDetails(bookingId: string) {
                         violation_type: 'booking_timeout',
                         severity: 'minor',
                         reason: 'Booking was not approved within 10 minutes of start time and was auto-cancelled.',
-                    })),
+                    }))
                 )
                 await applyPoints(adminSupabaseExp, expiredStudentIds, -8)
                 const bkNotif = await getBookingForNotif(adminSupabaseExp, bookingId)
@@ -385,7 +393,7 @@ export async function getBookingDetails(bookingId: string) {
                             title: 'Booking Expired — No-Show',
                             body: `Your ${court?.sport || ''} booking at ${court?.name || 'court'} was auto-cancelled (no manager approval within 10 minutes). −8 pts.`,
                             data: { booking_id: bookingId, points_delta: -8 },
-                        })),
+                        }))
                     )
                 }
             }
@@ -409,15 +417,15 @@ export async function getBookingDetails(bookingId: string) {
     // Always include the main booker (User)
     allPlayers.push({
         ...booking.profiles,
-        is_booker: true
+        is_booker: true,
     })
 
     const rawPlayersList = Array.isArray(booking.players_list) ? booking.players_list : []
 
     // Handle both formats: array of UUID strings OR array of {id, full_name, ...} objects
-    const playerIds = rawPlayersList.map((entry: any) =>
-        typeof entry === 'string' ? entry : entry?.id
-    ).filter(Boolean)
+    const playerIds = rawPlayersList
+        .map((entry: any) => (typeof entry === 'string' ? entry : entry?.id))
+        .filter(Boolean)
 
     // Filter out the booker ID if it happens to be in the list to avoid duplicates
     const additionalPlayerIds = playerIds.filter((id: string) => id !== booking.profiles.id)
@@ -429,14 +437,14 @@ export async function getBookingDetails(bookingId: string) {
             .in('id', additionalPlayerIds)
 
         if (extraPlayers) {
-            allPlayers.push(...extraPlayers.map(p => ({ ...p, is_booker: false })))
+            allPlayers.push(...extraPlayers.map((p) => ({ ...p, is_booker: false })))
         }
     }
 
     return {
         ...booking,
         equipment: equipmentList,
-        all_players: allPlayers
+        all_players: allPlayers,
     }
 }
 
@@ -470,27 +478,24 @@ export async function rejectWithReason(
 
     // 3. Free equipment
     if (equipmentIds.length > 0) {
-        await supabase
-            .from('equipment')
-            .update({ is_available: true })
-            .in('id', equipmentIds)
+        await supabase.from('equipment').update({ is_available: true }).in('id', equipmentIds)
     }
 
     // 2. Issue warnings to all student players (skip admins/managers/superusers)
     // Fetch player roles to avoid warning admins
-    const { data: players } = await supabase
-        .from('profiles')
-        .select('id, role')
-        .in('id', playerIds)
+    const { data: players } = await supabase.from('profiles').select('id, role').in('id', playerIds)
 
-    const studentIds = players?.filter(p => p.role === 'student').map(p => p.id) || []
+    const studentIds: string[] =
+        players
+            ?.filter((p: { id: string; role: string }) => p.role === 'student')
+            .map((p: { id: string; role: string }) => p.id) || []
 
     // adminSupabase is needed for points/ban RPCs and for N6 notification lookup
     const adminSupabase = createAdminClient()
 
     if (studentIds.length > 0) {
         // Insert a violation record for each student
-        const violations = studentIds.map(studentId => ({
+        const violations = studentIds.map((studentId) => ({
             student_id: studentId,
             booking_id: bookingId,
             violation_type: reason,
@@ -520,9 +525,12 @@ export async function rejectWithReason(
             const banResults = await Promise.all(
                 studentIds.map(async (id) => {
                     // RPC now returns the actual banned_until timestamp (or null if no ban)
-                    const { data: banned_until } = await adminSupabase.rpc('check_and_apply_late_ban', { p_student_id: id })
+                    const { data: banned_until } = await adminSupabase.rpc(
+                        'check_and_apply_late_ban',
+                        { p_student_id: id }
+                    )
                     return { id, banned_until: banned_until as string | null }
-                }),
+                })
             )
             const bannedResults = banResults.filter((r) => r.banned_until != null)
             if (bannedResults.length > 0) {
@@ -530,7 +538,9 @@ export async function rejectWithReason(
                     bannedResults.map(({ id, banned_until }) => {
                         // Use the authoritative DB timestamp — not a locally-computed one
                         const banDateStr = new Date(banned_until!).toLocaleDateString('en-IN', {
-                            day: 'numeric', month: 'long', year: 'numeric',
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
                         })
                         return {
                             recipientId: id,
@@ -539,7 +549,7 @@ export async function rejectWithReason(
                             body: `You have accumulated 3 late-arrival violations. Booking is suspended until ${banDateStr}. Contact admin for early clearance.`,
                             data: { banned_until },
                         }
-                    }),
+                    })
                 )
             }
         }
@@ -550,8 +560,11 @@ export async function rejectWithReason(
     if (bk && studentIds.length > 0) {
         const court = (bk as any).courts
         const startDisplay = new Date(bk.start_time).toLocaleString('en-IN', {
-            weekday: 'short', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit',
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
         })
         const reasonLabel = reason.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
         await sendNotifications(
@@ -561,7 +574,7 @@ export async function rejectWithReason(
                 title: 'Booking Rejected',
                 body: `Your ${court?.sport || ''} booking at ${court?.name || 'court'} on ${startDisplay} was rejected. Reason: ${customReason || reasonLabel}.`,
                 data: { booking_id: bookingId, reason, court_name: court?.name },
-            })),
+            }))
         )
     }
 
@@ -583,10 +596,7 @@ async function freeBookingEquipment(supabase: any, bookingId: string) {
 
     const equipmentIds: string[] = booking?.equipment_ids || []
     if (equipmentIds.length > 0) {
-        await supabase
-            .from('equipment')
-            .update({ is_available: true })
-            .in('id', equipmentIds)
+        await supabase.from('equipment').update({ is_available: true }).in('id', equipmentIds)
     }
     return equipmentIds
 }
@@ -608,16 +618,14 @@ export async function emergencyEndSession(bookingId: string, reason: string) {
     if (bookingError) return { error: bookingError.message }
 
     // 3. Create a feedback_complaint entry with category = emergency_by_manager
-    await supabase
-        .from('feedback_complaints')
-        .insert({
-            student_id: user.id,          // manager who filed it
-            booking_id: bookingId,
-            title: 'Emergency Session End',
-            description: reason,
-            category: 'emergency_by_manager',
-            status: 'open',
-        })
+    await supabase.from('feedback_complaints').insert({
+        student_id: user.id, // manager who filed it
+        booking_id: bookingId,
+        title: 'Emergency Session End',
+        description: reason,
+        category: 'emergency_by_manager',
+        status: 'open',
+    })
 
     // N11 — notify all confirmed players session ended early
     const adminSupabase2 = createAdminClient()
@@ -633,7 +641,7 @@ export async function emergencyEndSession(bookingId: string, reason: string) {
                     title: 'Session Ended Early',
                     body: `Your ${court2?.sport || ''} session at ${court2?.name || 'court'} was ended early by the manager. Reason: ${reason}.`,
                     data: { booking_id: bookingId, reason },
-                })),
+                }))
             )
         }
         // Always notify admins of emergency end, regardless of student count
@@ -660,10 +668,7 @@ export async function updateEquipmentConditions(
 
     await Promise.all(
         conditions.map(({ id, condition }) =>
-            supabase
-                .from('equipment')
-                .update({ condition })
-                .eq('id', id)
+            supabase.from('equipment').update({ condition }).eq('id', id)
         )
     )
 
@@ -712,9 +717,10 @@ export async function reportLostEquipment(
         .neq('status', 'rejected')
         .neq('status', 'completed')
 
-    const impactedBookings = (futureBookings || []).filter((b: any) =>
-        Array.isArray(b.equipment_ids) &&
-        b.equipment_ids.some((eid: string) => equipmentIds.includes(eid))
+    const impactedBookings = (futureBookings || []).filter(
+        (b: any) =>
+            Array.isArray(b.equipment_ids) &&
+            b.equipment_ids.some((eid: string) => equipmentIds.includes(eid))
     )
 
     // Remove lost equipment from impacted bookings (keep the booking itself)
@@ -722,10 +728,7 @@ export async function reportLostEquipment(
         const updatedIds = (b.equipment_ids as string[]).filter(
             (eid: string) => !equipmentIds.includes(eid)
         )
-        await supabase
-            .from('bookings')
-            .update({ equipment_ids: updatedIds })
-            .eq('id', b.id)
+        await supabase.from('bookings').update({ equipment_ids: updatedIds }).eq('id', b.id)
     }
 
     // 4. Issue violation warnings to ALL players involved (shows in defaulters)
@@ -739,7 +742,10 @@ export async function reportLostEquipment(
             reported_by: user.id,
         }))
         console.log('Inserting violations:', JSON.stringify(violations))
-        const { error: violationError, data: violationData } = await supabase.from('student_violations').insert(violations).select()
+        const { error: violationError, data: violationData } = await supabase
+            .from('student_violations')
+            .insert(violations)
+            .select()
         console.log('Violation insert result:', violationData)
         console.log('Violation insert error:', violationError)
 
@@ -762,7 +768,7 @@ export async function reportLostEquipment(
                     title: 'Equipment Lost — Severe Violation',
                     body: `Equipment lost during your booking (${names}) has been reported. −20 pts. This has been flagged to admin.`,
                     data: { booking_id: bookingId, equipment: names, points_delta: -20 },
-                })),
+                }))
             )
         }
         // N21 — notify admins
@@ -869,7 +875,7 @@ export async function endSession(
             .update({
                 condition: condition,
                 is_available: true,
-                total_usage_count: (equip?.total_usage_count || 0) + 1
+                total_usage_count: (equip?.total_usage_count || 0) + 1,
             })
             .eq('id', id)
     }
@@ -890,11 +896,11 @@ export async function endSession(
     if (studentIds.length > 0) {
         let delta = 8 // base
         if (equipmentConditions.length > 0) {
-            const hasDamaged   = equipmentConditions.some((e) => e.condition === 'damaged')
-            const hasMinorDmg  = equipmentConditions.some((e) => e.condition === 'minor_damage')
-            if (hasDamaged)       delta += -8
+            const hasDamaged = equipmentConditions.some((e) => e.condition === 'damaged')
+            const hasMinorDmg = equipmentConditions.some((e) => e.condition === 'minor_damage')
+            if (hasDamaged) delta += -8
             else if (hasMinorDmg) delta += -1
-            else                  delta += 2   // all good
+            else delta += 2 // all good
         }
         await applyPoints(adminSupabase, studentIds, delta)
     }
@@ -905,11 +911,17 @@ export async function endSession(
         if (bkN10) {
             const court = (bkN10 as any).courts
             // Determine equipment condition delta for message
-            const hasDamaged   = equipmentConditions.some((e) => e.condition === 'damaged')
-            const hasMinorDmg  = equipmentConditions.some((e) => e.condition === 'minor_damage')
-            const equipDelta   = hasDamaged ? -8 : hasMinorDmg ? -1 : equipmentConditions.length > 0 ? 2 : 0
-            const totalDelta   = 8 + equipDelta
-            const pointsMsg    = totalDelta >= 0 ? `+${totalDelta} pts` : `${totalDelta} pts`
+            const hasDamaged = equipmentConditions.some((e) => e.condition === 'damaged')
+            const hasMinorDmg = equipmentConditions.some((e) => e.condition === 'minor_damage')
+            const equipDelta = hasDamaged
+                ? -8
+                : hasMinorDmg
+                  ? -1
+                  : equipmentConditions.length > 0
+                    ? 2
+                    : 0
+            const totalDelta = 8 + equipDelta
+            const pointsMsg = totalDelta >= 0 ? `+${totalDelta} pts` : `${totalDelta} pts`
             await sendNotifications(
                 studentIds.map((id) => ({
                     recipientId: id,
@@ -917,7 +929,7 @@ export async function endSession(
                     title: 'Session Completed',
                     body: `Your ${court?.sport || ''} session at ${court?.name || 'court'} ended. Points: ${pointsMsg}.`,
                     data: { booking_id: bookingId, points_delta: totalDelta },
-                })),
+                }))
             )
         }
     }
@@ -952,10 +964,7 @@ export async function expireBooking(bookingId: string, playerIds: string[]) {
     await freeBookingEquipment(supabase, bookingId)
 
     // 3. Cancel the booking
-    await supabase
-        .from('bookings')
-        .update({ status: 'cancelled' })
-        .eq('id', bookingId)
+    await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId)
 
     // 4. Issue violations to all involved students (filter out non-students)
     if (playerIds.length > 0) {
@@ -964,10 +973,13 @@ export async function expireBooking(bookingId: string, playerIds: string[]) {
             .from('profiles')
             .select('id, role')
             .in('id', playerIds)
-        const studentIds = players?.filter(p => p.role === 'student').map(p => p.id) || []
+        const studentIds: string[] =
+            players
+                ?.filter((p: { id: string; role: string }) => p.role === 'student')
+                .map((p: { id: string; role: string }) => p.id) || []
 
         if (studentIds.length > 0) {
-            const violations = studentIds.map(studentId => ({
+            const violations = studentIds.map((studentId) => ({
                 student_id: studentId,
                 booking_id: bookingId,
                 violation_type: 'booking_timeout',
@@ -991,7 +1003,7 @@ export async function expireBooking(bookingId: string, playerIds: string[]) {
                         title: 'Booking Expired — No-Show',
                         body: `Your ${court?.sport || ''} booking at ${court?.name || 'court'} was auto-cancelled (no manager approval within 10 minutes). −8 pts.`,
                         data: { booking_id: bookingId, points_delta: -8 },
-                    })),
+                    }))
                 )
             }
         }

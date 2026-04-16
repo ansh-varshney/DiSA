@@ -25,8 +25,22 @@ describe('getFinancialsData', () => {
     it('returns all vendors and aggregated totals', async () => {
         const db = makeMockDb()
         const equipment = [
-            { name: 'Racket', sport: 'badminton', cost: 500, condition: 'good', vendor_name: 'Yonex', total_usage_count: 10 },
-            { name: 'Net', sport: 'badminton', cost: 300, condition: 'good', vendor_name: 'Victor', total_usage_count: 5 },
+            {
+                name: 'Racket',
+                sport: 'badminton',
+                cost: 500,
+                condition: 'good',
+                vendor_name: 'Yonex',
+                total_usage_count: 10,
+            },
+            {
+                name: 'Net',
+                sport: 'badminton',
+                cost: 300,
+                condition: 'good',
+                vendor_name: 'Victor',
+                total_usage_count: 5,
+            },
         ]
         // First call: get all vendors (unfiltered)
         db.mockTableOnce('equipment', { data: equipment, error: null })
@@ -46,9 +60,30 @@ describe('getFinancialsData', () => {
     it('calculates avgLifespanSessions from damaged/lost items only', async () => {
         const db = makeMockDb()
         const equipment = [
-            { name: 'R1', sport: 'tennis', cost: 100, condition: 'damaged', vendor_name: null, total_usage_count: 20 },
-            { name: 'R2', sport: 'tennis', cost: 100, condition: 'lost', vendor_name: null, total_usage_count: 40 },
-            { name: 'R3', sport: 'tennis', cost: 100, condition: 'good', vendor_name: null, total_usage_count: 5 },
+            {
+                name: 'R1',
+                sport: 'tennis',
+                cost: 100,
+                condition: 'damaged',
+                vendor_name: null,
+                total_usage_count: 20,
+            },
+            {
+                name: 'R2',
+                sport: 'tennis',
+                cost: 100,
+                condition: 'lost',
+                vendor_name: null,
+                total_usage_count: 40,
+            },
+            {
+                name: 'R3',
+                sport: 'tennis',
+                cost: 100,
+                condition: 'good',
+                vendor_name: null,
+                total_usage_count: 5,
+            },
         ]
         db.mockTableOnce('equipment', { data: equipment, error: null })
         db.mockTableOnce('equipment', { data: equipment, error: null })
@@ -63,7 +98,14 @@ describe('getFinancialsData', () => {
     it('returns null avgLifespanSessions when no damaged/lost items', async () => {
         const db = makeMockDb()
         const equipment = [
-            { name: 'R1', sport: 'tennis', cost: 100, condition: 'good', vendor_name: null, total_usage_count: 10 },
+            {
+                name: 'R1',
+                sport: 'tennis',
+                cost: 100,
+                condition: 'good',
+                vendor_name: null,
+                total_usage_count: 10,
+            },
         ]
         db.mockTableOnce('equipment', { data: equipment, error: null })
         db.mockTableOnce('equipment', { data: equipment, error: null })
@@ -88,8 +130,22 @@ describe('getFinancialsData', () => {
     it('filters by vendor when vendor param provided', async () => {
         const db = makeMockDb()
         const allEquip = [
-            { name: 'R1', sport: 'badminton', cost: 100, condition: 'good', vendor_name: 'Yonex', total_usage_count: 0 },
-            { name: 'R2', sport: 'tennis', cost: 200, condition: 'good', vendor_name: 'Wilson', total_usage_count: 0 },
+            {
+                name: 'R1',
+                sport: 'badminton',
+                cost: 100,
+                condition: 'good',
+                vendor_name: 'Yonex',
+                total_usage_count: 0,
+            },
+            {
+                name: 'R2',
+                sport: 'tennis',
+                cost: 200,
+                condition: 'good',
+                vendor_name: 'Wilson',
+                total_usage_count: 0,
+            },
         ]
         const filtered = [allEquip[0]]
         db.mockTableOnce('equipment', { data: allEquip, error: null })
@@ -396,8 +452,22 @@ describe('getAdminLeaderboard', () => {
         adminDb.rpc.mockResolvedValue({ data: null, error: null })
         adminDb.mockTable('profiles', {
             data: [
-                { id: 'u1', full_name: 'Alice', branch: 'CSE', year: '2', gender: 'Female', points: 100 },
-                { id: 'u2', full_name: 'Bob', branch: 'ECE', year: '3', gender: 'Male', points: 80 },
+                {
+                    id: 'u1',
+                    full_name: 'Alice',
+                    branch: 'CSE',
+                    year: '2',
+                    gender: 'Female',
+                    points: 100,
+                },
+                {
+                    id: 'u2',
+                    full_name: 'Bob',
+                    branch: 'ECE',
+                    year: '3',
+                    gender: 'Male',
+                    points: 80,
+                },
             ],
             error: null,
         })
@@ -414,11 +484,7 @@ describe('getAdminLeaderboard', () => {
     it('returns ranked by sessions when date range provided', async () => {
         const adminDb = makeMockDb()
         adminDb.mockTable('bookings', {
-            data: [
-                { user_id: 'u1' },
-                { user_id: 'u1' },
-                { user_id: 'u2' },
-            ],
+            data: [{ user_id: 'u1' }, { user_id: 'u1' }, { user_id: 'u2' }],
             error: null,
         })
         vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
@@ -426,8 +492,22 @@ describe('getAdminLeaderboard', () => {
         const regularDb = makeMockDb()
         regularDb.mockTable('profiles', {
             data: [
-                { id: 'u1', full_name: 'Alice', branch: 'CSE', year: '2', gender: 'Female', points: 100 },
-                { id: 'u2', full_name: 'Bob', branch: 'ECE', year: '3', gender: 'Male', points: 80 },
+                {
+                    id: 'u1',
+                    full_name: 'Alice',
+                    branch: 'CSE',
+                    year: '2',
+                    gender: 'Female',
+                    points: 100,
+                },
+                {
+                    id: 'u2',
+                    full_name: 'Bob',
+                    branch: 'ECE',
+                    year: '3',
+                    gender: 'Male',
+                    points: 80,
+                },
             ],
             error: null,
         })

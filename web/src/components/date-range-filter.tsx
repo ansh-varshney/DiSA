@@ -61,7 +61,9 @@ export function DateRangeFilter({ startDefault = '', endDefault = '', extra = {}
 
     return (
         <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Date Range</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Date Range
+            </p>
             <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-gray-600">Start Date</label>

@@ -5,7 +5,9 @@ import { ManagerNotificationsClient } from './manager-notifications-client'
 
 export default async function ManagerNotificationsPage() {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) redirect('/login?role=manager')
 
     const notifications = await getMyNotifications(false, 80)

@@ -8,7 +8,9 @@ import { sendNotifications } from '@/actions/notifications'
 
 export default async function LeaderboardPage() {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
     // Trigger monthly reset (idempotent — no-op if already reset this month).
@@ -16,7 +18,11 @@ export default async function LeaderboardPage() {
     // were awarded a priority booking slot so we can notify them here.
     const adminSupabase = createAdminClient()
     const { data: resetResult } = await adminSupabase.rpc('reset_monthly_points')
-    if (resetResult?.reset_count > 0 && Array.isArray(resetResult?.top5_ids) && resetResult.top5_ids.length > 0) {
+    if (
+        resetResult?.reset_count > 0 &&
+        Array.isArray(resetResult?.top5_ids) &&
+        resetResult.top5_ids.length > 0
+    ) {
         await sendNotifications(
             resetResult.top5_ids.map((id: string) => ({
                 recipientId: id,
@@ -43,8 +49,8 @@ export default async function LeaderboardPage() {
         .eq('role', 'student')
         .order('points', { ascending: false })
 
-    const userRank = allStudents?.findIndex(s => s.id === user.id) ?? -1
-    const userProfile = allStudents?.find(s => s.id === user.id)
+    const userRank = allStudents?.findIndex((s) => s.id === user.id) ?? -1
+    const userProfile = allStudents?.find((s) => s.id === user.id)
 
     const medalIcons = ['🥇', '🥈', '🥉']
 
@@ -60,7 +66,7 @@ export default async function LeaderboardPage() {
 
             {/* Top 5 */}
             <div className="space-y-3">
-                {(!topStudents || topStudents.length === 0) ? (
+                {!topStudents || topStudents.length === 0 ? (
                     <div className="p-8 text-center text-gray-400 border-2 border-dashed rounded-xl">
                         No students yet
                     </div>
@@ -69,20 +75,26 @@ export default async function LeaderboardPage() {
                         <Card
                             key={student.id}
                             className={cn(
-                                "transition-all",
-                                index === 0 && "border-2 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.15)]",
-                                student.id === user.id && "ring-2 ring-[#004d40]"
+                                'transition-all',
+                                index === 0 &&
+                                    'border-2 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.15)]',
+                                student.id === user.id && 'ring-2 ring-[#004d40]'
                             )}
                         >
                             <CardContent className="p-4 flex items-center gap-4">
                                 {/* Rank */}
-                                <div className={cn(
-                                    "w-10 h-10 rounded-full flex items-center justify-center font-black text-lg shrink-0",
-                                    index === 0 ? "bg-yellow-100 text-yellow-700" :
-                                        index === 1 ? "bg-gray-100 text-gray-600" :
-                                            index === 2 ? "bg-orange-100 text-orange-700" :
-                                                "bg-gray-50 text-gray-500"
-                                )}>
+                                <div
+                                    className={cn(
+                                        'w-10 h-10 rounded-full flex items-center justify-center font-black text-lg shrink-0',
+                                        index === 0
+                                            ? 'bg-yellow-100 text-yellow-700'
+                                            : index === 1
+                                              ? 'bg-gray-100 text-gray-600'
+                                              : index === 2
+                                                ? 'bg-orange-100 text-orange-700'
+                                                : 'bg-gray-50 text-gray-500'
+                                    )}
+                                >
                                     {index < 3 ? medalIcons[index] : index + 1}
                                 </div>
 
@@ -91,7 +103,9 @@ export default async function LeaderboardPage() {
                                     <h3 className="font-bold text-gray-800 flex items-center gap-2">
                                         {student.full_name || 'Anonymous'}
                                         {student.id === user.id && (
-                                            <span className="text-[10px] bg-[#004d40] text-white px-1.5 py-0.5 rounded">YOU</span>
+                                            <span className="text-[10px] bg-[#004d40] text-white px-1.5 py-0.5 rounded">
+                                                YOU
+                                            </span>
                                         )}
                                     </h3>
                                     {index < 5 && (
@@ -104,7 +118,9 @@ export default async function LeaderboardPage() {
 
                                 {/* Points */}
                                 <div className="text-right">
-                                    <div className="font-black text-lg text-gray-800">{student.points || 0}</div>
+                                    <div className="font-black text-lg text-gray-800">
+                                        {student.points || 0}
+                                    </div>
                                     <div className="text-xs text-gray-400">pts</div>
                                 </div>
                             </CardContent>
@@ -130,7 +146,9 @@ export default async function LeaderboardPage() {
                                 </p>
                             </div>
                             <div className="text-right">
-                                <div className="font-black text-lg text-gray-800">{userProfile?.points || 0}</div>
+                                <div className="font-black text-lg text-gray-800">
+                                    {userProfile?.points || 0}
+                                </div>
                                 <div className="text-xs text-gray-400">pts</div>
                             </div>
                         </CardContent>

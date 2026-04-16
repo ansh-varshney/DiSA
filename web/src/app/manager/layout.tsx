@@ -4,15 +4,12 @@ import { ManagerNav } from '@/components/manager-nav'
 import { NotificationPopup } from '@/components/notification-popup'
 import { getMyNotifications } from '@/actions/notifications'
 
-
-export default async function ManagerLayout({
-    children,
-}: {
-    children: React.ReactNode
-}) {
+export default async function ManagerLayout({ children }: { children: React.ReactNode }) {
     const supabase = await createClient()
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) {
         redirect('/login?role=manager')
     }
@@ -24,7 +21,12 @@ export default async function ManagerLayout({
         .eq('id', user.id)
         .single()
 
-    if (profile && profile.role !== 'manager' && profile.role !== 'admin' && profile.role !== 'superuser') {
+    if (
+        profile &&
+        profile.role !== 'manager' &&
+        profile.role !== 'admin' &&
+        profile.role !== 'superuser'
+    ) {
         redirect('/')
     }
 

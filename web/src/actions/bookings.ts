@@ -5,17 +5,24 @@ import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { addMinutes } from 'date-fns'
 import { getPlayerLimits } from '@/lib/sport-config'
-import { sendNotification, sendNotifications, notifyManagers, notifyAdminsAndManagers } from '@/actions/notifications'
+import {
+    sendNotification,
+    sendNotifications,
+    notifyManagers,
+    notifyAdminsAndManagers,
+} from '@/actions/notifications'
 
 export async function getBookingsForDateRange(courtId: string, startDate: Date, endDate: Date) {
     const supabase = await createClient()
 
     const { data, error } = await supabase
         .from('bookings')
-        .select(`
+        .select(
+            `
             *,
             profiles:user_id (full_name)
-        `)
+        `
+        )
         .eq('court_id', courtId)
         .gte('start_time', startDate.toISOString())
         .lte('end_time', endDate.toISOString())
@@ -61,14 +68,14 @@ export async function getAvailableEquipment(sport: string, startTime?: string, e
             .or(`and(start_time.lt.${endTime},end_time.gt.${startTime})`)
 
         if (overlappingBookings) {
-            overlappingBookings.forEach(b => {
-                (b.equipment_ids || []).forEach((id: string) => reservedIds.add(id))
+            overlappingBookings.forEach((b) => {
+                ;(b.equipment_ids || []).forEach((id: string) => reservedIds.add(id))
             })
         }
     }
 
     // 3. Return equipment with in_use flag
-    return allEquipment.map(eq => ({
+    return allEquipment.map((eq) => ({
         ...eq,
         in_use: reservedIds.has(eq.id) || !eq.is_available,
     }))
@@ -98,7 +105,9 @@ export async function createBooking(prevState: any, formData: FormData) {
     }
 
     // 1. Check if user is logged in
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
 
     // 2a. Check if student has an active time-ban (3 late arrivals → 14-day ban)
@@ -110,9 +119,13 @@ export async function createBooking(prevState: any, formData: FormData) {
 
     if (profileData?.banned_until && new Date(profileData.banned_until) > new Date()) {
         const banDate = new Date(profileData.banned_until).toLocaleDateString('en-IN', {
-            day: 'numeric', month: 'short', year: 'numeric',
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
         })
-        return { error: `You are temporarily banned until ${banDate} due to repeated late arrivals. Contact admin for early clearance.` }
+        return {
+            error: `You are temporarily banned until ${banDate} due to repeated late arrivals. Contact admin for early clearance.`,
+        }
     }
 
     // 2b. Check if student is suspended (3+ violations)
@@ -122,14 +135,18 @@ export async function createBooking(prevState: any, formData: FormData) {
         .eq('student_id', user.id)
 
     if (violationCount && violationCount >= 3) {
-        return { error: 'Your account has been suspended due to 3 or more violations. Contact admin.' }
+        return {
+            error: 'Your account has been suspended due to 3 or more violations. Contact admin.',
+        }
     }
 
     // 2c. Duration validation — only 30 or 60 min allowed normally;
     //     90 min requires an unused monthly priority booking reward.
     if (duration === 90) {
         if ((profileData?.priority_booking_remaining ?? 0) <= 0) {
-            return { error: 'You do not have a priority booking slot available. Only 30 or 60 minute bookings are allowed.' }
+            return {
+                error: 'You do not have a priority booking slot available. Only 30 or 60 minute bookings are allowed.',
+            }
         }
     } else if (duration !== 30 && duration !== 60) {
         return { error: 'Invalid booking duration. Please select 30 or 60 minutes.' }
@@ -226,9 +243,14 @@ export async function createBooking(prevState: any, formData: FormData) {
                 await supabase
                     .from('equipment')
                     .update({ is_available: true })
-                    .in('id', locked.map((e: any) => e.id))
+                    .in(
+                        'id',
+                        locked.map((e: any) => e.id)
+                    )
             }
-            return { error: 'One or more equipment items are no longer available. Please refresh and try again.' }
+            return {
+                error: 'One or more equipment items are no longer available. Please refresh and try again.',
+            }
         }
     }
 
@@ -251,10 +273,7 @@ export async function createBooking(prevState: any, formData: FormData) {
     if (error) {
         // If booking insert fails, re-free the equipment
         if (equipmentIds.length > 0) {
-            await supabase
-                .from('equipment')
-                .update({ is_available: true })
-                .in('id', equipmentIds)
+            await supabase.from('equipment').update({ is_available: true }).in('id', equipmentIds)
         }
         return { error: error.message }
     }
@@ -265,8 +284,11 @@ export async function createBooking(prevState: any, formData: FormData) {
         const courtName = (court as any)?.name || 'Court'
         const sport = (court as any)?.sport || ''
         const startDisplay = startTime.toLocaleString('en-IN', {
-            weekday: 'short', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit',
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
         })
 
         // Fetch booker name for notification body
@@ -353,7 +375,9 @@ export async function createBooking(prevState: any, formData: FormData) {
 export async function cancelBooking(bookingId: string) {
     const supabase = await createClient()
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
 
     // Fetch booking to verify ownership and get equipment
@@ -372,10 +396,7 @@ export async function cancelBooking(bookingId: string) {
     // Free equipment first (match manager's behaviour)
     const equipmentIds: string[] = booking.equipment_ids || []
     if (equipmentIds.length > 0) {
-        await supabase
-            .from('equipment')
-            .update({ is_available: true })
-            .in('id', equipmentIds)
+        await supabase.from('equipment').update({ is_available: true }).in('id', equipmentIds)
     }
 
     // Deduct -3 points if cancellation is less than 3 hours before start
@@ -394,7 +415,9 @@ export async function cancelBooking(bookingId: string) {
 
     // N8 — notify confirmed players only (pending players have not committed, do not notify)
     const courtInfo = (booking as any).courts
-    const playersList = Array.isArray((booking as any).players_list) ? (booking as any).players_list : []
+    const playersList = Array.isArray((booking as any).players_list)
+        ? (booking as any).players_list
+        : []
     const confirmedPlayerIds = playersList
         .filter((p: any) => p.status === 'confirmed')
         .map((p: any) => (typeof p === 'string' ? p : p.id))
@@ -402,8 +425,11 @@ export async function cancelBooking(bookingId: string) {
 
     if (confirmedPlayerIds.length > 0) {
         const startDisplay = new Date(booking.start_time).toLocaleString('en-IN', {
-            weekday: 'short', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit',
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
         })
         await sendNotifications(
             confirmedPlayerIds.map((pid: string) => ({
@@ -413,7 +439,7 @@ export async function cancelBooking(bookingId: string) {
                 title: 'Booking Cancelled',
                 body: `Your booking for ${courtInfo?.name || 'a court'} (${courtInfo?.sport || ''}) on ${startDisplay} has been cancelled by the booker.`,
                 data: { booking_id: bookingId },
-            })),
+            }))
         )
     }
 
@@ -426,13 +452,17 @@ export async function cancelBooking(bookingId: string) {
 export async function withdrawFromBooking(bookingId: string) {
     const supabase = await createClient()
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
 
     // Fetch the booking with court sport info
     const { data: booking } = await supabase
         .from('bookings')
-        .select('user_id, status, players_list, num_players, equipment_ids, start_time, courts(sport, name)')
+        .select(
+            'user_id, status, players_list, num_players, equipment_ids, start_time, courts(sport, name)'
+        )
         .eq('id', bookingId)
         .single()
 
@@ -465,22 +495,19 @@ export async function withdrawFromBooking(bookingId: string) {
         // Auto-cancel the booking since it no longer meets minimum
         const equipmentIds: string[] = booking.equipment_ids || []
         if (equipmentIds.length > 0) {
-            await supabase
-                .from('equipment')
-                .update({ is_available: true })
-                .in('id', equipmentIds)
+            await supabase.from('equipment').update({ is_available: true }).in('id', equipmentIds)
         }
 
-        await supabase
-            .from('bookings')
-            .update({ status: 'cancelled' })
-            .eq('id', bookingId)
+        await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId)
 
         // Notify the booker and any remaining confirmed players about the auto-cancellation
         const courtInfo = (booking as any).courts
         const startDisplay = new Date((booking as any).start_time).toLocaleString('en-IN', {
-            weekday: 'short', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit',
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
         })
         const cancelBody = `Your booking for ${courtInfo?.name || 'a court'} on ${startDisplay} was automatically cancelled because the player count dropped below the minimum required (${limits.min}).`
 
@@ -493,7 +520,7 @@ export async function withdrawFromBooking(bookingId: string) {
         }
         notifyIds.delete(user.id) // withdrawing player already knows
 
-        const notifications = Array.from(notifyIds).map(pid => ({
+        const notifications = Array.from(notifyIds).map((pid) => ({
             recipientId: pid,
             senderId: user.id,
             type: 'booking_auto_cancelled',
@@ -511,7 +538,11 @@ export async function withdrawFromBooking(bookingId: string) {
         revalidatePath('/student/book')
         revalidatePath('/manager')
         revalidatePath('/admin/reservations')
-        return { success: true, cancelled: true, reason: `Booking cancelled: player count dropped below minimum (${limits.min})` }
+        return {
+            success: true,
+            cancelled: true,
+            reason: `Booking cancelled: player count dropped below minimum (${limits.min})`,
+        }
     }
 
     const { error } = await supabase
@@ -533,8 +564,11 @@ export async function withdrawFromBooking(bookingId: string) {
 
     const courtInfo = (booking as any).courts
     const startDisplay = new Date((booking as any).start_time).toLocaleString('en-IN', {
-        weekday: 'short', month: 'short', day: 'numeric',
-        hour: '2-digit', minute: '2-digit',
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
     })
     await sendNotification({
         recipientId: booking.user_id,
@@ -560,10 +594,12 @@ export async function getStudentBookings(userId: string) {
     // 1. Bookings the student created
     const { data: ownBookings, error: ownError } = await supabase
         .from('bookings')
-        .select(`
+        .select(
+            `
             *,
             courts (name, sport)
-        `)
+        `
+        )
         .eq('user_id', userId)
         .order('start_time', { ascending: false })
 
@@ -571,10 +607,12 @@ export async function getStudentBookings(userId: string) {
     //    players_list is JSONB array of objects: [{id, full_name, ...}]
     const { data: playerBookings, error: playerError } = await supabase
         .from('bookings')
-        .select(`
+        .select(
+            `
             *,
             courts (name, sport)
-        `)
+        `
+        )
         .neq('user_id', userId)
         .contains('players_list', JSON.stringify([{ id: userId }]))
         .order('start_time', { ascending: false })
@@ -585,28 +623,29 @@ export async function getStudentBookings(userId: string) {
     // 3. Merge and deduplicate
     const allBookings = [...(ownBookings || []), ...(playerBookings || [])]
     const seen = new Set<string>()
-    const data = allBookings.filter(b => {
+    const data = allBookings.filter((b) => {
         if (seen.has(b.id)) return false
         seen.add(b.id)
         return true
     })
 
-    const current = data.filter((b: any) =>
-        b.status === 'active' &&
-        new Date(b.start_time) <= now &&
-        new Date(b.end_time) >= now
+    const current = data.filter(
+        (b: any) =>
+            b.status === 'active' && new Date(b.start_time) <= now && new Date(b.end_time) >= now
     )
 
-    const upcoming = data.filter((b: any) =>
-        ['pending_confirmation', 'confirmed', 'waiting_manager'].includes(b.status) &&
-        new Date(b.end_time) > now
+    const upcoming = data.filter(
+        (b: any) =>
+            ['pending_confirmation', 'confirmed', 'waiting_manager'].includes(b.status) &&
+            new Date(b.end_time) > now
     )
 
-    const past = data.filter((b: any) =>
-        b.status === 'completed' ||
-        b.status === 'cancelled' ||
-        b.status === 'rejected' ||
-        (new Date(b.end_time) < now && !['active'].includes(b.status))
+    const past = data.filter(
+        (b: any) =>
+            b.status === 'completed' ||
+            b.status === 'cancelled' ||
+            b.status === 'rejected' ||
+            (new Date(b.end_time) < now && !['active'].includes(b.status))
     )
 
     return { current, upcoming, past }
@@ -619,7 +658,9 @@ export async function getStudentBookings(userId: string) {
 export async function studentStartPlay(bookingId: string) {
     const supabase = await createClient()
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
 
     const { data: booking } = await supabase
@@ -643,8 +684,11 @@ export async function studentStartPlay(bookingId: string) {
 
     const courtInfo = (booking as any).courts
     const startDisplay = new Date((booking as any).start_time).toLocaleString('en-IN', {
-        weekday: 'short', month: 'short', day: 'numeric',
-        hour: '2-digit', minute: '2-digit',
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
     })
 
     await notifyManagers({
@@ -664,19 +708,19 @@ export async function studentStartPlay(bookingId: string) {
 // Called from active-session.tsx. Writes to feedback_complaints so admin can see it.
 export async function studentEmergencyAlert(bookingId: string, reason: string) {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
 
-    const { error } = await supabase
-        .from('feedback_complaints')
-        .insert({
-            student_id: user.id,
-            booking_id: bookingId,
-            title: 'Emergency Alert (Student)',
-            description: reason,
-            category: 'emergency_by_student',
-            status: 'open',
-        })
+    const { error } = await supabase.from('feedback_complaints').insert({
+        student_id: user.id,
+        booking_id: bookingId,
+        title: 'Emergency Alert (Student)',
+        description: reason,
+        category: 'emergency_by_student',
+        status: 'open',
+    })
 
     if (error) return { error: error.message }
 
@@ -695,22 +739,22 @@ export async function studentEmergencyAlert(bookingId: string, reason: string) {
 // ─── Submit Feedback / Complaint ──────────────────────────────────────────────
 export async function submitFeedback(title: string, description: string, category: string) {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return { error: 'Unauthorized' }
 
     if (!title.trim() || !description.trim()) {
         return { error: 'Title and description are required' }
     }
 
-    const { error } = await supabase
-        .from('feedback_complaints')
-        .insert({
-            student_id: user.id,
-            title: title.trim(),
-            description: description.trim(),
-            category,
-            status: 'open',
-        })
+    const { error } = await supabase.from('feedback_complaints').insert({
+        student_id: user.id,
+        title: title.trim(),
+        description: description.trim(),
+        category,
+        status: 'open',
+    })
 
     if (error) return { error: error.message }
 
@@ -721,7 +765,9 @@ export async function submitFeedback(title: string, description: string, categor
 // ─── Search Students (for Player Picker) ──────────────────────────────────────
 export async function searchStudents(query: string) {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return []
 
     if (!query || query.trim().length < 2) return []

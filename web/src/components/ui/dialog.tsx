@@ -49,7 +49,7 @@ export function DialogContent({ className, children, onClose, ...props }: Dialog
     return (
         <div
             className={cn(
-                "bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto",
+                'bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto',
                 className
             )}
             {...props}
@@ -59,17 +59,25 @@ export function DialogContent({ className, children, onClose, ...props }: Dialog
     )
 }
 
-export function DialogHeader({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+export function DialogHeader({
+    className,
+    children,
+    ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
     return (
-        <div className={cn("flex items-center justify-between p-6 pb-4", className)} {...props}>
+        <div className={cn('flex items-center justify-between p-6 pb-4', className)} {...props}>
             {children}
         </div>
     )
 }
 
-export function DialogTitle({ className, children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
+export function DialogTitle({
+    className,
+    children,
+    ...props
+}: React.HTMLAttributes<HTMLHeadingElement>) {
     return (
-        <h2 className={cn("text-lg font-semibold text-gray-900", className)} {...props}>
+        <h2 className={cn('text-lg font-semibold text-gray-900', className)} {...props}>
             {children}
         </h2>
     )
@@ -87,17 +95,31 @@ export function DialogClose({ onClose }: { onClose: () => void }) {
     )
 }
 
-export function DialogBody({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+export function DialogBody({
+    className,
+    children,
+    ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
     return (
-        <div className={cn("px-6 py-4", className)} {...props}>
+        <div className={cn('px-6 py-4', className)} {...props}>
             {children}
         </div>
     )
 }
 
-export function DialogFooter({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+export function DialogFooter({
+    className,
+    children,
+    ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
     return (
-        <div className={cn("flex items-center justify-end gap-3 px-6 py-4 bg-gray-50 rounded-b-lg", className)} {...props}>
+        <div
+            className={cn(
+                'flex items-center justify-end gap-3 px-6 py-4 bg-gray-50 rounded-b-lg',
+                className
+            )}
+            {...props}
+        >
             {children}
         </div>
     )

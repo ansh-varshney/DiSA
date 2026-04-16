@@ -24,13 +24,16 @@ export async function GET(request: Request) {
                 const { createAdminClient } = await import('@/utils/supabase/admin')
                 const supabaseAdmin = createAdminClient()
 
-                await supabaseAdmin.from('profiles').upsert({
-                    id: user.id,
-                    email: user.email,
-                    full_name: user_metadata(user).full_name || 'New User',
-                    role: rolePref as 'student' | 'manager' | 'admin',
-                    avatar_url: user_metadata(user).avatar_url
-                }, { onConflict: 'id' }) // Upsert based on ID
+                await supabaseAdmin.from('profiles').upsert(
+                    {
+                        id: user.id,
+                        email: user.email,
+                        full_name: user_metadata(user).full_name || 'New User',
+                        role: rolePref as 'student' | 'manager' | 'admin',
+                        avatar_url: user_metadata(user).avatar_url,
+                    },
+                    { onConflict: 'id' }
+                ) // Upsert based on ID
 
                 // Cleanup cookie
                 cookieStore.delete('auth-role-preference')
@@ -42,14 +45,15 @@ export async function GET(request: Request) {
                     .eq('id', user.id)
                     .single()
 
-                if (profileError && profileError.code === 'PGRST116') { // No rows found
+                if (profileError && profileError.code === 'PGRST116') {
+                    // No rows found
                     // No preference, and no profile? Default to student
                     await supabase.from('profiles').insert({
                         id: user.id,
                         email: user.email,
                         full_name: user_metadata(user).full_name || 'New User',
                         role: 'student',
-                        avatar_url: user_metadata(user).avatar_url
+                        avatar_url: user_metadata(user).avatar_url,
                     })
                 }
             }

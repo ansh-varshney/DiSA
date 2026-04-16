@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 interface Booking {
     id: string
     start_time: string // ISO string
-    end_time: string   // ISO string
+    end_time: string // ISO string
     status: string
     equipment_ids: string[] | null
     equipment_names?: string[]
@@ -68,33 +68,55 @@ export function ManagerBookingCard({ booking }: BookingCardProps) {
     const formatTime = (isoString: string) => format(new Date(isoString), 'h:mm a')
 
     // Determine user display: Name (Role if admin)
-    const isAdmin = booking.profiles.role === 'admin' || booking.profiles.role === 'manager' || booking.profiles.role === 'superuser'
+    const isAdmin =
+        booking.profiles.role === 'admin' ||
+        booking.profiles.role === 'manager' ||
+        booking.profiles.role === 'superuser'
     const userName = booking.profiles.full_name || 'Unknown User'
 
     return (
-        <Link href={`/manager/approvals/${booking.id}`} className="block transition-transform hover:scale-[1.01] active:scale-[0.99]">
-            <Card className={cn("border-l-4 shadow-sm hover:shadow-md transition-shadow relative",
-                statusLabel.includes('Running') ? 'border-l-green-500' :
-                    statusLabel.includes('Overdue') ? 'border-l-amber-500' :
-                        statusLabel.includes('Waiting') ? 'border-l-orange-400' : 'border-l-blue-500',
-                isAdmin ? 'bg-amber-50/50' : 'bg-white'
-            )}>
+        <Link
+            href={`/manager/approvals/${booking.id}`}
+            className="block transition-transform hover:scale-[1.01] active:scale-[0.99]"
+        >
+            <Card
+                className={cn(
+                    'border-l-4 shadow-sm hover:shadow-md transition-shadow relative',
+                    statusLabel.includes('Running')
+                        ? 'border-l-green-500'
+                        : statusLabel.includes('Overdue')
+                          ? 'border-l-amber-500'
+                          : statusLabel.includes('Waiting')
+                            ? 'border-l-orange-400'
+                            : 'border-l-blue-500',
+                    isAdmin ? 'bg-amber-50/50' : 'bg-white'
+                )}
+            >
                 <CardContent className="p-5 flex flex-col gap-3">
                     {/* Header: Court & Status */}
                     <div className="flex justify-between items-start">
                         <div>
-                            <h3 className="font-bold text-gray-800 text-lg">{booking.courts.name}</h3>
+                            <h3 className="font-bold text-gray-800 text-lg">
+                                {booking.courts.name}
+                            </h3>
                             <span className="text-xs uppercase tracking-wider font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full inline-block mt-1">
                                 {booking.courts.sport}
                             </span>
                         </div>
-                        <div className={cn("text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap",
-                            statusLabel.includes('Running') ? "bg-green-100 text-green-700" :
-                                statusLabel.includes('Overdue') ? "bg-amber-100 text-amber-700" :
-                                    statusLabel.includes('Starts') ? "bg-yellow-100 text-yellow-700" :
-                                        statusLabel.includes('Waiting') ? "bg-orange-100 text-orange-700" :
-                                            "bg-blue-50 text-blue-600"
-                        )}>
+                        <div
+                            className={cn(
+                                'text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap',
+                                statusLabel.includes('Running')
+                                    ? 'bg-green-100 text-green-700'
+                                    : statusLabel.includes('Overdue')
+                                      ? 'bg-amber-100 text-amber-700'
+                                      : statusLabel.includes('Starts')
+                                        ? 'bg-yellow-100 text-yellow-700'
+                                        : statusLabel.includes('Waiting')
+                                          ? 'bg-orange-100 text-orange-700'
+                                          : 'bg-blue-50 text-blue-600'
+                            )}
+                        >
                             {statusLabel}
                         </div>
                     </div>
@@ -107,20 +129,29 @@ export function ManagerBookingCard({ booking }: BookingCardProps) {
                             ) : (
                                 <User className="w-4 h-4 text-gray-400" />
                             )}
-                            <span className={cn("font-medium text-sm", isAdmin && "text-amber-700 font-bold")}>
-                                {userName} {isAdmin && "(Admin/Superuser)"}
+                            <span
+                                className={cn(
+                                    'font-medium text-sm',
+                                    isAdmin && 'text-amber-700 font-bold'
+                                )}
+                            >
+                                {userName} {isAdmin && '(Admin/Superuser)'}
                             </span>
                         </div>
 
                         <div className="flex items-center gap-2 text-gray-700">
                             <Clock className="w-4 h-4 text-gray-400" />
-                            <span className="font-medium text-sm">{formatTime(booking.start_time)} – {formatTime(booking.end_time)}</span>
+                            <span className="font-medium text-sm">
+                                {formatTime(booking.start_time)} – {formatTime(booking.end_time)}
+                            </span>
                         </div>
 
                         <div className="flex items-center gap-2 text-gray-700">
                             <User className="w-4 h-4 text-gray-400" />
                             <span className="font-medium text-sm">
-                                {booking.num_players ? `${booking.num_players} Players` : '2 Players'}
+                                {booking.num_players
+                                    ? `${booking.num_players} Players`
+                                    : '2 Players'}
                             </span>
                         </div>
 

@@ -12,9 +12,7 @@ export async function getFinancialsData(vendor?: string) {
     const supabase = await createClient()
 
     // Get all unique vendors first (unfiltered)
-    const { data: allEquipment } = await supabase
-        .from('equipment')
-        .select('vendor_name')
+    const { data: allEquipment } = await supabase.from('equipment').select('vendor_name')
 
     const vendors: string[] = [
         ...new Set(
@@ -27,7 +25,9 @@ export async function getFinancialsData(vendor?: string) {
     // Fetch equipment, optionally filtered by vendor
     let query = supabase
         .from('equipment')
-        .select('name, sport, cost, expected_lifespan_days, total_usage_count, condition, vendor_name')
+        .select(
+            'name, sport, cost, expected_lifespan_days, total_usage_count, condition, vendor_name'
+        )
 
     if (vendor && vendor !== 'all') {
         query = query.eq('vendor_name', vendor)
@@ -36,7 +36,15 @@ export async function getFinancialsData(vendor?: string) {
     const { data: equipment, error } = await query
 
     if (error || !equipment) {
-        return { vendors, total: 0, avgLifespanSessions: null, totalCost: 0, costBySport: {}, countBySport: {}, lifespanBySport: {} }
+        return {
+            vendors,
+            total: 0,
+            avgLifespanSessions: null,
+            totalCost: 0,
+            costBySport: {},
+            countBySport: {},
+            lifespanBySport: {},
+        }
     }
 
     const total = equipment.length
@@ -79,7 +87,15 @@ export async function getFinancialsData(vendor?: string) {
 
     const totalCost = Object.values(costBySport).reduce((a, b) => a + b, 0)
 
-    return { vendors, total, avgLifespanSessions, totalCost, costBySport, countBySport, lifespanBySport }
+    return {
+        vendors,
+        total,
+        avgLifespanSessions,
+        totalCost,
+        costBySport,
+        countBySport,
+        lifespanBySport,
+    }
 }
 
 //============================================
@@ -91,13 +107,27 @@ export async function getTeamPerformanceData(sport?: string, startDate?: string,
     const adminSupabase = createAdminClient()
 
     if (!sport || sport === 'all') {
-        return { practiceSessions: 0, tournaments: 0, wins: 0, losses: 0, trophies: 0, monthlyPractice: [] as { month: string; count: number }[] }
+        return {
+            practiceSessions: 0,
+            tournaments: 0,
+            wins: 0,
+            losses: 0,
+            trophies: 0,
+            monthlyPractice: [] as { month: string; count: number }[],
+        }
     }
 
     const { data: courts } = await adminSupabase.from('courts').select('id').eq('sport', sport)
 
     if (!courts || courts.length === 0) {
-        return { practiceSessions: 0, tournaments: 0, wins: 0, losses: 0, trophies: 0, monthlyPractice: [] as { month: string; count: number }[] }
+        return {
+            practiceSessions: 0,
+            tournaments: 0,
+            wins: 0,
+            losses: 0,
+            trophies: 0,
+            monthlyPractice: [] as { month: string; count: number }[],
+        }
     }
 
     const courtIds = courts.map((c: { id: string }) => c.id)
@@ -126,13 +156,33 @@ export async function getTeamPerformanceData(sport?: string, startDate?: string,
         .sort((a, b) => {
             const parseMonth = (str: string) => {
                 const [mon, yr] = str.split(' ')
-                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                const months = [
+                    'Jan',
+                    'Feb',
+                    'Mar',
+                    'Apr',
+                    'May',
+                    'Jun',
+                    'Jul',
+                    'Aug',
+                    'Sep',
+                    'Oct',
+                    'Nov',
+                    'Dec',
+                ]
                 return parseInt('20' + yr) * 12 + months.indexOf(mon)
             }
             return parseMonth(a.month) - parseMonth(b.month)
         })
 
-    return { practiceSessions: bookings?.length ?? 0, tournaments: 0, wins: 0, losses: 0, trophies: 0, monthlyPractice }
+    return {
+        practiceSessions: bookings?.length ?? 0,
+        tournaments: 0,
+        wins: 0,
+        losses: 0,
+        trophies: 0,
+        monthlyPractice,
+    }
 }
 
 //============================================
@@ -168,7 +218,9 @@ export async function getWelfareTopStats() {
                 .lte('start_time', end),
         ])
 
-    const uniqueActiveStudents = new Set((activeBookings || []).map((b: { user_id: string }) => b.user_id)).size
+    const uniqueActiveStudents = new Set(
+        (activeBookings || []).map((b: { user_id: string }) => b.user_id)
+    ).size
     const participationPct =
         totalStudents && uniqueActiveStudents
             ? Math.round((uniqueActiveStudents / totalStudents) * 100)
@@ -180,9 +232,9 @@ export async function getWelfareTopStats() {
 // Participation stats — grouped by branch, year, or sport
 // Accepts explicit date range strings (YYYY-MM-DD)
 export async function getParticipationStats(
-    parameter: string,   // 'branch' | 'year' | 'sport'
+    parameter: string, // 'branch' | 'year' | 'sport'
     startDate?: string,
-    endDate?: string,
+    endDate?: string
 ) {
     const adminSupabase = createAdminClient()
 
@@ -197,7 +249,8 @@ export async function getParticipationStats(
     if (endDate) bookingQuery = bookingQuery.lte('start_time', endDate + 'T23:59:59')
 
     const { data: bookings } = await bookingQuery
-    if (!bookings || bookings.length === 0) return { barData: [], genderData: { Male: 0, Female: 0 } }
+    if (!bookings || bookings.length === 0)
+        return { barData: [], genderData: { Male: 0, Female: 0 } }
 
     // 2. Fetch profiles for those users
     const userIds = [...new Set(bookings.map((b: { user_id: string }) => b.user_id))]
@@ -214,10 +267,21 @@ export async function getParticipationStats(
             .from('courts')
             .select('id, sport')
             .in('id', courtIds)
-        courtMap = Object.fromEntries((courts || []).map((c: { id: string; sport: string }) => [c.id, c.sport]))
+        courtMap = Object.fromEntries(
+            (courts || []).map((c: { id: string; sport: string }) => [c.id, c.sport])
+        )
     }
 
-    const profileMap = Object.fromEntries((profiles || []).map((p: { id: string; branch: string | null; gender: string | null; year: string | null }) => [p.id, p]))
+    const profileMap = Object.fromEntries(
+        (profiles || []).map(
+            (p: {
+                id: string
+                branch: string | null
+                gender: string | null
+                year: string | null
+            }) => [p.id, p]
+        )
+    )
 
     const countByParam: Record<string, number> = {}
     const genderCount: Record<string, number> = { Male: 0, Female: 0 }
@@ -227,7 +291,8 @@ export async function getParticipationStats(
         let key = 'Unknown'
         if (parameter === 'branch') key = profile?.branch || 'Unknown'
         else if (parameter === 'year') key = profile?.year || 'Unknown'
-        else if (parameter === 'sport') key = courtMap[(b as { court_id: string }).court_id] || 'Unknown'
+        else if (parameter === 'sport')
+            key = courtMap[(b as { court_id: string }).court_id] || 'Unknown'
 
         countByParam[key] = (countByParam[key] || 0) + 1
 
@@ -245,10 +310,10 @@ export async function getParticipationStats(
 
 // Branch profile drill-down: dual bars (Male/Female) per sport or year
 export async function getBranchProfileData(
-    branch: string,   // branch name or 'Overall'
-    xAxis: string,    // 'sport' | 'year'
+    branch: string, // branch name or 'Overall'
+    xAxis: string, // 'sport' | 'year'
     startDate?: string,
-    endDate?: string,
+    endDate?: string
 ) {
     const adminSupabase = createAdminClient()
 
@@ -270,7 +335,16 @@ export async function getBranchProfileData(
         .select('id, branch, gender, year')
         .in('id', userIds)
 
-    const profileMap = Object.fromEntries((profiles || []).map((p: { id: string; branch: string | null; gender: string | null; year: string | null }) => [p.id, p]))
+    const profileMap = Object.fromEntries(
+        (profiles || []).map(
+            (p: {
+                id: string
+                branch: string | null
+                gender: string | null
+                year: string | null
+            }) => [p.id, p]
+        )
+    )
 
     let courtMap: Record<string, string> = {}
     if (xAxis === 'sport') {
@@ -279,7 +353,9 @@ export async function getBranchProfileData(
             .from('courts')
             .select('id, sport')
             .in('id', courtIds)
-        courtMap = Object.fromEntries((courts || []).map((c: { id: string; sport: string }) => [c.id, c.sport]))
+        courtMap = Object.fromEntries(
+            (courts || []).map((c: { id: string; sport: string }) => [c.id, c.sport])
+        )
     }
 
     const map: Record<string, { Male: number; Female: number }> = {}
@@ -288,9 +364,10 @@ export async function getBranchProfileData(
         const profile = profileMap[(b as { user_id: string }).user_id]
         if (branch !== 'Overall' && profile?.branch !== branch) continue
 
-        const key = xAxis === 'sport'
-            ? (courtMap[(b as { court_id: string }).court_id] || 'Unknown')
-            : (profile?.year || 'Unknown')
+        const key =
+            xAxis === 'sport'
+                ? courtMap[(b as { court_id: string }).court_id] || 'Unknown'
+                : profile?.year || 'Unknown'
 
         if (!map[key]) map[key] = { Male: 0, Female: 0 }
         const gender: string = profile?.gender || ''
@@ -300,7 +377,7 @@ export async function getBranchProfileData(
 
     return Object.entries(map)
         .map(([label, counts]) => ({ label, ...counts }))
-        .sort((a, b) => (b.Male + b.Female) - (a.Male + a.Female))
+        .sort((a, b) => b.Male + b.Female - (a.Male + a.Female))
 }
 
 // Admin leaderboard: all students ordered by monthly points, optionally filtered by date range
@@ -312,7 +389,11 @@ export async function getAdminLeaderboard(startDate?: string, endDate?: string) 
         // Auto-reset points if we're in a new calendar month (idempotent RPC).
         // When a fresh reset runs, notify the top-5 students who earned a priority booking slot.
         const { data: resetResult } = await adminSupabase.rpc('reset_monthly_points')
-        if (resetResult?.reset_count > 0 && Array.isArray(resetResult?.top5_ids) && resetResult.top5_ids.length > 0) {
+        if (
+            resetResult?.reset_count > 0 &&
+            Array.isArray(resetResult?.top5_ids) &&
+            resetResult.top5_ids.length > 0
+        ) {
             await sendNotifications(
                 resetResult.top5_ids.map((id: string) => ({
                     recipientId: id,

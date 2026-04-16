@@ -1,7 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogBody, DialogFooter } from './ui/dialog'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogClose,
+    DialogBody,
+    DialogFooter,
+} from './ui/dialog'
 import { Button } from './ui/button'
 import { createCourt, updateCourt, deleteCourt } from '@/actions/admin'
 import { useRouter } from 'next/navigation'
@@ -58,13 +66,13 @@ export function CourtForm({ mode, court, sport, children }: CourtFormProps) {
             }
         }
 
-        setSelectedFiles(prev => [...prev, ...files])
+        setSelectedFiles((prev) => [...prev, ...files])
 
         // Create preview URLs
-        files.forEach(file => {
+        files.forEach((file) => {
             const reader = new FileReader()
             reader.onloadend = () => {
-                setPreviewUrls(prev => [...prev, reader.result as string])
+                setPreviewUrls((prev) => [...prev, reader.result as string])
             }
             reader.readAsDataURL(file)
         })
@@ -73,12 +81,12 @@ export function CourtForm({ mode, court, sport, children }: CourtFormProps) {
     const removeImage = (index: number) => {
         if (index < (court?.pictures?.length || 0)) {
             // Removing existing image
-            setPreviewUrls(prev => prev.filter((_, i) => i !== index))
+            setPreviewUrls((prev) => prev.filter((_, i) => i !== index))
         } else {
             // Removing newly selected file
             const newFileIndex = index - (court?.pictures?.length || 0)
-            setSelectedFiles(prev => prev.filter((_, i) => i !== newFileIndex))
-            setPreviewUrls(prev => prev.filter((_, i) => i !== index))
+            setSelectedFiles((prev) => prev.filter((_, i) => i !== newFileIndex))
+            setPreviewUrls((prev) => prev.filter((_, i) => i !== index))
         }
     }
 
@@ -92,14 +100,12 @@ export function CourtForm({ mode, court, sport, children }: CourtFormProps) {
 
             // For edit mode, send existing images that weren't removed
             if (mode === 'edit') {
-                const existingImages = previewUrls.filter(url =>
-                    court?.pictures?.includes(url)
-                )
+                const existingImages = previewUrls.filter((url) => court?.pictures?.includes(url))
                 formData.append('existingImages', JSON.stringify(existingImages))
             }
 
             // Add new image files
-            selectedFiles.forEach(file => {
+            selectedFiles.forEach((file) => {
                 formData.append('images', file)
             })
 
@@ -133,11 +139,17 @@ export function CourtForm({ mode, court, sport, children }: CourtFormProps) {
                         </DialogHeader>
                         <DialogBody>
                             <p className="text-gray-600">
-                                Are you sure you want to delete <strong>{court?.name}</strong>? This action cannot be undone.
+                                Are you sure you want to delete <strong>{court?.name}</strong>? This
+                                action cannot be undone.
                             </p>
                         </DialogBody>
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setOpen(false)}
+                                disabled={loading}
+                            >
                                 Cancel
                             </Button>
                             <form onSubmit={handleSubmit}>
@@ -159,14 +171,19 @@ export function CourtForm({ mode, court, sport, children }: CourtFormProps) {
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <form onSubmit={handleSubmit}>
                         <DialogHeader>
-                            <DialogTitle>{mode === 'create' ? `Add Court (${sport})` : 'Edit Court'}</DialogTitle>
+                            <DialogTitle>
+                                {mode === 'create' ? `Add Court (${sport})` : 'Edit Court'}
+                            </DialogTitle>
                             <DialogClose onClose={() => setOpen(false)} />
                         </DialogHeader>
                         <DialogBody>
                             <div className="space-y-4">
                                 {/* Court ID (Auto-generated) */}
                                 <div>
-                                    <label htmlFor="court_id" className="block text-sm font-semibold text-gray-900 mb-1">
+                                    <label
+                                        htmlFor="court_id"
+                                        className="block text-sm font-semibold text-gray-900 mb-1"
+                                    >
                                         Court ID (Auto-generated)
                                     </label>
                                     <input
@@ -180,7 +197,10 @@ export function CourtForm({ mode, court, sport, children }: CourtFormProps) {
 
                                 {/* Court Name */}
                                 <div>
-                                    <label htmlFor="name" className="block text-sm font-semibold text-gray-900 mb-1">
+                                    <label
+                                        htmlFor="name"
+                                        className="block text-sm font-semibold text-gray-900 mb-1"
+                                    >
                                         Court Name *
                                     </label>
                                     <input
@@ -196,7 +216,10 @@ export function CourtForm({ mode, court, sport, children }: CourtFormProps) {
 
                                 {/* Condition */}
                                 <div>
-                                    <label htmlFor="condition" className="block text-sm font-semibold text-gray-900 mb-1">
+                                    <label
+                                        htmlFor="condition"
+                                        className="block text-sm font-semibold text-gray-900 mb-1"
+                                    >
                                         Condition *
                                     </label>
                                     <select
@@ -215,7 +238,10 @@ export function CourtForm({ mode, court, sport, children }: CourtFormProps) {
                                 {/* Maintenance Dates */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label htmlFor="last_maintenance_date" className="block text-sm font-semibold text-gray-900 mb-1">
+                                        <label
+                                            htmlFor="last_maintenance_date"
+                                            className="block text-sm font-semibold text-gray-900 mb-1"
+                                        >
                                             Last Repaired
                                         </label>
                                         <input
@@ -229,7 +255,10 @@ export function CourtForm({ mode, court, sport, children }: CourtFormProps) {
                                     </div>
 
                                     <div>
-                                        <label htmlFor="next_check_date" className="block text-sm font-semibold text-gray-900 mb-1">
+                                        <label
+                                            htmlFor="next_check_date"
+                                            className="block text-sm font-semibold text-gray-900 mb-1"
+                                        >
                                             Last Checked
                                         </label>
                                         <input
@@ -296,7 +325,10 @@ export function CourtForm({ mode, court, sport, children }: CourtFormProps) {
 
                                 {/* Notes */}
                                 <div>
-                                    <label htmlFor="notes" className="block text-sm font-semibold text-gray-900 mb-1">
+                                    <label
+                                        htmlFor="notes"
+                                        className="block text-sm font-semibold text-gray-900 mb-1"
+                                    >
                                         Notes
                                     </label>
                                     <textarea
@@ -320,7 +352,9 @@ export function CourtForm({ mode, court, sport, children }: CourtFormProps) {
                                                 <p className="text-lg font-semibold text-gray-900">
                                                     {court?.usage_count || 0} bookings
                                                 </p>
-                                                <p className="text-xs text-gray-500">Auto-tracked from bookings</p>
+                                                <p className="text-xs text-gray-500">
+                                                    Auto-tracked from bookings
+                                                </p>
                                             </div>
                                         </div>
                                     </div>
@@ -328,7 +362,12 @@ export function CourtForm({ mode, court, sport, children }: CourtFormProps) {
                             </div>
                         </DialogBody>
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={loading}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setOpen(false)}
+                                disabled={loading}
+                            >
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={loading}>

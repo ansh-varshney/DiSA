@@ -35,8 +35,25 @@ function makeAuthDb() {
 /** Build a chainable chain that resolves to `res` on any terminal call */
 function chain(res: any = { data: null, error: null }) {
     const c: any = {}
-    for (const m of ['select','insert','update','delete','eq','neq','in','not','or',
-                      'gte','lte','lt','gt','ilike','order','limit','single']) {
+    for (const m of [
+        'select',
+        'insert',
+        'update',
+        'delete',
+        'eq',
+        'neq',
+        'in',
+        'not',
+        'or',
+        'gte',
+        'lte',
+        'lt',
+        'gt',
+        'ilike',
+        'order',
+        'limit',
+        'single',
+    ]) {
         c[m] = vi.fn().mockReturnValue(c)
     }
     c.single = vi.fn().mockResolvedValue(res)
@@ -61,7 +78,9 @@ describe('updateBookingStatus', () => {
 
     it('returns error when DB update fails', async () => {
         const db = makeAuthDb()
-        db.client.from = vi.fn(() => chain({ data: null, error: { message: 'constraint violation' } }))
+        db.client.from = vi.fn(() =>
+            chain({ data: null, error: { message: 'constraint violation' } })
+        )
         vi.mocked(createClient).mockResolvedValue(db.client as any)
 
         const result = await updateBookingStatus('b-1', 'confirmed')
@@ -86,7 +105,10 @@ describe('updateBookingStatus', () => {
         })
         // getBookingStudentIds — bookings query
         adminDb.mockTableOnce('bookings', {
-            data: { user_id: 'student-1', players_list: [{ id: 'student-2', status: 'confirmed' }] },
+            data: {
+                user_id: 'student-1',
+                players_list: [{ id: 'student-2', status: 'confirmed' }],
+            },
             error: null,
         })
         // getBookingStudentIds — profiles query
@@ -98,9 +120,7 @@ describe('updateBookingStatus', () => {
 
         await updateBookingStatus('b-1', 'active')
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
-            expect.arrayContaining([
-                expect.objectContaining({ type: 'booking_session_active' }),
-            ]),
+            expect.arrayContaining([expect.objectContaining({ type: 'booking_session_active' })])
         )
     })
 
@@ -144,7 +164,12 @@ describe('rejectWithReason', () => {
         const adminDb = makeMockDb()
         // getBookingForNotif (N6)
         adminDb.mockTableOnce('bookings', {
-            data: { id: 'b-1', start_time: FIXTURES.booking.start_time, user_id: 'student-1', courts: { name: 'Ct A', sport: 'badminton' } },
+            data: {
+                id: 'b-1',
+                start_time: FIXTURES.booking.start_time,
+                user_id: 'student-1',
+                courts: { name: 'Ct A', sport: 'badminton' },
+            },
             error: null,
         })
         vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
@@ -152,7 +177,10 @@ describe('rejectWithReason', () => {
         const result = await rejectWithReason('b-1', 'improper_gear', null, ['student-1'])
         expect(result).toEqual({ success: true })
         // Points deducted via RPC
-        expect(adminDb.rpc).toHaveBeenCalledWith('update_student_points', expect.objectContaining({ p_delta: -4 }))
+        expect(adminDb.rpc).toHaveBeenCalledWith(
+            'update_student_points',
+            expect.objectContaining({ p_delta: -4 })
+        )
     })
 
     it('deducts correct points per rejection reason', async () => {
@@ -180,7 +208,12 @@ describe('rejectWithReason', () => {
 
             const adminDb = makeMockDb()
             adminDb.mockTableOnce('bookings', {
-                data: { id: 'b-1', start_time: FIXTURES.booking.start_time, user_id: 'student-1', courts: { name: 'Ct A', sport: 'badminton' } },
+                data: {
+                    id: 'b-1',
+                    start_time: FIXTURES.booking.start_time,
+                    user_id: 'student-1',
+                    courts: { name: 'Ct A', sport: 'badminton' },
+                },
                 error: null,
             })
             vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
@@ -190,10 +223,13 @@ describe('rejectWithReason', () => {
             if (expectedDelta !== 0) {
                 expect(adminDb.rpc).toHaveBeenCalledWith(
                     'update_student_points',
-                    expect.objectContaining({ p_delta: expectedDelta }),
+                    expect.objectContaining({ p_delta: expectedDelta })
                 )
             } else {
-                expect(adminDb.rpc).not.toHaveBeenCalledWith('update_student_points', expect.anything())
+                expect(adminDb.rpc).not.toHaveBeenCalledWith(
+                    'update_student_points',
+                    expect.anything()
+                )
             }
         }
     })
@@ -213,7 +249,12 @@ describe('rejectWithReason', () => {
 
         const adminDb = makeMockDb()
         adminDb.mockTableOnce('bookings', {
-            data: { id: 'b-1', start_time: FIXTURES.booking.start_time, user_id: 'student-1', courts: { name: 'Ct A', sport: 'badminton' } },
+            data: {
+                id: 'b-1',
+                start_time: FIXTURES.booking.start_time,
+                user_id: 'student-1',
+                courts: { name: 'Ct A', sport: 'badminton' },
+            },
             error: null,
         })
         // check_and_apply_late_ban returns true → student is newly banned
@@ -228,7 +269,7 @@ describe('rejectWithReason', () => {
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
             expect.arrayContaining([
                 expect.objectContaining({ type: 'ban_applied', recipientId: 'student-1' }),
-            ]),
+            ])
         )
     })
 
@@ -247,7 +288,12 @@ describe('rejectWithReason', () => {
 
         const adminDb = makeMockDb()
         adminDb.mockTableOnce('bookings', {
-            data: { id: 'b-1', start_time: FIXTURES.booking.start_time, user_id: 's1', courts: { name: 'Ct', sport: 'badminton' } },
+            data: {
+                id: 'b-1',
+                start_time: FIXTURES.booking.start_time,
+                user_id: 's1',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
             error: null,
         })
         adminDb.rpc
@@ -282,7 +328,12 @@ describe('rejectWithReason', () => {
         const adminDb = makeMockDb()
         // getBookingForNotif — N6 skipped since studentIds is empty but still queried
         adminDb.mockTableOnce('bookings', {
-            data: { id: 'b-1', start_time: FIXTURES.booking.start_time, user_id: 'm2', courts: { name: 'Ct', sport: 'badminton' } },
+            data: {
+                id: 'b-1',
+                start_time: FIXTURES.booking.start_time,
+                user_id: 'm2',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
             error: null,
         })
         vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
@@ -310,7 +361,12 @@ describe('rejectWithReason', () => {
 
             const adminDb = makeMockDb()
             adminDb.mockTableOnce('bookings', {
-                data: { id: 'b-1', start_time: FIXTURES.booking.start_time, user_id: 'student-1', courts: { name: 'Ct A', sport: 'badminton' } },
+                data: {
+                    id: 'b-1',
+                    start_time: FIXTURES.booking.start_time,
+                    user_id: 'student-1',
+                    courts: { name: 'Ct A', sport: 'badminton' },
+                },
                 error: null,
             })
             vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
@@ -320,7 +376,7 @@ describe('rejectWithReason', () => {
             expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
                 expect.arrayContaining([
                     expect.objectContaining({ type: 'booking_rejected', recipientId: 'student-1' }),
-                ]),
+                ])
             )
         }
     })
@@ -334,7 +390,8 @@ describe('endSession', () => {
     it('awards +10 pts (base 8 + good equipment +2) for clean session', async () => {
         const db = makeAuthDb()
         db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
+            if (table === 'profiles')
+                return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
             return chain({ data: { total_usage_count: 5 }, error: null })
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -348,7 +405,12 @@ describe('endSession', () => {
         adminDb.mockTableOnce('profiles', { data: [{ id: 'student-1' }], error: null })
         // getBookingForNotif
         adminDb.mockTableOnce('bookings', {
-            data: { id: 'b-1', start_time: FIXTURES.booking.start_time, user_id: 'student-1', courts: { name: 'Ct', sport: 'badminton' } },
+            data: {
+                id: 'b-1',
+                start_time: FIXTURES.booking.start_time,
+                user_id: 'student-1',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
             error: null,
         })
         vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
@@ -364,22 +426,34 @@ describe('endSession', () => {
     it('awards +7 pts (base 8 - 1 minor damage) for minor damage', async () => {
         const db = makeAuthDb()
         db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
+            if (table === 'profiles')
+                return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
             return chain({ data: { total_usage_count: 0 }, error: null })
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
 
         const adminDb = makeMockDb()
-        adminDb.mockTableOnce('bookings', { data: { user_id: 's1', players_list: [] }, error: null })
+        adminDb.mockTableOnce('bookings', {
+            data: { user_id: 's1', players_list: [] },
+            error: null,
+        })
         adminDb.mockTableOnce('profiles', { data: [{ id: 's1' }], error: null })
         adminDb.mockTableOnce('bookings', {
-            data: { id: 'b-1', start_time: FIXTURES.booking.start_time, user_id: 's1', courts: { name: 'Ct', sport: 'badminton' } },
+            data: {
+                id: 'b-1',
+                start_time: FIXTURES.booking.start_time,
+                user_id: 's1',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
             error: null,
         })
         vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
 
         await endSession('b-1', [{ id: 'eq-1', condition: 'minor_damage' }])
-        expect(adminDb.rpc).toHaveBeenCalledWith('update_student_points', { p_student_id: 's1', p_delta: 7 })
+        expect(adminDb.rpc).toHaveBeenCalledWith('update_student_points', {
+            p_student_id: 's1',
+            p_delta: 7,
+        })
     })
 
     it('does NOT call points RPC for damaged equipment (delta=0 is skipped)', async () => {
@@ -389,16 +463,25 @@ describe('endSession', () => {
          */
         const db = makeAuthDb()
         db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
+            if (table === 'profiles')
+                return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
             return chain({ data: { total_usage_count: 0 }, error: null })
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
 
         const adminDb = makeMockDb()
-        adminDb.mockTableOnce('bookings', { data: { user_id: 's1', players_list: [] }, error: null })
+        adminDb.mockTableOnce('bookings', {
+            data: { user_id: 's1', players_list: [] },
+            error: null,
+        })
         adminDb.mockTableOnce('profiles', { data: [{ id: 's1' }], error: null })
         adminDb.mockTableOnce('bookings', {
-            data: { id: 'b-1', start_time: FIXTURES.booking.start_time, user_id: 's1', courts: { name: 'Ct', sport: 'badminton' } },
+            data: {
+                id: 'b-1',
+                start_time: FIXTURES.booking.start_time,
+                user_id: 's1',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
             error: null,
         })
         vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
@@ -411,16 +494,25 @@ describe('endSession', () => {
     it('sends N10 session_ended notification with correct points message', async () => {
         const db = makeAuthDb()
         db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
+            if (table === 'profiles')
+                return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
             return chain({ data: { total_usage_count: 0 }, error: null })
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
 
         const adminDb = makeMockDb()
-        adminDb.mockTableOnce('bookings', { data: { user_id: 's1', players_list: [] }, error: null })
+        adminDb.mockTableOnce('bookings', {
+            data: { user_id: 's1', players_list: [] },
+            error: null,
+        })
         adminDb.mockTableOnce('profiles', { data: [{ id: 's1' }], error: null })
         adminDb.mockTableOnce('bookings', {
-            data: { id: 'b-1', start_time: FIXTURES.booking.start_time, user_id: 's1', courts: { name: 'Badminton Court A', sport: 'badminton' } },
+            data: {
+                id: 'b-1',
+                start_time: FIXTURES.booking.start_time,
+                user_id: 's1',
+                courts: { name: 'Badminton Court A', sport: 'badminton' },
+            },
             error: null,
         })
         vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
@@ -433,14 +525,15 @@ describe('endSession', () => {
                     recipientId: 's1',
                     body: expect.stringContaining('+10 pts'),
                 }),
-            ]),
+            ])
         )
     })
 
     it('uses atomic RPC for points — does NOT do read-modify-write', async () => {
         const db = makeAuthDb()
         db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
+            if (table === 'profiles')
+                return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
             // bookings returns an active status so idempotency check passes; equipment returns usage count
             return chain({ data: { status: 'active', total_usage_count: 0 }, error: null })
         })
@@ -453,7 +546,12 @@ describe('endSession', () => {
         })
         adminDb.mockTableOnce('profiles', { data: [{ id: 's1' }, { id: 's2' }], error: null })
         adminDb.mockTableOnce('bookings', {
-            data: { id: 'b-1', start_time: FIXTURES.booking.start_time, user_id: 's1', courts: { name: 'Ct', sport: 'badminton' } },
+            data: {
+                id: 'b-1',
+                start_time: FIXTURES.booking.start_time,
+                user_id: 's1',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
             error: null,
         })
         vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
@@ -486,17 +584,26 @@ describe('emergencyEndSession', () => {
     it('marks booking completed and notifies players + admins', async () => {
         const db = makeAuthDb()
         db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
+            if (table === 'profiles')
+                return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
             return chain()
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
 
         const adminDb = makeMockDb()
         adminDb.mockTableOnce('bookings', { data: { equipment_ids: [] }, error: null })
-        adminDb.mockTableOnce('bookings', { data: { user_id: 's1', players_list: [] }, error: null })
+        adminDb.mockTableOnce('bookings', {
+            data: { user_id: 's1', players_list: [] },
+            error: null,
+        })
         adminDb.mockTableOnce('profiles', { data: [{ id: 's1' }], error: null })
         adminDb.mockTableOnce('bookings', {
-            data: { id: 'b-1', start_time: FIXTURES.booking.start_time, user_id: 's1', courts: { name: 'Ct', sport: 'badminton' } },
+            data: {
+                id: 'b-1',
+                start_time: FIXTURES.booking.start_time,
+                user_id: 's1',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
             error: null,
         })
         // notifyAdmins profiles query
@@ -507,10 +614,10 @@ describe('emergencyEndSession', () => {
         const result = await emergencyEndSession('b-1', 'fight broke out')
         expect(result).toEqual({ success: true })
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
-            expect.arrayContaining([expect.objectContaining({ type: 'session_ended_emergency' })]),
+            expect.arrayContaining([expect.objectContaining({ type: 'session_ended_emergency' })])
         )
         expect(vi.mocked(notifyAdmins)).toHaveBeenCalledWith(
-            expect.objectContaining({ type: 'emergency_alert' }),
+            expect.objectContaining({ type: 'emergency_alert' })
         )
     })
 })
@@ -531,7 +638,8 @@ describe('reportStudentPostSession', () => {
         it(`deducts ${delta} pts for reason: ${reason}`, async () => {
             const db = makeAuthDb()
             db.client.from = vi.fn((table: string) => {
-                if (table === 'profiles') return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
+                if (table === 'profiles')
+                    return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
                 return chain()
             })
             vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -558,7 +666,8 @@ describe('reportStudentPostSession', () => {
     it('sends N13 violation notification to the specific student only', async () => {
         const db = makeAuthDb()
         db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
+            if (table === 'profiles')
+                return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
             return chain()
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -574,7 +683,7 @@ describe('reportStudentPostSession', () => {
                 recipientId: 'student-42',
                 type: 'violation_issued',
                 body: expect.stringContaining('broke the net'),
-            }),
+            })
         )
     })
 })
@@ -588,14 +697,17 @@ describe('reportLostEquipment', () => {
         const db = makeMockDb()
         db.auth.getUser.mockResolvedValue({ data: { user: null } })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
-        expect(await reportLostEquipment('b-1', ['eq-1'], ['s-1'])).toEqual({ error: 'Unauthorized' })
+        expect(await reportLostEquipment('b-1', ['eq-1'], ['s-1'])).toEqual({
+            error: 'Unauthorized',
+        })
     })
 
     it('marks lost equipment as unavailable with condition=lost', async () => {
         const db = makeAuthDb()
         const updateSpy = vi.fn().mockReturnThis()
         db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
+            if (table === 'profiles')
+                return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
             const c = chain()
             if (table === 'equipment') c.update = updateSpy
             return c
@@ -609,14 +721,15 @@ describe('reportLostEquipment', () => {
         await reportLostEquipment('b-1', ['eq-1'], ['s-1'])
         // update must be called on equipment with is_available:false, condition:'lost'
         expect(updateSpy).toHaveBeenCalledWith(
-            expect.objectContaining({ is_available: false, condition: 'lost' }),
+            expect.objectContaining({ is_available: false, condition: 'lost' })
         )
     })
 
     it('deducts -20 pts per student via atomic RPC', async () => {
         const db = makeAuthDb()
         db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
+            if (table === 'profiles')
+                return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
             return chain()
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -626,14 +739,21 @@ describe('reportLostEquipment', () => {
         vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
 
         await reportLostEquipment('b-1', ['eq-1'], ['s-1', 's-2'])
-        expect(adminDb.rpc).toHaveBeenCalledWith('update_student_points', { p_student_id: 's-1', p_delta: -20 })
-        expect(adminDb.rpc).toHaveBeenCalledWith('update_student_points', { p_student_id: 's-2', p_delta: -20 })
+        expect(adminDb.rpc).toHaveBeenCalledWith('update_student_points', {
+            p_student_id: 's-1',
+            p_delta: -20,
+        })
+        expect(adminDb.rpc).toHaveBeenCalledWith('update_student_points', {
+            p_student_id: 's-2',
+            p_delta: -20,
+        })
     })
 
     it('sends N14 to student players AND N21 to admins', async () => {
         const db = makeAuthDb()
         db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
+            if (table === 'profiles')
+                return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
             return chain()
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -647,10 +767,12 @@ describe('reportLostEquipment', () => {
 
         await reportLostEquipment('b-1', ['eq-1'], ['s-1'])
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
-            expect.arrayContaining([expect.objectContaining({ type: 'equipment_lost', recipientId: 's-1' })]),
+            expect.arrayContaining([
+                expect.objectContaining({ type: 'equipment_lost', recipientId: 's-1' }),
+            ])
         )
         expect(vi.mocked(notifyAdmins)).toHaveBeenCalledWith(
-            expect.objectContaining({ type: 'equipment_incident' }),
+            expect.objectContaining({ type: 'equipment_incident' })
         )
     })
 })
@@ -663,7 +785,8 @@ describe('expireBooking', () => {
     it('returns already_handled when booking is not pending', async () => {
         const db = makeAuthDb()
         db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
+            if (table === 'profiles')
+                return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
             return chain({ data: { status: 'active' }, error: null })
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -696,7 +819,12 @@ describe('expireBooking', () => {
         const adminDb = makeMockDb()
         // getBookingForNotif uses admin client
         adminDb.mockTableOnce('bookings', {
-            data: { id: 'b-1', start_time: FIXTURES.booking.start_time, user_id: 's-1', courts: { name: 'Ct', sport: 'badminton' } },
+            data: {
+                id: 'b-1',
+                start_time: FIXTURES.booking.start_time,
+                user_id: 's-1',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
             error: null,
         })
         vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
@@ -704,7 +832,7 @@ describe('expireBooking', () => {
         const result = await expireBooking('b-1', ['s-1'])
         expect(result).toEqual({ success: true })
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
-            expect.arrayContaining([expect.objectContaining({ type: 'booking_expired' })]),
+            expect.arrayContaining([expect.objectContaining({ type: 'booking_expired' })])
         )
     })
 })
@@ -831,7 +959,7 @@ describe('getBookingDetails — lazy expiry', () => {
 
         // Should send expiry notifications
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
-            expect.arrayContaining([expect.objectContaining({ type: 'booking_expired' })]),
+            expect.arrayContaining([expect.objectContaining({ type: 'booking_expired' })])
         )
     })
 

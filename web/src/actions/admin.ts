@@ -5,7 +5,11 @@ import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { generateCourtId } from '@/lib/sports'
 import { generateEquipmentId } from '@/lib/sports'
-import { sendNotification, sendNotifications, broadcastToAllStudents } from '@/actions/notifications'
+import {
+    sendNotification,
+    sendNotifications,
+    broadcastToAllStudents,
+} from '@/actions/notifications'
 
 /**
  * Admin Actions - Server actions for admin dashboard
@@ -18,7 +22,9 @@ import { sendNotification, sendNotifications, broadcastToAllStudents } from '@/a
 
 async function verifyAdmin() {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
 
     if (!user) {
         throw new Error('Unauthorized: No user logged in')
@@ -44,10 +50,7 @@ async function verifyAdmin() {
 export async function getEquipmentList(sport?: string) {
     const supabase = await createClient()
 
-    let query = supabase
-        .from('equipment')
-        .select('*')
-        .order('created_at', { ascending: false })
+    let query = supabase.from('equipment').select('*').order('created_at', { ascending: false })
 
     if (sport && sport !== 'all') {
         query = query.eq('sport', sport)
@@ -72,15 +75,15 @@ export async function createEquipment(formData: FormData) {
     const equipmentData = {
         name: formData.get('name') as string,
         sport: formData.get('sport') as string,
-        condition: formData.get('condition') as string || 'good',
-        vendor_name: formData.get('vendor_name') as string || null,
+        condition: (formData.get('condition') as string) || 'good',
+        vendor_name: (formData.get('vendor_name') as string) || null,
         cost: formData.get('cost') ? parseFloat(formData.get('cost') as string) : null,
-        purchase_date: formData.get('purchase_date') as string || null,
+        purchase_date: (formData.get('purchase_date') as string) || null,
         expected_lifespan_days: 365, // Default value, will be synced later
         is_available: true,
         total_usage_count: 0,
         pictures: [] as string[],
-        notes: formData.get('notes') as string || ''
+        notes: (formData.get('notes') as string) || '',
     }
 
     // Validate sport is provided
@@ -101,7 +104,7 @@ export async function createEquipment(formData: FormData) {
         .from('equipment')
         .insert({
             ...equipmentData,
-            equipment_id: equipmentId
+            equipment_id: equipmentId,
         })
         .select()
         .single()
@@ -128,7 +131,7 @@ export async function createEquipment(formData: FormData) {
                 .from('equipment-images')
                 .upload(filePath, file, {
                     cacheControl: '3600',
-                    upsert: false
+                    upsert: false,
                 })
 
             if (uploadError) {
@@ -137,9 +140,9 @@ export async function createEquipment(formData: FormData) {
             }
 
             // Get public URL
-            const { data: { publicUrl } } = supabase.storage
-                .from('equipment-images')
-                .getPublicUrl(filePath)
+            const {
+                data: { publicUrl },
+            } = supabase.storage.from('equipment-images').getPublicUrl(filePath)
 
             uploadedUrls.push(publicUrl)
         }
@@ -172,7 +175,7 @@ export async function updateEquipment(id: string, formData: FormData) {
         .single()
 
     // Get existing images that should be kept
-    const existingImagesJson = formData.get('existingImages') as string || '[]'
+    const existingImagesJson = (formData.get('existingImages') as string) || '[]'
     const existingImages = JSON.parse(existingImagesJson) as string[]
 
     // Get new image files
@@ -192,7 +195,7 @@ export async function updateEquipment(id: string, formData: FormData) {
                 .from('equipment-images')
                 .upload(filePath, file, {
                     cacheControl: '3600',
-                    upsert: false
+                    upsert: false,
                 })
 
             if (uploadError) {
@@ -200,9 +203,9 @@ export async function updateEquipment(id: string, formData: FormData) {
                 continue
             }
 
-            const { data: { publicUrl } } = supabase.storage
-                .from('equipment-images')
-                .getPublicUrl(filePath)
+            const {
+                data: { publicUrl },
+            } = supabase.storage.from('equipment-images').getPublicUrl(filePath)
 
             uploadedUrls.push(publicUrl)
         }
@@ -218,9 +221,7 @@ export async function updateEquipment(id: string, formData: FormData) {
             const urlParts = url.split('/storage/v1/object/public/equipment-images/')
             if (urlParts.length >= 2) {
                 const filePath = urlParts[1]
-                await supabase.storage
-                    .from('equipment-images')
-                    .remove([filePath])
+                await supabase.storage.from('equipment-images').remove([filePath])
             }
         } catch (err) {
             console.error('Error deleting image:', err)
@@ -231,11 +232,11 @@ export async function updateEquipment(id: string, formData: FormData) {
         name: formData.get('name') as string,
         sport: formData.get('sport') as string,
         condition: formData.get('condition') as string,
-        vendor_name: formData.get('vendor_name') as string || null,
+        vendor_name: (formData.get('vendor_name') as string) || null,
         cost: formData.get('cost') ? parseFloat(formData.get('cost') as string) : null,
-        purchase_date: formData.get('purchase_date') as string || null,
+        purchase_date: (formData.get('purchase_date') as string) || null,
         pictures: uploadedUrls,
-        notes: formData.get('notes') as string || ''
+        notes: (formData.get('notes') as string) || '',
         // Note: usage_count and expected_lifespan_days are NOT updated here (read-only)
     }
 
@@ -266,10 +267,7 @@ export async function deleteEquipment(id: string) {
         .single()
 
     // Soft-delete: mark as retired to preserve referential integrity with booking history
-    const { error } = await supabase
-        .from('equipment')
-        .update({ condition: 'retired' })
-        .eq('id', id)
+    const { error } = await supabase.from('equipment').update({ condition: 'retired' }).eq('id', id)
 
     if (error) {
         console.error('Error deleting equipment:', error)
@@ -283,9 +281,7 @@ export async function deleteEquipment(id: string) {
                 const urlParts = url.split('/storage/v1/object/public/equipment-images/')
                 if (urlParts.length >= 2) {
                     const filePath = urlParts[1]
-                    await supabase.storage
-                        .from('equipment-images')
-                        .remove([filePath])
+                    await supabase.storage.from('equipment-images').remove([filePath])
                 }
             } catch (err) {
                 console.error('Error deleting image:', err)
@@ -304,10 +300,7 @@ export async function deleteEquipment(id: string) {
 export async function getCourtsList(sport?: string) {
     const supabase = await createClient()
 
-    let query = supabase
-        .from('courts')
-        .select('*')
-        .order('created_at', { ascending: false })
+    let query = supabase.from('courts').select('*').order('created_at', { ascending: false })
 
     if (sport && sport !== 'all') {
         query = query.eq('sport', sport)
@@ -332,13 +325,13 @@ export async function createCourt(formData: FormData) {
     const courtData = {
         name: formData.get('name') as string,
         sport: formData.get('sport') as string,
-        condition: formData.get('condition') as string || 'good',
-        last_maintenance_date: formData.get('last_maintenance_date') as string || null,
-        next_check_date: formData.get('next_check_date') as string || null,
+        condition: (formData.get('condition') as string) || 'good',
+        last_maintenance_date: (formData.get('last_maintenance_date') as string) || null,
+        next_check_date: (formData.get('next_check_date') as string) || null,
         is_active: true,
         usage_count: 0,
         pictures: [] as string[],
-        notes: formData.get('notes') as string || ''
+        notes: (formData.get('notes') as string) || '',
     }
 
     // Validate sport is provided
@@ -359,14 +352,16 @@ export async function createCourt(formData: FormData) {
         .from('courts')
         .insert({
             ...courtData,
-            court_id: courtId
+            court_id: courtId,
         })
         .select()
         .single()
 
     if (insertError) {
         console.error('Error creating court:', insertError)
-        throw new Error(`Failed to create court: ${insertError.message || JSON.stringify(insertError)}`)
+        throw new Error(
+            `Failed to create court: ${insertError.message || JSON.stringify(insertError)}`
+        )
     }
 
     // Upload images if any
@@ -386,7 +381,7 @@ export async function createCourt(formData: FormData) {
                 .from('court-images')
                 .upload(filePath, file, {
                     cacheControl: '3600',
-                    upsert: false
+                    upsert: false,
                 })
 
             if (uploadError) {
@@ -395,9 +390,9 @@ export async function createCourt(formData: FormData) {
             }
 
             // Get public URL
-            const { data: { publicUrl } } = supabase.storage
-                .from('court-images')
-                .getPublicUrl(filePath)
+            const {
+                data: { publicUrl },
+            } = supabase.storage.from('court-images').getPublicUrl(filePath)
 
             uploadedUrls.push(publicUrl)
         }
@@ -430,7 +425,7 @@ export async function updateCourt(id: string, formData: FormData) {
         .single()
 
     // Get existing images that user wants to keep
-    const existingImagesJson = formData.get('existingImages') as string || '[]'
+    const existingImagesJson = (formData.get('existingImages') as string) || '[]'
     const existingImages = JSON.parse(existingImagesJson) as string[]
 
     const newImageFiles = formData.getAll('images') as File[]
@@ -449,7 +444,7 @@ export async function updateCourt(id: string, formData: FormData) {
                 .from('court-images')
                 .upload(filePath, file, {
                     cacheControl: '3600',
-                    upsert: false
+                    upsert: false,
                 })
 
             if (uploadError) {
@@ -457,9 +452,9 @@ export async function updateCourt(id: string, formData: FormData) {
                 continue
             }
 
-            const { data: { publicUrl } } = supabase.storage
-                .from('court-images')
-                .getPublicUrl(filePath)
+            const {
+                data: { publicUrl },
+            } = supabase.storage.from('court-images').getPublicUrl(filePath)
 
             uploadedUrls.push(publicUrl)
         }
@@ -475,9 +470,7 @@ export async function updateCourt(id: string, formData: FormData) {
             const urlParts = url.split('/storage/v1/object/public/court-images/')
             if (urlParts.length >= 2) {
                 const filePath = urlParts[1]
-                await supabase.storage
-                    .from('court-images')
-                    .remove([filePath])
+                await supabase.storage.from('court-images').remove([filePath])
             }
         } catch (err) {
             console.error('Error deleting image:', err)
@@ -487,10 +480,10 @@ export async function updateCourt(id: string, formData: FormData) {
     const updates = {
         name: formData.get('name') as string,
         condition: formData.get('condition') as string,
-        last_maintenance_date: formData.get('last_maintenance_date') as string || null,
-        next_check_date: formData.get('next_check_date') as string || null,
+        last_maintenance_date: (formData.get('last_maintenance_date') as string) || null,
+        next_check_date: (formData.get('next_check_date') as string) || null,
         pictures: uploadedUrls,
-        notes: formData.get('notes') as string || ''
+        notes: (formData.get('notes') as string) || '',
     }
 
     const { data, error } = await supabase
@@ -513,11 +506,7 @@ export async function deleteCourt(id: string) {
     const { supabase } = await verifyAdmin()
 
     // Get court data to delete images
-    const { data: court } = await supabase
-        .from('courts')
-        .select('pictures')
-        .eq('id', id)
-        .single()
+    const { data: court } = await supabase.from('courts').select('pictures').eq('id', id).single()
 
     // Delete associated images from storage
     if (court?.pictures && court.pictures.length > 0) {
@@ -526,9 +515,7 @@ export async function deleteCourt(id: string) {
                 const urlParts = url.split('/storage/v1/object/public/court-images/')
                 if (urlParts.length >= 2) {
                     const filePath = urlParts[1]
-                    await supabase.storage
-                        .from('court-images')
-                        .remove([filePath])
+                    await supabase.storage.from('court-images').remove([filePath])
                 }
             } catch (err) {
                 console.error('Error deleting image:', err)
@@ -581,7 +568,7 @@ export async function createAnnouncement(title: string, content: string) {
         .insert({
             title,
             content,
-            created_by: user.id
+            created_by: user.id,
         })
         .select()
         .single()
@@ -627,10 +614,7 @@ export async function updateAnnouncement(id: string, title: string, content: str
 export async function deleteAnnouncement(id: string) {
     const { supabase } = await verifyAdmin()
 
-    const { error } = await supabase
-        .from('announcements')
-        .delete()
-        .eq('id', id)
+    const { error } = await supabase.from('announcements').delete().eq('id', id)
 
     if (error) {
         console.error('Error deleting announcement:', error)
@@ -697,10 +681,8 @@ export async function getReservationsByDate(sport: string, date: string) {
         return []
     }
 
-
     return data || []
 }
-
 
 /**
  * Cancel a reservation (soft-cancels the booking by setting status = 'cancelled')
@@ -732,8 +714,11 @@ export async function cancelReservation(bookingId: string) {
     if (booking && !booking.is_priority && !booking.is_maintenance) {
         const courtName = (booking as any).courts?.name || 'the court'
         const startDisplay = new Date(booking.start_time).toLocaleString('en-IN', {
-            weekday: 'short', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit',
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
         })
 
         const confirmedIds = new Set<string>()
@@ -745,7 +730,7 @@ export async function cancelReservation(bookingId: string) {
             if (!status || status === 'confirmed') confirmedIds.add(pid)
         }
 
-        const notifications = Array.from(confirmedIds).map(pid => ({
+        const notifications = Array.from(confirmedIds).map((pid) => ({
             recipientId: pid,
             type: 'force_cancelled',
             title: 'Booking Cancelled by Admin',
@@ -793,14 +778,23 @@ export async function priorityReserveSlot(
         .not('is_maintenance', 'eq', true)
 
     // Cancel all conflicting bookings and collect affected student IDs
-    const notifications: Array<{ recipientId: string; type: string; title: string; body: string; data: Record<string, any> }> = []
+    const notifications: Array<{
+        recipientId: string
+        type: string
+        title: string
+        body: string
+        data: Record<string, any>
+    }> = []
 
     if (conflicting && conflicting.length > 0) {
         const courtData = (conflicting[0] as any).courts
         const courtName = courtData?.name || 'the court'
         const startDisplay = startDateTime.toLocaleString('en-IN', {
-            weekday: 'short', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit',
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
         })
 
         for (const booking of conflicting) {
@@ -811,7 +805,9 @@ export async function priorityReserveSlot(
                 .eq('id', booking.id)
 
             // Collect all confirmed players + booker for N25
-            const playersList = Array.isArray((booking as any).players_list) ? (booking as any).players_list : []
+            const playersList = Array.isArray((booking as any).players_list)
+                ? (booking as any).players_list
+                : []
             const confirmedIds = new Set<string>()
             confirmedIds.add((booking as any).user_id)
             for (const p of playersList) {
@@ -847,7 +843,7 @@ export async function priorityReserveSlot(
             status: 'confirmed',
             is_priority: true,
             num_players: numPlayers,
-            equipment_ids: equipmentIds
+            equipment_ids: equipmentIds,
         })
         .select()
         .single()
@@ -891,13 +887,22 @@ export async function reserveForMaintenance(
         .eq('is_priority', false)
         .not('is_maintenance', 'eq', true)
 
-    const notifications: Array<{ recipientId: string; type: string; title: string; body: string; data: Record<string, any> }> = []
+    const notifications: Array<{
+        recipientId: string
+        type: string
+        title: string
+        body: string
+        data: Record<string, any>
+    }> = []
 
     if (conflicting && conflicting.length > 0) {
         const courtName = (conflicting[0] as any).courts?.name || 'the court'
         const startDisplay = startDateTime.toLocaleString('en-IN', {
-            weekday: 'short', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit',
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
         })
 
         for (const booking of conflicting) {
@@ -906,7 +911,9 @@ export async function reserveForMaintenance(
                 .update({ status: 'cancelled' })
                 .eq('id', booking.id)
 
-            const playersList = Array.isArray((booking as any).players_list) ? (booking as any).players_list : []
+            const playersList = Array.isArray((booking as any).players_list)
+                ? (booking as any).players_list
+                : []
             const confirmedIds = new Set<string>()
             confirmedIds.add((booking as any).user_id)
             for (const p of playersList) {
@@ -942,7 +949,7 @@ export async function reserveForMaintenance(
             status: 'confirmed',
             is_maintenance: true,
             num_players: numPlayers,
-            equipment_ids: equipmentIds
+            equipment_ids: equipmentIds,
         })
         .select()
         .single()
@@ -977,7 +984,6 @@ export async function getEquipmentBySport(sport: string) {
     return data || []
 }
 
-
 export async function forceCancelBooking(bookingId: string) {
     const { supabase } = await verifyAdmin()
     const adminSupabase = createAdminClient()
@@ -1005,8 +1011,11 @@ export async function forceCancelBooking(bookingId: string) {
     if (booking && !booking.is_priority && !booking.is_maintenance) {
         const courtName = (booking as any).courts?.name || 'the court'
         const startDisplay = new Date(booking.start_time).toLocaleString('en-IN', {
-            weekday: 'short', month: 'short', day: 'numeric',
-            hour: '2-digit', minute: '2-digit',
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
         })
 
         const confirmedIds = new Set<string>()
@@ -1018,7 +1027,7 @@ export async function forceCancelBooking(bookingId: string) {
             if (!status || status === 'confirmed') confirmedIds.add(pid)
         }
 
-        const notifications = Array.from(confirmedIds).map(pid => ({
+        const notifications = Array.from(confirmedIds).map((pid) => ({
             recipientId: pid,
             type: 'force_cancelled',
             title: 'Booking Cancelled by Admin',
@@ -1069,11 +1078,13 @@ export async function getBookingLogs(sport: string, date: string) {
     // Step 2: fetch bookings for those courts on the given date (ALL statuses)
     const { data: bookings, error } = await supabase
         .from('bookings')
-        .select(`
+        .select(
+            `
             id, status, start_time, end_time, num_players,
             equipment_ids, players_list, is_priority, is_maintenance, created_at, court_id,
             profiles!bookings_user_id_fkey(full_name, student_id, email)
-        `)
+        `
+        )
         .in('court_id', courtIds)
         .gte('start_time', startOfDay.toISOString())
         .lte('start_time', endOfDay.toISOString())
@@ -1102,11 +1113,14 @@ export async function getBookingLogs(sport: string, date: string) {
     }
 
     // Step 4: fetch player profiles for all players_list IDs across all bookings
-    const allPlayerIds = [
-        ...new Set(bookings.flatMap((b: any) => b.players_list || []))
-    ].filter(Boolean) as string[]
+    const allPlayerIds = [...new Set(bookings.flatMap((b: any) => b.players_list || []))].filter(
+        Boolean
+    ) as string[]
 
-    let playerMap: Record<string, { id: string; full_name: string; student_id: string; email: string }> = {}
+    let playerMap: Record<
+        string,
+        { id: string; full_name: string; student_id: string; email: string }
+    > = {}
     if (allPlayerIds.length > 0) {
         const { data: playerProfiles } = await supabase
             .from('profiles')
@@ -1163,10 +1177,7 @@ export async function getFeedback(statusFilter?: string, categoryFilter?: string
 export async function markFeedbackAsRead(feedbackId: string) {
     const supabase = await createClient()
 
-    const { error } = await supabase
-        .from('feedback_complaints')
-        .delete()
-        .eq('id', feedbackId)
+    const { error } = await supabase.from('feedback_complaints').delete().eq('id', feedbackId)
 
     if (error) {
         console.error('Error deleting feedback:', error)
@@ -1210,10 +1221,7 @@ export async function updateComplaintStatus(id: string, status: string) {
 export async function getCoordinators(sport?: string) {
     const supabase = await createClient()
 
-    let query = supabase
-        .from('coordinators')
-        .select('*')
-        .order('created_at', { ascending: false })
+    let query = supabase.from('coordinators').select('*').order('created_at', { ascending: false })
 
     if (sport && sport !== 'all') {
         query = query.eq('sport', sport)
@@ -1236,9 +1244,9 @@ export async function createCoordinator(formData: FormData) {
         name: formData.get('name') as string,
         role: formData.get('role') as string,
         sport: formData.get('sport') as string,
-        email: formData.get('email') as string || null,
-        phone: formData.get('phone') as string || null,
-        notes: formData.get('notes') as string || null,
+        email: (formData.get('email') as string) || null,
+        phone: (formData.get('phone') as string) || null,
+        notes: (formData.get('notes') as string) || null,
     }
 
     const { data, error } = await supabase
@@ -1263,9 +1271,9 @@ export async function updateCoordinator(id: string, formData: FormData) {
         name: formData.get('name') as string,
         role: formData.get('role') as string,
         sport: formData.get('sport') as string,
-        email: formData.get('email') as string || null,
-        phone: formData.get('phone') as string || null,
-        notes: formData.get('notes') as string || null,
+        email: (formData.get('email') as string) || null,
+        phone: (formData.get('phone') as string) || null,
+        notes: (formData.get('notes') as string) || null,
     }
 
     const { data, error } = await supabase
@@ -1287,10 +1295,7 @@ export async function updateCoordinator(id: string, formData: FormData) {
 export async function deleteCoordinator(id: string) {
     const { supabase } = await verifyAdmin()
 
-    const { error } = await supabase
-        .from('coordinators')
-        .delete()
-        .eq('id', id)
+    const { error } = await supabase.from('coordinators').delete().eq('id', id)
 
     if (error) {
         console.error('Error deleting coordinator:', error)
@@ -1310,7 +1315,9 @@ export async function getViolations(filters?: { severity?: string; violationType
 
     let query = supabase
         .from('student_violations')
-        .select('*, profiles!student_violations_student_id_fkey(full_name, student_id), reported_by_profile:profiles!student_violations_reported_by_fkey(full_name)')
+        .select(
+            '*, profiles!student_violations_student_id_fkey(full_name, student_id), reported_by_profile:profiles!student_violations_reported_by_fkey(full_name)'
+        )
         .order('created_at', { ascending: false })
 
     if (filters?.severity && filters.severity !== 'all') {
@@ -1340,7 +1347,9 @@ export async function getDefaulterStudents() {
     // Fetch all violations with student details (admin client bypasses RLS)
     const { data: violations, error } = await adminSupabase
         .from('student_violations')
-        .select('*, profiles!student_violations_student_id_fkey(full_name, student_id, email, phone_number, banned_until), reported_by_profile:profiles!student_violations_reported_by_fkey(full_name)')
+        .select(
+            '*, profiles!student_violations_student_id_fkey(full_name, student_id, email, phone_number, banned_until), reported_by_profile:profiles!student_violations_reported_by_fkey(full_name)'
+        )
         .order('created_at', { ascending: false })
 
     if (error) {
@@ -1353,21 +1362,24 @@ export async function getDefaulterStudents() {
     }
 
     // Group violations by student
-    const studentMap = new Map<string, {
-        student_id: string
-        student_name: string
-        student_roll: string
-        student_email: string
-        student_phone: string
-        banned_until: string | null
-        total_violations: number
-        late_arrival_count: number
-        latest_reason: string
-        latest_violation_type: string
-        latest_source: 'system' | 'manager'
-        latest_date: string
-        violations: any[]
-    }>()
+    const studentMap = new Map<
+        string,
+        {
+            student_id: string
+            student_name: string
+            student_roll: string
+            student_email: string
+            student_phone: string
+            banned_until: string | null
+            total_violations: number
+            late_arrival_count: number
+            latest_reason: string
+            latest_violation_type: string
+            latest_source: 'system' | 'manager'
+            latest_date: string
+            violations: any[]
+        }
+    >()
 
     violations.forEach((violation: any) => {
         const studentId = violation.student_id
@@ -1387,7 +1399,7 @@ export async function getDefaulterStudents() {
                 latest_violation_type: violation.violation_type || 'other',
                 latest_source: violation.reported_by ? 'manager' : 'system',
                 latest_date: violation.created_at,
-                violations: []
+                violations: [],
             })
         }
 
@@ -1399,8 +1411,8 @@ export async function getDefaulterStudents() {
         student.violations.push(violation)
     })
 
-    return Array.from(studentMap.values()).sort((a, b) =>
-        new Date(b.latest_date).getTime() - new Date(a.latest_date).getTime()
+    return Array.from(studentMap.values()).sort(
+        (a, b) => new Date(b.latest_date).getTime() - new Date(a.latest_date).getTime()
     )
 }
 
@@ -1414,7 +1426,9 @@ export async function removeStudentFromDefaulters(studentId: string) {
     await verifyAdmin()
     const adminSupabase = createAdminClient()
 
-    const { error } = await adminSupabase.rpc('clear_student_defaulter', { p_student_id: studentId })
+    const { error } = await adminSupabase.rpc('clear_student_defaulter', {
+        p_student_id: studentId,
+    })
 
     if (error) {
         console.error('Error clearing defaulter:', error)
@@ -1501,10 +1515,15 @@ export async function getDashboardStats() {
     const [equipmentCount, courtsCount, reservationsCount, complaintsCount] = await Promise.all([
         supabase.from('equipment').select('*', { count: 'exact', head: true }),
         supabase.from('courts').select('*', { count: 'exact', head: true }).eq('is_active', true),
-        supabase.from('bookings').select('*', { count: 'exact', head: true })
+        supabase
+            .from('bookings')
+            .select('*', { count: 'exact', head: true })
             .gte('start_time', new Date().toISOString().split('T')[0])
             .lt('start_time', new Date(Date.now() + 86400000).toISOString()),
-        supabase.from('feedback_complaints').select('*', { count: 'exact', head: true }).eq('status', 'open')
+        supabase
+            .from('feedback_complaints')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'open'),
     ])
 
     stats.totalEquipment = equipmentCount.count || 0

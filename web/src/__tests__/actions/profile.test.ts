@@ -99,7 +99,9 @@ describe('updateStudentProfile', () => {
         const db = makeAuthenticatedDb()
         vi.mocked(createClient).mockResolvedValue(db.client as any)
 
-        const result = await updateStudentProfile(makeFormData({ branch: '   ', year: '  ', gender: '  ' }))
+        const result = await updateStudentProfile(
+            makeFormData({ branch: '   ', year: '  ', gender: '  ' })
+        )
         expect(result).toEqual({ error: 'Branch, year, and gender are required' })
     })
 
@@ -108,7 +110,9 @@ describe('updateStudentProfile', () => {
         db.mockTable('profiles', { data: null, error: null })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
 
-        const result = await updateStudentProfile(makeFormData({ branch: '  CSE  ', year: ' 2 ', gender: ' Male ' }))
+        const result = await updateStudentProfile(
+            makeFormData({ branch: '  CSE  ', year: ' 2 ', gender: ' Male ' })
+        )
         expect(result).toEqual({ success: true })
     })
 

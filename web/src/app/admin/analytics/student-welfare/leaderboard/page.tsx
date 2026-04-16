@@ -35,7 +35,8 @@ export default async function StudentLeaderboardPage({
 
             {isDateFiltered && (
                 <p className="text-xs text-gray-400 italic -mt-2">
-                    Ranked by sessions completed in the selected period. Without a filter, ranked by total points.
+                    Ranked by sessions completed in the selected period. Without a filter, ranked by
+                    total points.
                 </p>
             )}
 
@@ -51,20 +52,28 @@ export default async function StudentLeaderboardPage({
                 </CardHeader>
                 <CardContent className="p-0">
                     {students.length === 0 ? (
-                        <p className="text-center text-gray-400 text-sm py-10">No student data found</p>
+                        <p className="text-center text-gray-400 text-sm py-10">
+                            No student data found
+                        </p>
                     ) : (
                         <div className="divide-y divide-gray-100">
                             {students.map((student) => {
                                 const icon = rankIcon(student.rank)
                                 const isTopThree = student.rank <= 3
                                 return (
-                                    <div key={student.id}
-                                        className={`flex items-center justify-between px-5 py-3.5 ${isTopThree ? 'bg-yellow-50/50' : ''}`}>
+                                    <div
+                                        key={student.id}
+                                        className={`flex items-center justify-between px-5 py-3.5 ${isTopThree ? 'bg-yellow-50/50' : ''}`}
+                                    >
                                         <div className="flex items-center gap-3">
-                                            <span className={`text-sm font-bold w-8 shrink-0 ${isTopThree ? 'text-yellow-600' : 'text-gray-400'}`}>
+                                            <span
+                                                className={`text-sm font-bold w-8 shrink-0 ${isTopThree ? 'text-yellow-600' : 'text-gray-400'}`}
+                                            >
                                                 {icon ?? `${student.rank}.`}
                                             </span>
-                                            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 ${isTopThree ? 'bg-[#004d40]' : 'bg-gray-400'}`}>
+                                            <div
+                                                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 ${isTopThree ? 'bg-[#004d40]' : 'bg-gray-400'}`}
+                                            >
                                                 {(student.full_name?.[0] || '?').toUpperCase()}
                                             </div>
                                             <div>
@@ -72,7 +81,9 @@ export default async function StudentLeaderboardPage({
                                                     {student.full_name || 'Unknown'}
                                                 </p>
                                                 <p className="text-xs text-gray-400">
-                                                    {[student.branch, student.year].filter(Boolean).join(' · ') || 'No profile info'}
+                                                    {[student.branch, student.year]
+                                                        .filter(Boolean)
+                                                        .join(' · ') || 'No profile info'}
                                                 </p>
                                             </div>
                                         </div>
@@ -80,12 +91,16 @@ export default async function StudentLeaderboardPage({
                                             {isDateFiltered ? (
                                                 <p className="text-sm font-bold text-gray-900">
                                                     {(student as any).sessions ?? 0}{' '}
-                                                    <span className="text-xs font-normal text-gray-400">sessions</span>
+                                                    <span className="text-xs font-normal text-gray-400">
+                                                        sessions
+                                                    </span>
                                                 </p>
                                             ) : (
                                                 <p className="text-sm font-bold text-gray-900">
                                                     {(student.points ?? 0).toLocaleString()}{' '}
-                                                    <span className="text-xs font-normal text-gray-400">pts</span>
+                                                    <span className="text-xs font-normal text-gray-400">
+                                                        pts
+                                                    </span>
                                                 </p>
                                             )}
                                         </div>

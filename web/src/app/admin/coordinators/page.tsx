@@ -1,12 +1,23 @@
 import { getCoordinators } from '@/actions/admin'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Plus, Mail, Phone } from 'lucide-react'
 import { CoordinatorForm } from '@/components/coordinator-form'
 import { SportFilter } from '@/components/sport-filter'
 
-export default async function CoordinatorsManagement({ searchParams }: { searchParams: Promise<{ sport?: string }> }) {
+export default async function CoordinatorsManagement({
+    searchParams,
+}: {
+    searchParams: Promise<{ sport?: string }>
+}) {
     const params = await searchParams
     const sport = params.sport || 'all'
     const coordinators = await getCoordinators(sport)
@@ -16,7 +27,9 @@ export default async function CoordinatorsManagement({ searchParams }: { searchP
             <header className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Coordinator Information</h1>
-                    <p className="text-gray-500 text-sm">Manage coach and team coordinator details</p>
+                    <p className="text-gray-500 text-sm">
+                        Manage coach and team coordinator details
+                    </p>
                 </div>
                 <CoordinatorForm mode="create">
                     <Button className="bg-[#004d40] hover:bg-[#004d40]/90">
@@ -49,7 +62,9 @@ export default async function CoordinatorsManagement({ searchParams }: { searchP
                             <CardHeader className="pb-3">
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <CardTitle className="text-lg">{coordinator.name}</CardTitle>
+                                        <CardTitle className="text-lg">
+                                            {coordinator.name}
+                                        </CardTitle>
                                         <p className="text-sm text-gray-500">{coordinator.role}</p>
                                     </div>
                                     <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-[#004d40]/10 text-[#004d40] capitalize">
@@ -61,7 +76,10 @@ export default async function CoordinatorsManagement({ searchParams }: { searchP
                                 {coordinator.email && (
                                     <div className="flex items-center gap-2 text-sm text-gray-600">
                                         <Mail className="w-4 h-4 text-gray-400" />
-                                        <a href={`mailto:${coordinator.email}`} className="hover:text-[#004d40]">
+                                        <a
+                                            href={`mailto:${coordinator.email}`}
+                                            className="hover:text-[#004d40]"
+                                        >
                                             {coordinator.email}
                                         </a>
                                     </div>
@@ -69,7 +87,10 @@ export default async function CoordinatorsManagement({ searchParams }: { searchP
                                 {coordinator.phone && (
                                     <div className="flex items-center gap-2 text-sm text-gray-600">
                                         <Phone className="w-4 h-4 text-gray-400" />
-                                        <a href={`tel:${coordinator.phone}`} className="hover:text-[#004d40]">
+                                        <a
+                                            href={`tel:${coordinator.phone}`}
+                                            className="hover:text-[#004d40]"
+                                        >
                                             {coordinator.phone}
                                         </a>
                                     </div>

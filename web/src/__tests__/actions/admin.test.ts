@@ -36,8 +36,27 @@ import {
 
 function chain(res: any = { data: null, error: null }) {
     const c: any = {}
-    for (const m of ['select','insert','update','delete','eq','neq','in','not','or','is',
-                      'gte','lte','lt','gt','ilike','order','limit','range','single']) {
+    for (const m of [
+        'select',
+        'insert',
+        'update',
+        'delete',
+        'eq',
+        'neq',
+        'in',
+        'not',
+        'or',
+        'is',
+        'gte',
+        'lte',
+        'lt',
+        'gt',
+        'ilike',
+        'order',
+        'limit',
+        'range',
+        'single',
+    ]) {
         c[m] = vi.fn().mockReturnValue(c)
     }
     c.single = vi.fn().mockResolvedValue(res)
@@ -170,12 +189,14 @@ describe('removeStudentFromDefaulters', () => {
 
         const result = await removeStudentFromDefaulters('student-1')
         expect(result).toEqual({ success: true })
-        expect(adminDb.rpc).toHaveBeenCalledWith('clear_student_defaulter', { p_student_id: 'student-1' })
+        expect(adminDb.rpc).toHaveBeenCalledWith('clear_student_defaulter', {
+            p_student_id: 'student-1',
+        })
         expect(vi.mocked(sendNotification)).toHaveBeenCalledWith(
             expect.objectContaining({
                 recipientId: 'student-1',
                 type: 'defaulter_cleared',
-            }),
+            })
         )
     })
 
@@ -227,7 +248,7 @@ describe('adjustStudentPoints', () => {
                 recipientId: 'student-1',
                 type: 'points_adjusted',
                 body: expect.stringContaining('-10'),
-            }),
+            })
         )
     })
 
@@ -242,7 +263,7 @@ describe('adjustStudentPoints', () => {
 
         await adjustStudentPoints('student-1', 20)
         expect(vi.mocked(sendNotification)).toHaveBeenCalledWith(
-            expect.objectContaining({ body: expect.stringContaining('+20') }),
+            expect.objectContaining({ body: expect.stringContaining('+20') })
         )
     })
 
@@ -267,7 +288,11 @@ describe('createAnnouncement', () => {
         const db = makeAdminSession()
         db.client.from = vi.fn((table: string) => {
             if (table === 'profiles') return chain({ data: { role: 'admin' }, error: null })
-            if (table === 'announcements') return chain({ data: { id: 'ann-1', title: 'Test', content: 'Hello' }, error: null })
+            if (table === 'announcements')
+                return chain({
+                    data: { id: 'ann-1', title: 'Test', content: 'Hello' },
+                    error: null,
+                })
             return chain()
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -278,7 +303,7 @@ describe('createAnnouncement', () => {
         const result = await createAnnouncement('Test', 'Hello all students')
         expect(result).toMatchObject({ id: 'ann-1' })
         expect(vi.mocked(broadcastToAllStudents)).toHaveBeenCalledWith(
-            expect.objectContaining({ type: 'announcement', title: 'Announcement: Test' }),
+            expect.objectContaining({ type: 'announcement', title: 'Announcement: Test' })
         )
     })
 
@@ -286,7 +311,11 @@ describe('createAnnouncement', () => {
         const db = makeAdminSession()
         db.client.from = vi.fn((table: string) => {
             if (table === 'profiles') return chain({ data: { role: 'admin' }, error: null })
-            if (table === 'announcements') return chain({ data: { id: 'ann-2', title: 'Long', content: 'x'.repeat(200) }, error: null })
+            if (table === 'announcements')
+                return chain({
+                    data: { id: 'ann-2', title: 'Long', content: 'x'.repeat(200) },
+                    error: null,
+                })
             return chain()
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -302,7 +331,8 @@ describe('createAnnouncement', () => {
         const db = makeAdminSession()
         db.client.from = vi.fn((table: string) => {
             if (table === 'profiles') return chain({ data: { role: 'admin' }, error: null })
-            if (table === 'announcements') return chain({ data: null, error: { message: 'insert failed' } })
+            if (table === 'announcements')
+                return chain({ data: null, error: { message: 'insert failed' } })
             return chain()
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -316,10 +346,11 @@ describe('createAnnouncement', () => {
 describe('priorityReserveSlot', () => {
     beforeEach(() => vi.clearAllMocks())
 
-    const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000)
-        .toISOString().split('T')[0]
+    const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-    function setupPriorityAdmin(bookingInsertResult = { data: { id: 'priority-new' }, error: null }) {
+    function setupPriorityAdmin(
+        bookingInsertResult = { data: { id: 'priority-new' }, error: null }
+    ) {
         // verifyAdmin() calls createClient → profiles
         const db = makeMockDb()
         db.auth.getUser.mockResolvedValue({ data: { user: { id: 'admin-1' } } })
@@ -358,9 +389,15 @@ describe('priorityReserveSlot', () => {
 
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
             expect.arrayContaining([
-                expect.objectContaining({ type: 'priority_reserve_cancelled', recipientId: 'student-1' }),
-                expect.objectContaining({ type: 'priority_reserve_cancelled', recipientId: 'student-2' }),
-            ]),
+                expect.objectContaining({
+                    type: 'priority_reserve_cancelled',
+                    recipientId: 'student-1',
+                }),
+                expect.objectContaining({
+                    type: 'priority_reserve_cancelled',
+                    recipientId: 'student-2',
+                }),
+            ])
         )
     })
 
@@ -383,8 +420,9 @@ describe('priorityReserveSlot', () => {
         adminDb.mockTable('bookings', { data: [], error: null })
         vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
 
-        await expect(priorityReserveSlot('court-1', futureDate, '16:00', '17:00'))
-            .rejects.toThrow('Failed to create priority reservation')
+        await expect(priorityReserveSlot('court-1', futureDate, '16:00', '17:00')).rejects.toThrow(
+            'Failed to create priority reservation'
+        )
     })
 
     it('does NOT notify pending-status players in conflicting booking', async () => {
@@ -514,6 +552,8 @@ describe('verifyAdmin — role rejection', () => {
         vi.mocked(createClient).mockResolvedValue(db.client as any)
 
         const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        await expect(priorityReserveSlot('court-1', futureDate, '10:00', '11:00')).rejects.toThrow('Forbidden')
+        await expect(priorityReserveSlot('court-1', futureDate, '10:00', '11:00')).rejects.toThrow(
+            'Forbidden'
+        )
     })
 })

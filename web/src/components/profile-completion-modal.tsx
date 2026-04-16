@@ -55,9 +55,13 @@ export function ProfileCompletionModal() {
                             defaultValue=""
                             className="w-full h-11 border border-gray-300 rounded-lg px-3 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]"
                         >
-                            <option value="" disabled>Select your branch</option>
+                            <option value="" disabled>
+                                Select your branch
+                            </option>
                             {BRANCHES.map((b) => (
-                                <option key={b} value={b}>{b}</option>
+                                <option key={b} value={b}>
+                                    {b}
+                                </option>
                             ))}
                         </select>
                     </div>
@@ -73,9 +77,13 @@ export function ProfileCompletionModal() {
                             defaultValue=""
                             className="w-full h-11 border border-gray-300 rounded-lg px-3 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]"
                         >
-                            <option value="" disabled>Select your year</option>
+                            <option value="" disabled>
+                                Select your year
+                            </option>
                             {YEARS.map((y) => (
-                                <option key={y} value={y}>{y}</option>
+                                <option key={y} value={y}>
+                                    {y}
+                                </option>
                             ))}
                         </select>
                     </div>

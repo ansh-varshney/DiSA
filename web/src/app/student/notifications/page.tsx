@@ -5,7 +5,9 @@ import { NotificationsClient } from './notifications-client'
 
 export default async function StudentNotificationsPage() {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
     const notifications = await getMyNotifications(false, 60)

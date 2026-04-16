@@ -1,7 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose, DialogBody } from './ui/dialog'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogClose,
+    DialogBody,
+} from './ui/dialog'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { Button } from './ui/button'
 
@@ -76,10 +83,11 @@ export function ImageGallery({ images, equipmentName, children }: ImageGalleryPr
                                     <button
                                         key={index}
                                         onClick={() => setCurrentIndex(index)}
-                                        className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${index === currentIndex
+                                        className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
+                                            index === currentIndex
                                                 ? 'border-[#004d40] ring-2 ring-[#004d40]/30'
                                                 : 'border-gray-300 hover:border-gray-400'
-                                            }`}
+                                        }`}
                                     >
                                         <img
                                             src={image}

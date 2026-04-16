@@ -1,6 +1,13 @@
 import { getAnnouncements } from '@/actions/admin'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { format } from 'date-fns'
@@ -14,7 +21,9 @@ export default async function AnnouncementsManagement() {
             <header className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Announcements Management</h1>
-                    <p className="text-gray-500 text-sm">Manage facility announcements for all students</p>
+                    <p className="text-gray-500 text-sm">
+                        Manage facility announcements for all students
+                    </p>
                 </div>
                 <AnnouncementForm mode="create">
                     <Button className="bg-[#004d40] hover:bg-[#004d40]/90">
@@ -27,7 +36,9 @@ export default async function AnnouncementsManagement() {
             {/* Announcements List */}
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-lg text-gray-900">All Announcements ({announcements.length})</CardTitle>
+                    <CardTitle className="text-lg text-gray-900">
+                        All Announcements ({announcements.length})
+                    </CardTitle>
                 </CardHeader>
                 <CardContent>
                     {announcements.length === 0 ? (
@@ -44,17 +55,29 @@ export default async function AnnouncementsManagement() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead className="w-1/4 text-gray-900 font-semibold">Title</TableHead>
-                                    <TableHead className="w-1/2 text-gray-900 font-semibold">Content</TableHead>
-                                    <TableHead className="text-gray-900 font-semibold">Created By</TableHead>
-                                    <TableHead className="text-gray-900 font-semibold">Date</TableHead>
-                                    <TableHead className="text-right text-gray-900 font-semibold">Actions</TableHead>
+                                    <TableHead className="w-1/4 text-gray-900 font-semibold">
+                                        Title
+                                    </TableHead>
+                                    <TableHead className="w-1/2 text-gray-900 font-semibold">
+                                        Content
+                                    </TableHead>
+                                    <TableHead className="text-gray-900 font-semibold">
+                                        Created By
+                                    </TableHead>
+                                    <TableHead className="text-gray-900 font-semibold">
+                                        Date
+                                    </TableHead>
+                                    <TableHead className="text-right text-gray-900 font-semibold">
+                                        Actions
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {announcements.map((announcement) => (
                                     <TableRow key={announcement.id}>
-                                        <TableCell className="font-semibold text-gray-900">{announcement.title}</TableCell>
+                                        <TableCell className="font-semibold text-gray-900">
+                                            {announcement.title}
+                                        </TableCell>
                                         <TableCell className="text-gray-800">
                                             {announcement.content.length > 100
                                                 ? announcement.content.substring(0, 100) + '...'
@@ -64,16 +87,25 @@ export default async function AnnouncementsManagement() {
                                             {announcement.profiles?.full_name || 'Unknown'}
                                         </TableCell>
                                         <TableCell className="text-gray-800">
-                                            {format(new Date(announcement.created_at), 'MMM d, yyyy')}
+                                            {format(
+                                                new Date(announcement.created_at),
+                                                'MMM d, yyyy'
+                                            )}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                <AnnouncementForm mode="edit" announcement={announcement}>
+                                                <AnnouncementForm
+                                                    mode="edit"
+                                                    announcement={announcement}
+                                                >
                                                     <Button variant="outline" size="sm">
                                                         Edit
                                                     </Button>
                                                 </AnnouncementForm>
-                                                <AnnouncementForm mode="delete" announcement={announcement}>
+                                                <AnnouncementForm
+                                                    mode="delete"
+                                                    announcement={announcement}
+                                                >
                                                     <Button variant="destructive" size="sm">
                                                         Delete
                                                     </Button>

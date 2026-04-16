@@ -77,7 +77,7 @@ describe('NotificationPopup', () => {
 
     it('renders up to 5 toasts and shows overflow badge', () => {
         const notifs = Array.from({ length: 7 }, (_, i) =>
-            makeNotification({ id: `n-${i}`, title: `Notification ${i}` }),
+            makeNotification({ id: `n-${i}`, title: `Notification ${i}` })
         )
         render(<NotificationPopup initial={notifs} />)
 
@@ -154,9 +154,13 @@ describe('NotificationPopup', () => {
 
         fireEvent.click(screen.getByRole('button', { name: /accept/i }))
         // Flush the acceptPlayRequest mock resolution so onDismiss fires
-        await act(async () => { await Promise.resolve() })
+        await act(async () => {
+            await Promise.resolve()
+        })
         // Fire the 300ms dismiss animation timer
-        await act(async () => { vi.advanceTimersByTime(400) })
+        await act(async () => {
+            vi.advanceTimersByTime(400)
+        })
         expect(screen.queryByText('Play with Me')).not.toBeInTheDocument()
     })
 
@@ -241,7 +245,10 @@ describe('NotificationPopup', () => {
         // Make acceptPlayRequest hang until we resolve it
         let resolveAccept!: () => void
         vi.mocked(acceptPlayRequest).mockImplementationOnce(
-            () => new Promise((res) => { resolveAccept = () => res({ success: true }) }),
+            () =>
+                new Promise((res) => {
+                    resolveAccept = () => res({ success: true })
+                })
         )
 
         const notif = makePlayRequestNotif()

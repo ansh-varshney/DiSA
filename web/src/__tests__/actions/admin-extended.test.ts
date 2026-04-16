@@ -49,8 +49,25 @@ import {
 function chain(res: any = { data: null, error: null }) {
     const c: any = {}
     for (const m of [
-        'select', 'insert', 'update', 'delete', 'eq', 'neq', 'in', 'not', 'is', 'or',
-        'gte', 'lte', 'lt', 'gt', 'ilike', 'order', 'limit', 'range', 'single',
+        'select',
+        'insert',
+        'update',
+        'delete',
+        'eq',
+        'neq',
+        'in',
+        'not',
+        'is',
+        'or',
+        'gte',
+        'lte',
+        'lt',
+        'gt',
+        'ilike',
+        'order',
+        'limit',
+        'range',
+        'single',
     ]) {
         c[m] = vi.fn().mockReturnValue(c)
     }
@@ -166,12 +183,15 @@ describe('createEquipment', () => {
         const db = makeAdminDb()
         db.client.from = vi.fn((table: string) => {
             if (table === 'profiles') return chain({ data: { role: 'admin' }, error: null })
-            if (table === 'equipment') return chain({ data: null, error: { message: 'insert error' } })
+            if (table === 'equipment')
+                return chain({ data: null, error: { message: 'insert error' } })
             return chain()
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
 
-        await expect(createEquipment(makeEquipFormData())).rejects.toThrow('Failed to create equipment')
+        await expect(createEquipment(makeEquipFormData())).rejects.toThrow(
+            'Failed to create equipment'
+        )
     })
 })
 
@@ -204,7 +224,8 @@ describe('updateEquipment', () => {
         const db = makeAdminDb()
         db.client.from = vi.fn((table: string) => {
             if (table === 'profiles') return chain({ data: { role: 'admin' }, error: null })
-            if (table === 'equipment') return chain({ data: null, error: { message: 'update failed' } })
+            if (table === 'equipment')
+                return chain({ data: null, error: { message: 'update failed' } })
             return chain()
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -297,7 +318,9 @@ describe('getAnnouncements', () => {
 
     it('returns announcements array', async () => {
         const db = makeMockDb()
-        const announcements = [{ id: 'a-1', title: 'Test', content: 'Hello', created_at: new Date().toISOString() }]
+        const announcements = [
+            { id: 'a-1', title: 'Test', content: 'Hello', created_at: new Date().toISOString() },
+        ]
         db.mockTable('announcements', { data: announcements, error: null })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
 
@@ -338,12 +361,15 @@ describe('updateAnnouncement', () => {
         const db = makeAdminDb()
         db.client.from = vi.fn((table: string) => {
             if (table === 'profiles') return chain({ data: { role: 'admin' }, error: null })
-            if (table === 'announcements') return chain({ data: null, error: { message: 'update failed' } })
+            if (table === 'announcements')
+                return chain({ data: null, error: { message: 'update failed' } })
             return chain()
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
 
-        await expect(updateAnnouncement('a-1', 'T', 'B')).rejects.toThrow('Failed to update announcement')
+        await expect(updateAnnouncement('a-1', 'T', 'B')).rejects.toThrow(
+            'Failed to update announcement'
+        )
     })
 })
 
@@ -369,7 +395,8 @@ describe('deleteAnnouncement', () => {
         const db = makeAdminDb()
         db.client.from = vi.fn((table: string) => {
             if (table === 'profiles') return chain({ data: { role: 'admin' }, error: null })
-            if (table === 'announcements') return chain({ data: null, error: { message: 'delete failed' } })
+            if (table === 'announcements')
+                return chain({ data: null, error: { message: 'delete failed' } })
             return chain()
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -459,7 +486,8 @@ describe('cancelReservation', () => {
         const db = makeAdminDb()
         db.client.from = vi.fn((table: string) => {
             if (table === 'profiles') return chain({ data: { role: 'admin' }, error: null })
-            if (table === 'bookings') return chain({ data: null, error: { message: 'delete failed' } })
+            if (table === 'bookings')
+                return chain({ data: null, error: { message: 'delete failed' } })
             return chain()
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -516,7 +544,8 @@ describe('forceCancelBooking', () => {
         const db = makeAdminDb()
         db.client.from = vi.fn((table: string) => {
             if (table === 'profiles') return chain({ data: { role: 'admin' }, error: null })
-            if (table === 'bookings') return chain({ data: null, error: { message: 'update failed' } })
+            if (table === 'bookings')
+                return chain({ data: null, error: { message: 'update failed' } })
             return chain()
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -703,12 +732,15 @@ describe('updateComplaintStatus', () => {
         const db = makeAdminDb()
         db.client.from = vi.fn((table: string) => {
             if (table === 'profiles') return chain({ data: { role: 'admin' }, error: null })
-            if (table === 'feedback_complaints') return chain({ data: null, error: { message: 'update failed' } })
+            if (table === 'feedback_complaints')
+                return chain({ data: null, error: { message: 'update failed' } })
             return chain()
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
 
-        await expect(updateComplaintStatus('f-1', 'resolved')).rejects.toThrow('Failed to update complaint status')
+        await expect(updateComplaintStatus('f-1', 'resolved')).rejects.toThrow(
+            'Failed to update complaint status'
+        )
     })
 })
 
@@ -779,12 +811,15 @@ describe('createCoordinator', () => {
         const db = makeAdminDb()
         db.client.from = vi.fn((table: string) => {
             if (table === 'profiles') return chain({ data: { role: 'admin' }, error: null })
-            if (table === 'coordinators') return chain({ data: null, error: { message: 'insert error' } })
+            if (table === 'coordinators')
+                return chain({ data: null, error: { message: 'insert error' } })
             return chain()
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
 
-        await expect(createCoordinator(makeCoordFormData())).rejects.toThrow('Failed to create coordinator')
+        await expect(createCoordinator(makeCoordFormData())).rejects.toThrow(
+            'Failed to create coordinator'
+        )
     })
 })
 
@@ -816,7 +851,8 @@ describe('updateCoordinator', () => {
         const db = makeAdminDb()
         db.client.from = vi.fn((table: string) => {
             if (table === 'profiles') return chain({ data: { role: 'admin' }, error: null })
-            if (table === 'coordinators') return chain({ data: null, error: { message: 'update failed' } })
+            if (table === 'coordinators')
+                return chain({ data: null, error: { message: 'update failed' } })
             return chain()
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -852,7 +888,8 @@ describe('deleteCoordinator', () => {
         const db = makeAdminDb()
         db.client.from = vi.fn((table: string) => {
             if (table === 'profiles') return chain({ data: { role: 'admin' }, error: null })
-            if (table === 'coordinators') return chain({ data: null, error: { message: 'delete failed' } })
+            if (table === 'coordinators')
+                return chain({ data: null, error: { message: 'delete failed' } })
             return chain()
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -1003,6 +1040,8 @@ describe('verifyAdmin — role rejection (mutations)', () => {
         vi.mocked(createClient).mockResolvedValue(db.client as any)
 
         const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        await expect(reserveForMaintenance('court-1', futureDate, '09:00', '10:00')).rejects.toThrow('Forbidden')
+        await expect(
+            reserveForMaintenance('court-1', futureDate, '09:00', '10:00')
+        ).rejects.toThrow('Forbidden')
     })
 })

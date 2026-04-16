@@ -8,8 +8,15 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { cancelBooking, withdrawFromBooking } from '@/actions/bookings'
 import {
-    Clock, Calendar, CheckCircle, XCircle, AlertTriangle,
-    Timer, Loader2, ChevronDown, ChevronUp
+    Clock,
+    Calendar,
+    CheckCircle,
+    XCircle,
+    AlertTriangle,
+    Timer,
+    Loader2,
+    ChevronDown,
+    ChevronUp,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { ActiveSessionView } from '@/components/active-session'
@@ -64,11 +71,14 @@ export function ReservationsList({ current, upcoming, past, userId }: Reservatio
         if (!confirm('Withdraw from this booking? The booking will continue without you.')) return
         setWithdrawingId(bookingId)
         try {
-            const result = await withdrawFromBooking(bookingId) as any
+            const result = (await withdrawFromBooking(bookingId)) as any
             if (result.error) alert(result.error)
             else {
                 if (result.cancelled) {
-                    alert(result.reason || 'Booking was cancelled as player count dropped below minimum.')
+                    alert(
+                        result.reason ||
+                            'Booking was cancelled as player count dropped below minimum.'
+                    )
                 }
                 router.refresh()
             }
@@ -86,7 +96,7 @@ export function ReservationsList({ current, upcoming, past, userId }: Reservatio
                         <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                         Active Session
                     </h2>
-                    {current.map(booking => (
+                    {current.map((booking) => (
                         <ActiveSessionView key={booking.id} booking={booking} />
                     ))}
                 </div>
@@ -103,29 +113,43 @@ export function ReservationsList({ current, upcoming, past, userId }: Reservatio
                         No upcoming bookings
                     </div>
                 ) : (
-                    upcoming.map(booking => (
+                    upcoming.map((booking) => (
                         <Card key={booking.id} className="border-l-4 border-l-blue-400">
                             <CardContent className="p-4 flex justify-between items-start">
                                 <div>
-                                    <h3 className="font-bold text-gray-800">{booking.courts.name}</h3>
+                                    <h3 className="font-bold text-gray-800">
+                                        {booking.courts.name}
+                                    </h3>
                                     <span className="text-xs uppercase tracking-wider font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
                                         {booking.courts.sport}
                                     </span>
                                     <p className="text-sm text-gray-600 mt-2 flex items-center gap-1">
                                         <Clock className="w-3 h-3" />
-                                        {format(new Date(booking.start_time), 'MMM d, h:mm a')} — {format(new Date(booking.end_time), 'h:mm a')}
+                                        {format(
+                                            new Date(booking.start_time),
+                                            'MMM d, h:mm a'
+                                        )} — {format(new Date(booking.end_time), 'h:mm a')}
                                     </p>
-                                    <p className="text-xs text-gray-400 mt-1">{booking.num_players || 2} players</p>
+                                    <p className="text-xs text-gray-400 mt-1">
+                                        {booking.num_players || 2} players
+                                    </p>
                                 </div>
                                 <div className="flex flex-col items-end gap-2">
-                                    <span className={cn(
-                                        "px-2 py-1 text-xs rounded-full font-semibold capitalize",
-                                        statusColors[booking.status] || 'bg-gray-100 text-gray-600'
-                                    )}>
+                                    <span
+                                        className={cn(
+                                            'px-2 py-1 text-xs rounded-full font-semibold capitalize',
+                                            statusColors[booking.status] ||
+                                                'bg-gray-100 text-gray-600'
+                                        )}
+                                    >
                                         {booking.status.replace(/_/g, ' ')}
                                     </span>
-                                    {['pending_confirmation', 'confirmed', 'waiting_manager'].includes(booking.status) && (
-                                        booking.user_id === userId ? (
+                                    {[
+                                        'pending_confirmation',
+                                        'confirmed',
+                                        'waiting_manager',
+                                    ].includes(booking.status) &&
+                                        (booking.user_id === userId ? (
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
@@ -159,8 +183,7 @@ export function ReservationsList({ current, upcoming, past, userId }: Reservatio
                                                     </>
                                                 )}
                                             </Button>
-                                        )
-                                    )}
+                                        ))}
                                 </div>
                             </CardContent>
                         </Card>
@@ -176,27 +199,41 @@ export function ReservationsList({ current, upcoming, past, userId }: Reservatio
                 >
                     <Clock className="w-4 h-4" />
                     Past ({past.length})
-                    {showPast ? <ChevronUp className="w-4 h-4 ml-auto" /> : <ChevronDown className="w-4 h-4 ml-auto" />}
+                    {showPast ? (
+                        <ChevronUp className="w-4 h-4 ml-auto" />
+                    ) : (
+                        <ChevronDown className="w-4 h-4 ml-auto" />
+                    )}
                 </button>
                 {showPast && (
                     <div className="space-y-2">
                         {past.length === 0 ? (
-                            <p className="text-center text-gray-400 text-sm p-4">No past bookings</p>
+                            <p className="text-center text-gray-400 text-sm p-4">
+                                No past bookings
+                            </p>
                         ) : (
                             <>
-                                {past.slice(0, pastLimit).map(booking => (
+                                {past.slice(0, pastLimit).map((booking) => (
                                     <Card key={booking.id} className="opacity-70">
                                         <CardContent className="p-3 flex justify-between items-center">
                                             <div>
-                                                <h3 className="font-semibold text-gray-700 text-sm">{booking.courts.name}</h3>
+                                                <h3 className="font-semibold text-gray-700 text-sm">
+                                                    {booking.courts.name}
+                                                </h3>
                                                 <p className="text-xs text-gray-400">
-                                                    {format(new Date(booking.start_time), 'MMM d, h:mm a')}
+                                                    {format(
+                                                        new Date(booking.start_time),
+                                                        'MMM d, h:mm a'
+                                                    )}
                                                 </p>
                                             </div>
-                                            <span className={cn(
-                                                "px-2 py-0.5 text-xs rounded-full capitalize",
-                                                statusColors[booking.status] || 'bg-gray-100 text-gray-600'
-                                            )}>
+                                            <span
+                                                className={cn(
+                                                    'px-2 py-0.5 text-xs rounded-full capitalize',
+                                                    statusColors[booking.status] ||
+                                                        'bg-gray-100 text-gray-600'
+                                                )}
+                                            >
                                                 {booking.status.replace(/_/g, ' ')}
                                             </span>
                                         </CardContent>
@@ -204,7 +241,7 @@ export function ReservationsList({ current, upcoming, past, userId }: Reservatio
                                 ))}
                                 {past.length > pastLimit && (
                                     <button
-                                        onClick={() => setPastLimit(l => l + 10)}
+                                        onClick={() => setPastLimit((l) => l + 10)}
                                         className="w-full text-xs text-gray-400 hover:text-gray-600 py-2 transition-colors"
                                     >
                                         Show more ({past.length - pastLimit} remaining)

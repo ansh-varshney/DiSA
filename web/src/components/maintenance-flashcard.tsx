@@ -26,8 +26,8 @@ export function MaintenanceFlashcard({ courts }: MaintenanceFlashcardProps) {
 
     if (!courts || courts.length === 0) return null
 
-    const disabledCourts = courts.filter(c => !c.is_booking_slot)
-    const maintenanceSlots = courts.filter(c => c.is_booking_slot)
+    const disabledCourts = courts.filter((c) => !c.is_booking_slot)
+    const maintenanceSlots = courts.filter((c) => c.is_booking_slot)
 
     return (
         <div className="relative">
@@ -35,8 +35,8 @@ export function MaintenanceFlashcard({ courts }: MaintenanceFlashcardProps) {
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold shadow-md transition-all active:scale-95",
-                    "bg-orange-100 text-orange-800 border-2 border-orange-200 hover:bg-orange-200"
+                    'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold shadow-md transition-all active:scale-95',
+                    'bg-orange-100 text-orange-800 border-2 border-orange-200 hover:bg-orange-200'
                 )}
             >
                 <Construction className="w-4 h-4" />
@@ -55,7 +55,6 @@ export function MaintenanceFlashcard({ courts }: MaintenanceFlashcardProps) {
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="p-0 max-h-80 overflow-y-auto divide-y divide-gray-100">
-
                             {/* Scheduled Booking Slots */}
                             {maintenanceSlots.length > 0 && (
                                 <div>
@@ -63,9 +62,14 @@ export function MaintenanceFlashcard({ courts }: MaintenanceFlashcardProps) {
                                         Blocked Slots Today
                                     </div>
                                     {maintenanceSlots.map((entry) => (
-                                        <div key={entry.id} className="p-3 hover:bg-orange-50 transition-colors">
+                                        <div
+                                            key={entry.id}
+                                            className="p-3 hover:bg-orange-50 transition-colors"
+                                        >
                                             <div className="flex justify-between items-start mb-1">
-                                                <span className="font-semibold text-sm text-gray-800">{entry.name}</span>
+                                                <span className="font-semibold text-sm text-gray-800">
+                                                    {entry.name}
+                                                </span>
                                                 <span className="text-[10px] uppercase font-bold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded">
                                                     {entry.sport}
                                                 </span>
@@ -73,7 +77,8 @@ export function MaintenanceFlashcard({ courts }: MaintenanceFlashcardProps) {
                                             {entry.start_time && entry.end_time && (
                                                 <p className="text-xs text-gray-600 flex items-center gap-1.5">
                                                     <Clock className="w-3 h-3 text-orange-500 shrink-0" />
-                                                    {format(new Date(entry.start_time), 'h:mm a')} – {format(new Date(entry.end_time), 'h:mm a')}
+                                                    {format(new Date(entry.start_time), 'h:mm a')} –{' '}
+                                                    {format(new Date(entry.end_time), 'h:mm a')}
                                                 </p>
                                             )}
                                         </div>
@@ -88,15 +93,21 @@ export function MaintenanceFlashcard({ courts }: MaintenanceFlashcardProps) {
                                         Out of Service
                                     </div>
                                     {disabledCourts.map((court) => (
-                                        <div key={court.id} className="p-3 hover:bg-gray-50 transition-colors">
+                                        <div
+                                            key={court.id}
+                                            className="p-3 hover:bg-gray-50 transition-colors"
+                                        >
                                             <div className="flex justify-between items-start mb-1">
-                                                <span className="font-semibold text-sm text-gray-800">{court.name}</span>
+                                                <span className="font-semibold text-sm text-gray-800">
+                                                    {court.name}
+                                                </span>
                                                 <span className="text-[10px] uppercase font-bold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
                                                     {court.sport}
                                                 </span>
                                             </div>
                                             <p className="text-xs text-gray-600 leading-snug">
-                                                {court.maintenance_notes || 'Temporarily out of service.'}
+                                                {court.maintenance_notes ||
+                                                    'Temporarily out of service.'}
                                             </p>
                                         </div>
                                     ))}

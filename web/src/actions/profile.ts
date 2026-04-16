@@ -6,7 +6,9 @@ import { revalidatePath } from 'next/cache'
 export async function updateStudentProfile(formData: FormData) {
     const supabase = await createClient()
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return { error: 'Not authenticated' }
 
     const branch = (formData.get('branch') as string)?.trim()

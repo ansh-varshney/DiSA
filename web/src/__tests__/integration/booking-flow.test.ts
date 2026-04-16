@@ -35,13 +35,15 @@ vi.mock('@/actions/notifications', () => ({
 
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
-import {
-    sendNotification,
-    sendNotifications,
-    notifyAdmins,
-} from '@/actions/notifications'
+import { sendNotification, sendNotifications, notifyAdmins } from '@/actions/notifications'
 
-import { updateBookingStatus, endSession, expireBooking, rejectWithReason, reportLostEquipment } from '@/actions/manager'
+import {
+    updateBookingStatus,
+    endSession,
+    expireBooking,
+    rejectWithReason,
+    reportLostEquipment,
+} from '@/actions/manager'
 import { cancelBooking } from '@/actions/bookings'
 import { priorityReserveSlot, adjustStudentPoints } from '@/actions/admin'
 
@@ -49,8 +51,26 @@ import { priorityReserveSlot, adjustStudentPoints } from '@/actions/admin'
 
 function chain(res: any = { data: null, error: null }) {
     const c: any = {}
-    for (const m of ['select','insert','update','delete','eq','neq','in','not','or','is',
-                      'gte','lte','lt','gt','ilike','order','limit','range']) {
+    for (const m of [
+        'select',
+        'insert',
+        'update',
+        'delete',
+        'eq',
+        'neq',
+        'in',
+        'not',
+        'or',
+        'is',
+        'gte',
+        'lte',
+        'lt',
+        'gt',
+        'ilike',
+        'order',
+        'limit',
+        'range',
+    ]) {
         c[m] = vi.fn().mockReturnValue(c)
     }
     c.single = vi.fn().mockResolvedValue(res)
@@ -62,7 +82,8 @@ function managerDb() {
     const db = makeMockDb()
     db.auth.getUser.mockResolvedValue({ data: { user: { id: 'manager-1' } } })
     db.client.from = vi.fn((table: string) => {
-        if (table === 'profiles') return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
+        if (table === 'profiles')
+            return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
         // endSession's idempotency guard does `.update().neq('status','completed').select('id')`
         // and checks `markedRows.length === 0` to detect an already-completed booking.
         // Returning a non-empty array lets the guard pass so points and notifications fire.
@@ -94,7 +115,12 @@ describe('Flow A: Booking approval → session active → session end', () => {
 
         const adb = makeMockDb()
         adb.mockTableOnce('bookings', {
-            data: { id: 'b-1', start_time: FIXTURES.booking.start_time, user_id: 's1', courts: { name: 'Ct', sport: 'badminton' } },
+            data: {
+                id: 'b-1',
+                start_time: FIXTURES.booking.start_time,
+                user_id: 's1',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
             error: null,
         })
         adb.mockTableOnce('bookings', { data: { user_id: 's1', players_list: [] }, error: null })
@@ -104,7 +130,7 @@ describe('Flow A: Booking approval → session active → session end', () => {
         await updateBookingStatus('b-1', 'active')
 
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
-            expect.arrayContaining([expect.objectContaining({ type: 'booking_session_active' })]),
+            expect.arrayContaining([expect.objectContaining({ type: 'booking_session_active' })])
         )
 
         // Step 2: Manager ends session cleanly
@@ -115,16 +141,29 @@ describe('Flow A: Booking approval → session active → session end', () => {
         adb2.mockTableOnce('bookings', { data: { user_id: 's1', players_list: [] }, error: null })
         adb2.mockTableOnce('profiles', { data: [{ id: 's1' }], error: null })
         adb2.mockTableOnce('bookings', {
-            data: { id: 'b-1', start_time: FIXTURES.booking.start_time, user_id: 's1', courts: { name: 'Ct', sport: 'badminton' } },
+            data: {
+                id: 'b-1',
+                start_time: FIXTURES.booking.start_time,
+                user_id: 's1',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
             error: null,
         })
         vi.mocked(createAdminClient).mockReturnValue(adb2.client as any)
 
         await endSession('b-1', [{ id: 'eq-1', condition: 'good' }])
 
-        expect(adb2.rpc).toHaveBeenCalledWith('update_student_points', { p_student_id: 's1', p_delta: 10 })
+        expect(adb2.rpc).toHaveBeenCalledWith('update_student_points', {
+            p_student_id: 's1',
+            p_delta: 10,
+        })
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
-            expect.arrayContaining([expect.objectContaining({ type: 'session_ended', body: expect.stringContaining('+10 pts') })]),
+            expect.arrayContaining([
+                expect.objectContaining({
+                    type: 'session_ended',
+                    body: expect.stringContaining('+10 pts'),
+                }),
+            ])
         )
     })
 })
@@ -147,18 +186,32 @@ describe('Flow B: Play request accepted → session ends → both players awarde
             },
             error: null,
         })
-        adb.mockTableOnce('profiles', { data: [{ id: 'booker-1' }, { id: 'invitee-1' }], error: null })
+        adb.mockTableOnce('profiles', {
+            data: [{ id: 'booker-1' }, { id: 'invitee-1' }],
+            error: null,
+        })
         // getBookingForNotif
         adb.mockTableOnce('bookings', {
-            data: { id: 'b-2', start_time: FIXTURES.booking.start_time, user_id: 'booker-1', courts: { name: 'Ct', sport: 'badminton' } },
+            data: {
+                id: 'b-2',
+                start_time: FIXTURES.booking.start_time,
+                user_id: 'booker-1',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
             error: null,
         })
         vi.mocked(createAdminClient).mockReturnValue(adb.client as any)
 
         await endSession('b-2', [])
 
-        expect(adb.rpc).toHaveBeenCalledWith('update_student_points', { p_student_id: 'booker-1', p_delta: 8 })
-        expect(adb.rpc).toHaveBeenCalledWith('update_student_points', { p_student_id: 'invitee-1', p_delta: 8 })
+        expect(adb.rpc).toHaveBeenCalledWith('update_student_points', {
+            p_student_id: 'booker-1',
+            p_delta: 8,
+        })
+        expect(adb.rpc).toHaveBeenCalledWith('update_student_points', {
+            p_student_id: 'invitee-1',
+            p_delta: 8,
+        })
     })
 
     it('pending players (not yet confirmed) are NOT awarded points', async () => {
@@ -176,7 +229,12 @@ describe('Flow B: Play request accepted → session ends → both players awarde
         // profiles returns only 'booker-1' because pending-player was filtered out
         adb.mockTableOnce('profiles', { data: [{ id: 'booker-1' }], error: null })
         adb.mockTableOnce('bookings', {
-            data: { id: 'b-3', start_time: FIXTURES.booking.start_time, user_id: 'booker-1', courts: { name: 'Ct', sport: 'b' } },
+            data: {
+                id: 'b-3',
+                start_time: FIXTURES.booking.start_time,
+                user_id: 'booker-1',
+                courts: { name: 'Ct', sport: 'b' },
+            },
             error: null,
         })
         vi.mocked(createAdminClient).mockReturnValue(adb.client as any)
@@ -184,7 +242,10 @@ describe('Flow B: Play request accepted → session ends → both players awarde
         await endSession('b-3', [])
         // Only booker gets points; pending player does NOT
         expect(adb.rpc).toHaveBeenCalledTimes(1)
-        expect(adb.rpc).toHaveBeenCalledWith('update_student_points', { p_student_id: 'booker-1', p_delta: 8 })
+        expect(adb.rpc).toHaveBeenCalledWith('update_student_points', {
+            p_student_id: 'booker-1',
+            p_delta: 8,
+        })
     })
 })
 
@@ -209,13 +270,18 @@ describe('Flow D: 3rd late-arrival strike triggers 14-day ban', () => {
 
         const adb = makeMockDb()
         adb.mockTableOnce('bookings', {
-            data: { id: 'b-late', start_time: FIXTURES.booking.start_time, user_id: 's-late', courts: { name: 'Ct', sport: 'badminton' } },
+            data: {
+                id: 'b-late',
+                start_time: FIXTURES.booking.start_time,
+                user_id: 's-late',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
             error: null,
         })
         // update_student_points → success; check_and_apply_late_ban → true (newly banned)
         adb.rpc
-            .mockResolvedValueOnce({ data: null, error: null })   // update_student_points
-            .mockResolvedValueOnce({ data: true, error: null })   // check_and_apply_late_ban
+            .mockResolvedValueOnce({ data: null, error: null }) // update_student_points
+            .mockResolvedValueOnce({ data: true, error: null }) // check_and_apply_late_ban
         vi.mocked(createAdminClient).mockReturnValue(adb.client as any)
 
         await rejectWithReason('b-late', 'students_late', null, ['s-late'])
@@ -224,7 +290,7 @@ describe('Flow D: 3rd late-arrival strike triggers 14-day ban', () => {
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
             expect.arrayContaining([
                 expect.objectContaining({ type: 'ban_applied', recipientId: 's-late' }),
-            ]),
+            ])
         )
     })
 
@@ -318,7 +384,8 @@ describe('Flow F: Booking timeout (10-minute no-show)', () => {
             }
             if (table === 'bookings') {
                 bookingCall++
-                if (bookingCall === 1) return chain({ data: { status: 'pending_confirmation' }, error: null })
+                if (bookingCall === 1)
+                    return chain({ data: { status: 'pending_confirmation' }, error: null })
                 return chain({ data: { equipment_ids: [] }, error: null })
             }
             return chain()
@@ -328,7 +395,12 @@ describe('Flow F: Booking timeout (10-minute no-show)', () => {
         const adb = makeMockDb()
         // getBookingForNotif uses admin client
         adb.mockTableOnce('bookings', {
-            data: { id: 'b-timeout', start_time: FIXTURES.booking.start_time, user_id: 'student-1', courts: { name: 'Ct', sport: 'badminton' } },
+            data: {
+                id: 'b-timeout',
+                start_time: FIXTURES.booking.start_time,
+                user_id: 'student-1',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
             error: null,
         })
         vi.mocked(createAdminClient).mockReturnValue(adb.client as any)
@@ -338,14 +410,15 @@ describe('Flow F: Booking timeout (10-minute no-show)', () => {
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
             expect.arrayContaining([
                 expect.objectContaining({ type: 'booking_expired', recipientId: 'student-1' }),
-            ]),
+            ])
         )
     })
 
     it('is idempotent: already-active booking returns already_handled', async () => {
         const db = managerDb()
         db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
+            if (table === 'profiles')
+                return chain({ data: { id: 'manager-1', role: 'manager' }, error: null })
             return chain({ data: { status: 'active' }, error: null })
         })
         vi.mocked(createClient).mockResolvedValue(db.client as any)
@@ -372,20 +445,26 @@ describe('Flow G: Equipment reported lost', () => {
         await reportLostEquipment('b-1', ['eq-lost'], ['s1', 's2'])
 
         // Both players penalised
-        expect(adb.rpc).toHaveBeenCalledWith('update_student_points', { p_student_id: 's1', p_delta: -20 })
-        expect(adb.rpc).toHaveBeenCalledWith('update_student_points', { p_student_id: 's2', p_delta: -20 })
+        expect(adb.rpc).toHaveBeenCalledWith('update_student_points', {
+            p_student_id: 's1',
+            p_delta: -20,
+        })
+        expect(adb.rpc).toHaveBeenCalledWith('update_student_points', {
+            p_student_id: 's2',
+            p_delta: -20,
+        })
 
         // N14 to students
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
             expect.arrayContaining([
                 expect.objectContaining({ type: 'equipment_lost', recipientId: 's1' }),
                 expect.objectContaining({ type: 'equipment_lost', recipientId: 's2' }),
-            ]),
+            ])
         )
 
         // N21 to admins
         expect(vi.mocked(notifyAdmins)).toHaveBeenCalledWith(
-            expect.objectContaining({ type: 'equipment_incident' }),
+            expect.objectContaining({ type: 'equipment_incident' })
         )
     })
 })
@@ -406,7 +485,10 @@ describe('Flow H: Admin manually adjusts student points', () => {
 
         await adjustStudentPoints('student-1', 25)
         expect(vi.mocked(sendNotification)).toHaveBeenCalledWith(
-            expect.objectContaining({ type: 'points_adjusted', body: expect.stringContaining('+25') }),
+            expect.objectContaining({
+                type: 'points_adjusted',
+                body: expect.stringContaining('+25'),
+            })
         )
     })
 
@@ -421,7 +503,7 @@ describe('Flow H: Admin manually adjusts student points', () => {
 
         await adjustStudentPoints('student-1', -12)
         expect(vi.mocked(sendNotification)).toHaveBeenCalledWith(
-            expect.objectContaining({ body: expect.stringContaining('-12') }),
+            expect.objectContaining({ body: expect.stringContaining('-12') })
         )
     })
 })
@@ -461,8 +543,11 @@ describe('Flow I: Student cancels own booking', () => {
         expect(result).toEqual({ success: true })
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
             expect.arrayContaining([
-                expect.objectContaining({ recipientId: 'player-2', type: 'booking_cancelled_by_booker' }),
-            ]),
+                expect.objectContaining({
+                    recipientId: 'player-2',
+                    type: 'booking_cancelled_by_booker',
+                }),
+            ])
         )
     })
 })

@@ -4,15 +4,13 @@ import { AdminNav } from '@/components/admin-nav'
 import { NotificationPopup } from '@/components/notification-popup'
 import { getMyNotifications } from '@/actions/notifications'
 
-export default async function AdminLayout({
-    children,
-}: {
-    children: React.ReactNode
-}) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
     const supabase = await createClient()
 
     // Auth Check
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
     if (!user) {
         redirect('/login?role=admin')
     }

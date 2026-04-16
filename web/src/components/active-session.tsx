@@ -36,7 +36,9 @@ export function ActiveSessionView({ booking }: { booking: Booking }) {
 
     const fmt = (secs: number) => {
         const abs = Math.abs(secs)
-        const m = Math.floor(abs / 60).toString().padStart(2, '0')
+        const m = Math.floor(abs / 60)
+            .toString()
+            .padStart(2, '0')
         const s = (abs % 60).toString().padStart(2, '0')
         return `${m}:${s}`
     }
@@ -63,17 +65,31 @@ export function ActiveSessionView({ booking }: { booking: Booking }) {
         <Card className="border-2 border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.15)] overflow-hidden">
             <CardContent className="p-0">
                 {/* Timer Circle Header */}
-                <div className={`flex flex-col items-center py-8 ${isOvertime ? 'bg-red-50' : isLowTime ? 'bg-yellow-50' : 'bg-green-50'}`}>
-                    <div className={`text-xs font-bold uppercase tracking-widest mb-3 ${isOvertime ? 'text-red-600 animate-pulse' : isLowTime ? 'text-yellow-700' : 'text-green-700 animate-pulse'}`}>
+                <div
+                    className={`flex flex-col items-center py-8 ${isOvertime ? 'bg-red-50' : isLowTime ? 'bg-yellow-50' : 'bg-green-50'}`}
+                >
+                    <div
+                        className={`text-xs font-bold uppercase tracking-widest mb-3 ${isOvertime ? 'text-red-600 animate-pulse' : isLowTime ? 'text-yellow-700' : 'text-green-700 animate-pulse'}`}
+                    >
                         {isOvertime ? '⚠ Session Overtime' : 'Session Active'}
                     </div>
 
                     {/* SVG Circle */}
                     <div className="relative w-36 h-36">
                         <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-                            <circle cx="60" cy="60" r="54" fill="none" stroke="#e5e7eb" strokeWidth="8" />
                             <circle
-                                cx="60" cy="60" r="54" fill="none"
+                                cx="60"
+                                cy="60"
+                                r="54"
+                                fill="none"
+                                stroke="#e5e7eb"
+                                strokeWidth="8"
+                            />
+                            <circle
+                                cx="60"
+                                cy="60"
+                                r="54"
+                                fill="none"
                                 stroke={isOvertime ? '#ef4444' : isLowTime ? '#f59e0b' : '#16a34a'}
                                 strokeWidth="8"
                                 strokeDasharray={`${2 * Math.PI * 54}`}
@@ -83,7 +99,9 @@ export function ActiveSessionView({ booking }: { booking: Booking }) {
                             />
                         </svg>
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className={`text-3xl font-mono font-black tabular-nums ${isOvertime ? 'text-red-600' : isLowTime ? 'text-yellow-700' : 'text-green-700'}`}>
+                            <span
+                                className={`text-3xl font-mono font-black tabular-nums ${isOvertime ? 'text-red-600' : isLowTime ? 'text-yellow-700' : 'text-green-700'}`}
+                            >
                                 {fmt(secondsRemaining)}
                             </span>
                             <span className="text-xs text-gray-500 mt-1">
@@ -101,13 +119,18 @@ export function ActiveSessionView({ booking }: { booking: Booking }) {
                 <div className="p-4 space-y-1">
                     <div className="flex justify-between items-center">
                         <div>
-                            <h3 className="font-bold text-gray-800 text-lg">{booking.courts.name}</h3>
+                            <h3 className="font-bold text-gray-800 text-lg">
+                                {booking.courts.name}
+                            </h3>
                             <span className="text-xs uppercase tracking-wider font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
                                 {booking.courts.sport}
                             </span>
                         </div>
                         <div className="text-right text-sm text-gray-500">
-                            <p>{format(new Date(booking.start_time), 'h:mm a')} — {format(endTime, 'h:mm a')}</p>
+                            <p>
+                                {format(new Date(booking.start_time), 'h:mm a')} —{' '}
+                                {format(endTime, 'h:mm a')}
+                            </p>
                             <p className="text-xs">{booking.num_players || 2} players</p>
                         </div>
                     </div>
@@ -120,8 +143,7 @@ export function ActiveSessionView({ booking }: { booking: Booking }) {
                             className="w-full bg-red-600 hover:bg-red-700 text-white font-bold h-12"
                             onClick={() => setEmergencyOpen(true)}
                         >
-                            <Zap className="w-5 h-5 mr-2" />
-                            ⚠ EMERGENCY — Alert Manager
+                            <Zap className="w-5 h-5 mr-2" />⚠ EMERGENCY — Alert Manager
                         </Button>
                     ) : (
                         <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-3">
@@ -138,7 +160,10 @@ export function ActiveSessionView({ booking }: { booking: Booking }) {
                             />
                             <div className="flex gap-2">
                                 <button
-                                    onClick={() => { setEmergencyOpen(false); setEmergencyReason('') }}
+                                    onClick={() => {
+                                        setEmergencyOpen(false)
+                                        setEmergencyReason('')
+                                    }}
                                     className="flex-1 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
                                 >
                                     Cancel

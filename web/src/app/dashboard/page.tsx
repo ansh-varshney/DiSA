@@ -25,7 +25,9 @@ export default async function Dashboard() {
             </div>
 
             <form action={signOut}>
-                <Button type="submit" variant="destructive">Sign Out</Button>
+                <Button type="submit" variant="destructive">
+                    Sign Out
+                </Button>
             </form>
         </div>
     )

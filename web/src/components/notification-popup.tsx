@@ -20,27 +20,44 @@ interface ToastEntry {
 // ─── Icon / colour helpers ────────────────────────────────────────────────────
 
 function toastStyle(type: string) {
-    if (type.includes('violation') || type.includes('ban') || type.includes('cancelled') || type.includes('rejected') || type.includes('lost')) {
-        return { border: 'border-red-300 bg-red-50', icon: <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" /> }
+    if (
+        type.includes('violation') ||
+        type.includes('ban') ||
+        type.includes('cancelled') ||
+        type.includes('rejected') ||
+        type.includes('lost')
+    ) {
+        return {
+            border: 'border-red-300 bg-red-50',
+            icon: <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />,
+        }
     }
     if (type === 'play_request_received') {
-        return { border: 'border-blue-300 bg-blue-50', icon: <UserPlus className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" /> }
+        return {
+            border: 'border-blue-300 bg-blue-50',
+            icon: <UserPlus className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />,
+        }
     }
-    if (type.includes('accepted') || type.includes('completed') || type.includes('cleared') || type.includes('active')) {
-        return { border: 'border-green-300 bg-green-50', icon: <CheckCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" /> }
+    if (
+        type.includes('accepted') ||
+        type.includes('completed') ||
+        type.includes('cleared') ||
+        type.includes('active')
+    ) {
+        return {
+            border: 'border-green-300 bg-green-50',
+            icon: <CheckCircle className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />,
+        }
     }
-    return { border: 'border-gray-200 bg-white', icon: <Info className="w-5 h-5 text-[#004d40] shrink-0 mt-0.5" /> }
+    return {
+        border: 'border-gray-200 bg-white',
+        icon: <Info className="w-5 h-5 text-[#004d40] shrink-0 mt-0.5" />,
+    }
 }
 
 // ─── Single Toast ─────────────────────────────────────────────────────────────
 
-function Toast({
-    entry,
-    onDismiss,
-}: {
-    entry: ToastEntry
-    onDismiss: (id: string) => void
-}) {
+function Toast({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: string) => void }) {
     const { notification: n, removing } = entry
     const { border, icon } = toastStyle(n.type)
     const isPlayRequest = n.type === 'play_request_received'
@@ -67,7 +84,7 @@ function Toast({
             className={cn(
                 'w-80 rounded-xl border shadow-lg p-4 transition-all duration-300',
                 border,
-                removing ? 'opacity-0 translate-x-full' : 'opacity-100 translate-x-0',
+                removing ? 'opacity-0 translate-x-full' : 'opacity-100 translate-x-0'
             )}
         >
             <div className="flex items-start gap-3">
@@ -116,11 +133,11 @@ interface NotificationPopupProps {
 
 export function NotificationPopup({ initial = [] }: NotificationPopupProps) {
     const [toasts, setToasts] = useState<ToastEntry[]>(() =>
-        initial.map((n) => ({ notification: n, removing: false })),
+        initial.map((n) => ({ notification: n, removing: false }))
     )
     // Track the latest created_at we've seen so we only fetch newer ones
     const lastSeenRef = useRef<string>(
-        initial.length > 0 ? initial[0].created_at : new Date().toISOString(),
+        initial.length > 0 ? initial[0].created_at : new Date().toISOString()
     )
     const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
@@ -134,7 +151,7 @@ export function NotificationPopup({ initial = [] }: NotificationPopupProps) {
     function dismiss(id: string) {
         // Start fade-out
         setToasts((prev) =>
-            prev.map((e) => (e.notification.id === id ? { ...e, removing: true } : e)),
+            prev.map((e) => (e.notification.id === id ? { ...e, removing: true } : e))
         )
         // Remove from DOM after animation
         setTimeout(() => {
