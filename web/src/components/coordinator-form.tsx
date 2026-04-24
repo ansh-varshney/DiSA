@@ -19,9 +19,9 @@ interface Coordinator {
     name: string
     role: string
     sport: string
-    email?: string
-    phone?: string
-    notes?: string
+    email?: string | null
+    phone?: string | null
+    notes?: string | null
 }
 
 interface CoordinatorFormProps {
@@ -187,7 +187,7 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                                             type="email"
                                             id="email"
                                             name="email"
-                                            defaultValue={coordinator?.email}
+                                            defaultValue={coordinator?.email ?? undefined}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40]"
                                             placeholder="john@example.com"
                                         />
@@ -204,7 +204,7 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                                             type="tel"
                                             id="phone"
                                             name="phone"
-                                            defaultValue={coordinator?.phone}
+                                            defaultValue={coordinator?.phone ?? undefined}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40]"
                                             placeholder="+1 234 567 8900"
                                         />
@@ -222,7 +222,7 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                                         id="notes"
                                         name="notes"
                                         rows={3}
-                                        defaultValue={coordinator?.notes}
+                                        defaultValue={coordinator?.notes ?? undefined}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40]"
                                         placeholder="Additional information..."
                                     />

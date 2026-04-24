@@ -11,10 +11,10 @@ interface MaintenanceEntry {
     name: string
     sport: string
     maintenance_notes: string | null
-    is_active: boolean
+    is_active: boolean | null
     is_booking_slot?: boolean
-    start_time?: string
-    end_time?: string
+    start_time?: Date | string
+    end_time?: Date | string
 }
 
 interface MaintenanceFlashcardProps {

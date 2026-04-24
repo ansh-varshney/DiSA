@@ -1,14 +1,11 @@
-import { createClient } from '@/utils/supabase/server'
+import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { getMyNotifications } from '@/actions/notifications'
 import { AdminNotificationsClient } from './admin-notifications-client'
 
 export default async function AdminNotificationsPage() {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) redirect('/login?role=admin')
+    const session = await auth()
+    if (!session?.user?.id) redirect('/login?role=admin')
 
     const notifications = await getMyNotifications(false, 80)
 

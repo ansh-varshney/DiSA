@@ -1,14 +1,11 @@
-import { createClient } from '@/utils/supabase/server'
+import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { getMyPlayRequests } from '@/actions/notifications'
 import { PlayRequestsClient } from './play-requests-client'
 
 export default async function PlayRequestsPage() {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) redirect('/login')
+    const session = await auth()
+    if (!session?.user?.id) redirect('/login')
 
     const requests = await getMyPlayRequests()
 

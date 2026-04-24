@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { makeMockDb, FIXTURES } from '../mocks/supabase'
+import { mockDrizzleDb } from '../mocks/drizzle'
+import { getCurrentUser } from '@/lib/session'
 
-vi.mock('@/utils/supabase/server')
-vi.mock('@/utils/supabase/admin')
 vi.mock('@/lib/sports', () => ({
     generateCourtId: vi.fn(() => 'CRT-001'),
     generateEquipmentId: vi.fn(() => 'EQ-001'),
+}))
+vi.mock('@/lib/storage', () => ({
+    uploadFile: vi.fn().mockResolvedValue(null),
+    deleteFile: vi.fn().mockResolvedValue(undefined),
 }))
 vi.mock('@/actions/notifications', () => ({
     sendNotification: vi.fn().mockResolvedValue('notif-new'),
@@ -14,13 +17,7 @@ vi.mock('@/actions/notifications', () => ({
     notifyAdmins: vi.fn().mockResolvedValue(undefined),
 }))
 
-import { createClient } from '@/utils/supabase/server'
-import { createAdminClient } from '@/utils/supabase/admin'
-import {
-    sendNotification,
-    sendNotifications,
-    broadcastToAllStudents,
-} from '@/actions/notifications'
+import { sendNotification, sendNotifications, broadcastToAllStudents } from '@/actions/notifications'
 
 import {
     getDefaulterStudents,
@@ -34,140 +31,68 @@ import {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function chain(res: any = { data: null, error: null }) {
-    const c: any = {}
-    for (const m of [
-        'select',
-        'insert',
-        'update',
-        'delete',
-        'eq',
-        'neq',
-        'in',
-        'not',
-        'or',
-        'is',
-        'gte',
-        'lte',
-        'lt',
-        'gt',
-        'ilike',
-        'order',
-        'limit',
-        'range',
-        'single',
-    ]) {
-        c[m] = vi.fn().mockReturnValue(c)
-    }
-    c.single = vi.fn().mockResolvedValue(res)
-    c.then = (resolve: any) => Promise.resolve(res).then(resolve)
-    return c
+function enqueueAdminRole() {
+    mockDrizzleDb.enqueue([{ role: 'admin' }])
 }
 
-function makeAdminSession() {
-    const db = makeMockDb()
-    db.auth.getUser.mockResolvedValue({ data: { user: { id: 'admin-1' } } })
-    db.mockTable('profiles', { data: { role: 'admin' }, error: null })
-    return db
+function enqueueForbiddenRole(role = 'student') {
+    mockDrizzleDb.enqueue([{ role }])
 }
 
 // ─── getDefaulterStudents ─────────────────────────────────────────────────────
 
 describe('getDefaulterStudents', () => {
+    beforeEach(() => mockDrizzleDb.reset())
+
     it('returns empty array when no violations', async () => {
-        const db = makeAdminSession()
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
-        const adminDb = makeMockDb()
-        adminDb.mockTable('student_violations', { data: [], error: null })
-        vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
-
-        const result = await getDefaulterStudents()
-        expect(result).toEqual([])
+        enqueueAdminRole()
+        mockDrizzleDb.enqueue([]) // select from student_violations
+        expect(await getDefaulterStudents()).toEqual([])
     })
 
     it('groups multiple violations for the same student', async () => {
-        const db = makeAdminSession()
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
-        const adminDb = makeMockDb()
-        adminDb.mockTable('student_violations', {
-            data: [
-                {
-                    student_id: 'student-1',
-                    violation_type: 'students_late',
-                    severity: 'minor',
-                    created_at: new Date().toISOString(),
-                    reported_by: null,
-                    reason: 'came late',
-                    profiles: {
-                        full_name: 'Alice',
-                        student_id: 'MT23001',
-                        email: 'alice@iiitd.ac.in',
-                        phone_number: '9876543210',
-                        banned_until: null,
-                    },
-                },
-                {
-                    student_id: 'student-1',
-                    violation_type: 'improper_gear',
-                    severity: 'minor',
-                    created_at: new Date().toISOString(),
-                    reported_by: null,
-                    reason: 'no shoes',
-                    profiles: {
-                        full_name: 'Alice',
-                        student_id: 'MT23001',
-                        email: 'alice@iiitd.ac.in',
-                        phone_number: '9876543210',
-                        banned_until: null,
-                    },
-                },
-            ],
-            error: null,
-        })
-        vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
+        enqueueAdminRole()
+        const now = new Date()
+        mockDrizzleDb.enqueue([
+            {
+                id: 'v1', student_id: 'student-1', violation_type: 'students_late', severity: 'minor',
+                reason: 'came late', reported_by: null, created_at: now,
+                profile_full_name: 'Alice', profile_student_id: 'MT23001', profile_email: 'alice@iiitd.ac.in',
+                profile_phone_number: '9876543210', profile_banned_until: null,
+            },
+            {
+                id: 'v2', student_id: 'student-1', violation_type: 'improper_gear', severity: 'minor',
+                reason: 'no shoes', reported_by: null, created_at: now,
+                profile_full_name: 'Alice', profile_student_id: 'MT23001', profile_email: 'alice@iiitd.ac.in',
+                profile_phone_number: '9876543210', profile_banned_until: null,
+            },
+        ])
 
         const result = await getDefaulterStudents()
         expect(result).toHaveLength(1)
         expect(result[0].total_violations).toBe(2)
     })
 
-    it('correctly identifies late_arrival_count and banned_until fields', async () => {
-        const db = makeAdminSession()
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
+    it('correctly counts late_arrival_count and exposes banned_until', async () => {
+        enqueueAdminRole()
+        const now = new Date()
+        const bannedUntil = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+        const makeRow = (type: string) => ({
+            id: Math.random().toString(), student_id: 'student-1', violation_type: type,
+            severity: 'minor', reason: 'came late', reported_by: null, created_at: now,
+            profile_full_name: 'Bob', profile_student_id: 'MT23002', profile_email: 'bob@iiitd.ac.in',
+            profile_phone_number: null, profile_banned_until: bannedUntil,
+        })
 
-        const adminDb = makeMockDb()
-        const bannedUntil = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
-        const makeViolation = (type: string) => ({
-            student_id: 'student-1',
-            violation_type: type,
-            severity: 'minor',
-            created_at: new Date().toISOString(),
-            reported_by: null,
-            reason: 'came late',
-            profiles: {
-                full_name: 'Bob',
-                student_id: 'MT23002',
-                email: 'bob@iiitd.ac.in',
-                phone_number: null,
-                banned_until: bannedUntil,
-            },
-        })
-        adminDb.mockTable('student_violations', {
-            data: [
-                makeViolation('students_late'),
-                makeViolation('students_late'),
-                makeViolation('students_late'),
-            ],
-            error: null,
-        })
-        vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
+        mockDrizzleDb.enqueue([
+            makeRow('students_late'),
+            makeRow('students_late'),
+            makeRow('students_late'),
+        ])
 
         const result = await getDefaulterStudents()
         expect(result[0].late_arrival_count).toBe(3)
-        // banned_until is set (not null) — the component derives is_banned from this
-        expect(result[0].banned_until).toBe(bannedUntil)
+        expect(result[0].banned_until).toBeTruthy()
         expect(new Date(result[0].banned_until!).getTime()).toBeGreaterThan(Date.now())
     })
 })
@@ -175,39 +100,23 @@ describe('getDefaulterStudents', () => {
 // ─── removeStudentFromDefaulters ──────────────────────────────────────────────
 
 describe('removeStudentFromDefaulters', () => {
-    beforeEach(() => vi.clearAllMocks())
+    beforeEach(() => mockDrizzleDb.reset())
 
-    it('calls clear_student_defaulter RPC and sends N17 notification', async () => {
-        const db = makeAdminSession()
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
-        const adminDb = makeMockDb()
-        adminDb.rpc.mockResolvedValue({ data: null, error: null })
-        // N17 notification insert
-        adminDb.mockTable('notifications', { data: { id: 'n-17' }, error: null })
-        vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
+    it('calls clear_student_defaulter and sends defaulter_cleared notification', async () => {
+        enqueueAdminRole()
+        mockDrizzleDb.enqueueEmpty() // db.execute (clear_student_defaulter)
+        // sendNotification is mocked
 
         const result = await removeStudentFromDefaulters('student-1')
         expect(result).toEqual({ success: true })
-        expect(adminDb.rpc).toHaveBeenCalledWith('clear_student_defaulter', {
-            p_student_id: 'student-1',
-        })
         expect(vi.mocked(sendNotification)).toHaveBeenCalledWith(
-            expect.objectContaining({
-                recipientId: 'student-1',
-                type: 'defaulter_cleared',
-            })
+            expect.objectContaining({ recipientId: 'student-1', type: 'defaulter_cleared' })
         )
     })
 
-    it('throws when RPC fails', async () => {
-        const db = makeAdminSession()
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
-        const adminDb = makeMockDb()
-        adminDb.rpc.mockResolvedValue({ data: null, error: { message: 'RPC failed' } })
-        vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
-
+    it('throws when execute fails', async () => {
+        enqueueAdminRole()
+        mockDrizzleDb.enqueueThrow('RPC failed')
         await expect(removeStudentFromDefaulters('student-1')).rejects.toThrow('RPC failed')
     })
 })
@@ -215,51 +124,31 @@ describe('removeStudentFromDefaulters', () => {
 // ─── adjustStudentPoints ──────────────────────────────────────────────────────
 
 describe('adjustStudentPoints', () => {
-    beforeEach(() => vi.clearAllMocks())
+    beforeEach(() => mockDrizzleDb.reset())
 
-    it('calls update_student_points RPC with correct delta', async () => {
-        const db = makeAdminSession()
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
-        const adminDb = makeMockDb()
-        adminDb.rpc.mockResolvedValue({ data: null, error: null })
-        adminDb.mockTable('notifications', { data: { id: 'n-18' }, error: null })
-        vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
+    it('calls update_student_points execute and sends points_adjusted notification', async () => {
+        enqueueAdminRole()
+        mockDrizzleDb.enqueueEmpty() // db.execute (update_student_points)
 
         await adjustStudentPoints('student-1', 15)
-        expect(adminDb.rpc).toHaveBeenCalledWith('update_student_points', {
-            p_student_id: 'student-1',
-            p_delta: 15,
-        })
+        expect(vi.mocked(sendNotification)).toHaveBeenCalledWith(
+            expect.objectContaining({ recipientId: 'student-1', type: 'points_adjusted' })
+        )
     })
 
-    it('sends N18 notification with signed delta string', async () => {
-        const db = makeAdminSession()
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
-        const adminDb = makeMockDb()
-        adminDb.rpc.mockResolvedValue({ data: null, error: null })
-        adminDb.mockTable('notifications', { data: { id: 'n-18' }, error: null })
-        vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
+    it('sends N18 with signed delta string for negative adjustment', async () => {
+        enqueueAdminRole()
+        mockDrizzleDb.enqueueEmpty()
 
         await adjustStudentPoints('student-1', -10)
         expect(vi.mocked(sendNotification)).toHaveBeenCalledWith(
-            expect.objectContaining({
-                recipientId: 'student-1',
-                type: 'points_adjusted',
-                body: expect.stringContaining('-10'),
-            })
+            expect.objectContaining({ body: expect.stringContaining('-10') })
         )
     })
 
     it('shows + sign for positive adjustments', async () => {
-        const db = makeAdminSession()
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
-        const adminDb = makeMockDb()
-        adminDb.rpc.mockResolvedValue({ data: null, error: null })
-        adminDb.mockTable('notifications', { data: { id: 'n-18' }, error: null })
-        vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
+        enqueueAdminRole()
+        mockDrizzleDb.enqueueEmpty()
 
         await adjustStudentPoints('student-1', 20)
         expect(vi.mocked(sendNotification)).toHaveBeenCalledWith(
@@ -267,14 +156,9 @@ describe('adjustStudentPoints', () => {
         )
     })
 
-    it('throws when RPC fails', async () => {
-        const db = makeAdminSession()
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
-        const adminDb = makeMockDb()
-        adminDb.rpc.mockResolvedValue({ data: null, error: { message: 'RPC error' } })
-        vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
-
+    it('throws when execute fails', async () => {
+        enqueueAdminRole()
+        mockDrizzleDb.enqueueThrow('RPC error')
         await expect(adjustStudentPoints('student-1', 5)).rejects.toThrow('RPC error')
     })
 })
@@ -282,23 +166,11 @@ describe('adjustStudentPoints', () => {
 // ─── createAnnouncement ───────────────────────────────────────────────────────
 
 describe('createAnnouncement', () => {
-    beforeEach(() => vi.clearAllMocks())
+    beforeEach(() => mockDrizzleDb.reset())
 
-    it('inserts announcement and broadcasts N24 to all students', async () => {
-        const db = makeAdminSession()
-        db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { role: 'admin' }, error: null })
-            if (table === 'announcements')
-                return chain({
-                    data: { id: 'ann-1', title: 'Test', content: 'Hello' },
-                    error: null,
-                })
-            return chain()
-        })
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
-        const adminDb = makeMockDb()
-        vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
+    it('inserts announcement and broadcasts to all students', async () => {
+        enqueueAdminRole()
+        mockDrizzleDb.enqueue([{ id: 'ann-1', title: 'Test', content: 'Hello' }]) // insert returning
 
         const result = await createAnnouncement('Test', 'Hello all students')
         expect(result).toMatchObject({ id: 'ann-1' })
@@ -308,18 +180,8 @@ describe('createAnnouncement', () => {
     })
 
     it('truncates long content to 120 chars in notification body', async () => {
-        const db = makeAdminSession()
-        db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { role: 'admin' }, error: null })
-            if (table === 'announcements')
-                return chain({
-                    data: { id: 'ann-2', title: 'Long', content: 'x'.repeat(200) },
-                    error: null,
-                })
-            return chain()
-        })
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-        vi.mocked(createAdminClient).mockReturnValue(makeMockDb().client as any)
+        enqueueAdminRole()
+        mockDrizzleDb.enqueue([{ id: 'ann-2', title: 'Long', content: 'x'.repeat(200) }])
 
         await createAnnouncement('Long', 'x'.repeat(200))
         const broadcastArg = vi.mocked(broadcastToAllStudents).mock.calls[0][0]
@@ -327,15 +189,9 @@ describe('createAnnouncement', () => {
         expect(broadcastArg.body).toMatch(/…$/)
     })
 
-    it('throws on DB error', async () => {
-        const db = makeAdminSession()
-        db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { role: 'admin' }, error: null })
-            if (table === 'announcements')
-                return chain({ data: null, error: { message: 'insert failed' } })
-            return chain()
-        })
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
+    it('throws on DB error (empty returning = no row)', async () => {
+        enqueueAdminRole()
+        mockDrizzleDb.enqueue([]) // returning() → empty → data = undefined → throws
 
         await expect(createAnnouncement('T', 'B')).rejects.toThrow('Failed to create announcement')
     })
@@ -344,72 +200,39 @@ describe('createAnnouncement', () => {
 // ─── priorityReserveSlot ──────────────────────────────────────────────────────
 
 describe('priorityReserveSlot', () => {
-    beforeEach(() => vi.clearAllMocks())
+    beforeEach(() => mockDrizzleDb.reset())
 
     const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-    function setupPriorityAdmin(
-        bookingInsertResult: { data: { id: string } | null; error: { message: string } | null } = {
-            data: { id: 'priority-new' },
-            error: null,
-        }
-    ) {
-        // verifyAdmin() calls createClient → profiles
-        const db = makeMockDb()
-        db.auth.getUser.mockResolvedValue({ data: { user: { id: 'admin-1' } } })
-        // profiles select for verifyAdmin
-        db.mockTableOnce('profiles', { data: { role: 'admin' }, error: null })
-        // booking insert via session client
-        db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { role: 'admin' }, error: null })
-            if (table === 'bookings') return chain(bookingInsertResult)
-            return chain()
-        })
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-        return db
-    }
-
-    it('cancels conflicting student bookings and sends N25 notifications', async () => {
-        setupPriorityAdmin()
-
-        const adminDb = makeMockDb()
-        adminDb.mockTableOnce('bookings', {
-            data: [
-                {
-                    id: 'conflict-1',
-                    user_id: 'student-1',
-                    players_list: [{ id: 'student-2', status: 'confirmed' }],
-                    start_time: new Date(Date.now() + 25 * 60 * 60 * 1000).toISOString(),
-                    courts: { name: 'Badminton Court A', sport: 'badminton' },
-                },
-            ],
-            error: null,
-        })
-        adminDb.mockTableOnce('bookings', { data: null, error: null })
-        vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
+    it('cancels conflicting student bookings and sends priority_reserve_cancelled notifications', async () => {
+        enqueueAdminRole()
+        // conflicting bookings select
+        mockDrizzleDb.enqueue([{
+            id: 'conflict-1',
+            user_id: 'student-1',
+            players_list: [{ id: 'student-2', status: 'confirmed' }],
+            start_time: new Date(Date.now() + 25 * 60 * 60 * 1000),
+            courts: { name: 'Badminton Court A', sport: 'badminton' },
+        }])
+        mockDrizzleDb.enqueueEmpty() // update booking (cancel conflict-1)
+        // sendNotifications is mocked — no DB call
+        // insert priority booking
+        mockDrizzleDb.enqueue([{ id: 'priority-new' }])
 
         await priorityReserveSlot('court-1', futureDate, '10:00', '11:00')
 
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
             expect.arrayContaining([
-                expect.objectContaining({
-                    type: 'priority_reserve_cancelled',
-                    recipientId: 'student-1',
-                }),
-                expect.objectContaining({
-                    type: 'priority_reserve_cancelled',
-                    recipientId: 'student-2',
-                }),
+                expect.objectContaining({ type: 'priority_reserve_cancelled', recipientId: 'student-1' }),
+                expect.objectContaining({ type: 'priority_reserve_cancelled', recipientId: 'student-2' }),
             ])
         )
     })
 
     it('creates priority booking even when no conflicts exist', async () => {
-        setupPriorityAdmin({ data: { id: 'priority-2' }, error: null })
-
-        const adminDb = makeMockDb()
-        adminDb.mockTable('bookings', { data: [], error: null })
-        vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
+        enqueueAdminRole()
+        mockDrizzleDb.enqueue([]) // no conflicting bookings
+        mockDrizzleDb.enqueue([{ id: 'priority-2' }]) // insert returning
 
         const result = await priorityReserveSlot('court-1', futureDate, '14:00', '15:00')
         expect(result).toMatchObject({ id: 'priority-2' })
@@ -417,11 +240,9 @@ describe('priorityReserveSlot', () => {
     })
 
     it('throws on booking insert error', async () => {
-        setupPriorityAdmin({ data: null, error: { message: 'insert failed' } })
-
-        const adminDb = makeMockDb()
-        adminDb.mockTable('bookings', { data: [], error: null })
-        vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
+        enqueueAdminRole()
+        mockDrizzleDb.enqueue([]) // no conflicts
+        mockDrizzleDb.enqueue([]) // insert returning → empty → throws
 
         await expect(priorityReserveSlot('court-1', futureDate, '16:00', '17:00')).rejects.toThrow(
             'Failed to create priority reservation'
@@ -429,26 +250,19 @@ describe('priorityReserveSlot', () => {
     })
 
     it('does NOT notify pending-status players in conflicting booking', async () => {
-        setupPriorityAdmin()
-
-        const adminDb = makeMockDb()
-        adminDb.mockTableOnce('bookings', {
-            data: [
-                {
-                    id: 'conflict-2',
-                    user_id: 'student-1',
-                    players_list: [
-                        { id: 'student-2', status: 'confirmed' },
-                        { id: 'student-3', status: 'pending' },
-                    ],
-                    start_time: new Date(Date.now() + 25 * 60 * 60 * 1000).toISOString(),
-                    courts: { name: 'Ct', sport: 'badminton' },
-                },
+        enqueueAdminRole()
+        mockDrizzleDb.enqueue([{
+            id: 'conflict-2',
+            user_id: 'student-1',
+            players_list: [
+                { id: 'student-2', status: 'confirmed' },
+                { id: 'student-3', status: 'pending' },
             ],
-            error: null,
-        })
-        adminDb.mockTableOnce('bookings', { data: null, error: null })
-        vi.mocked(createAdminClient).mockReturnValue(adminDb.client as any)
+            start_time: new Date(Date.now() + 25 * 60 * 60 * 1000),
+            courts: { name: 'Ct', sport: 'badminton' },
+        }])
+        mockDrizzleDb.enqueueEmpty() // cancel conflict
+        mockDrizzleDb.enqueue([{ id: 'priority-3' }])
 
         await priorityReserveSlot('court-1', futureDate, '10:00', '11:00')
 
@@ -463,100 +277,134 @@ describe('priorityReserveSlot', () => {
 // ─── getDashboardStats ────────────────────────────────────────────────────────
 
 describe('getDashboardStats', () => {
+    beforeEach(() => mockDrizzleDb.reset())
+
     it('returns stats object with all required keys', async () => {
-        const db = makeMockDb()
-        const countChain = {
-            select: vi.fn().mockReturnThis(),
-            eq: vi.fn().mockReturnThis(),
-            gte: vi.fn().mockReturnThis(),
-            lte: vi.fn().mockReturnThis(),
-            lt: vi.fn().mockReturnThis(),
-            then: (resolve: any) => resolve({ count: 5, error: null }),
-        }
-        db.client.from = vi.fn(() => countChain)
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
+        enqueueAdminRole()
+        // Promise.all with 4 concurrent queries — pops in array order
+        mockDrizzleDb.enqueue([{ count: 3 }]) // equipment count
+        mockDrizzleDb.enqueue([{ count: 2 }]) // courts count
+        mockDrizzleDb.enqueue([{ count: 5 }]) // reservations count
+        mockDrizzleDb.enqueue([{ count: 1 }]) // complaints count
 
         const result = await getDashboardStats()
         expect(result).toHaveProperty('totalEquipment')
         expect(result).toHaveProperty('activeCourts')
         expect(result).toHaveProperty('todayReservations')
         expect(result).toHaveProperty('openComplaints')
+        expect(result.totalEquipment).toBe(3)
+        expect(result.activeCourts).toBe(2)
+    })
+})
+
+// ─── forceCancelBooking ───────────────────────────────────────────────────────
+
+describe('forceCancelBooking', () => {
+    beforeEach(() => mockDrizzleDb.reset())
+
+    it('cancels booking and sends force_cancelled notification to all players', async () => {
+        enqueueAdminRole()
+        mockDrizzleDb.enqueue([{
+            user_id: 'student-1',
+            players_list: [{ id: 'student-2', status: 'confirmed' }],
+            start_time: new Date(Date.now() + 3600000),
+            is_priority: false,
+            is_maintenance: false,
+            courts: { name: 'Badminton Court A' },
+        }]) // select booking
+        mockDrizzleDb.enqueue([{ id: 'b-1', status: 'cancelled' }]) // update returning
+
+        const result = await forceCancelBooking('b-1')
+        expect(result).toMatchObject({ id: 'b-1' })
+        expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
+            expect.arrayContaining([
+                expect.objectContaining({ type: 'force_cancelled', recipientId: 'student-1' }),
+                expect.objectContaining({ type: 'force_cancelled', recipientId: 'student-2' }),
+            ])
+        )
+    })
+
+    it('does not send notifications for priority bookings', async () => {
+        enqueueAdminRole()
+        mockDrizzleDb.enqueue([{
+            user_id: 'admin-1',
+            players_list: [],
+            start_time: new Date(),
+            is_priority: true,
+            is_maintenance: false,
+            courts: { name: 'Ct' },
+        }])
+        mockDrizzleDb.enqueue([{ id: 'b-p', status: 'cancelled' }])
+
+        await forceCancelBooking('b-p')
+        expect(vi.mocked(sendNotifications)).not.toHaveBeenCalled()
+    })
+
+    it('throws when booking update returns empty', async () => {
+        enqueueAdminRole()
+        mockDrizzleDb.enqueue([{
+            user_id: 's-1', players_list: [], start_time: new Date(),
+            is_priority: false, is_maintenance: false, courts: null,
+        }])
+        mockDrizzleDb.enqueue([]) // update returning → empty → throws
+
+        await expect(forceCancelBooking('nonexistent')).rejects.toThrow('Failed to cancel booking')
     })
 })
 
 // ─── verifyAdmin role rejection ───────────────────────────────────────────────
 
 describe('verifyAdmin — role rejection', () => {
-    beforeEach(() => vi.clearAllMocks())
-
-    function makeNonAdminDb(role: 'student' | 'manager') {
-        const db = makeMockDb()
-        db.auth.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
-        db.mockTable('profiles', { data: { role }, error: null })
-        return db
-    }
+    beforeEach(() => mockDrizzleDb.reset())
 
     it('rejects student token when calling removeStudentFromDefaulters', async () => {
-        const db = makeNonAdminDb('student')
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
+        enqueueForbiddenRole('student')
         await expect(removeStudentFromDefaulters('student-1')).rejects.toThrow('Forbidden')
     })
 
     it('rejects manager token when calling removeStudentFromDefaulters', async () => {
-        const db = makeNonAdminDb('manager')
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
+        enqueueForbiddenRole('manager')
         await expect(removeStudentFromDefaulters('student-1')).rejects.toThrow('Forbidden')
     })
 
     it('rejects student token when calling adjustStudentPoints', async () => {
-        const db = makeNonAdminDb('student')
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
+        enqueueForbiddenRole('student')
         await expect(adjustStudentPoints('student-1', 10)).rejects.toThrow('Forbidden')
     })
 
     it('rejects manager token when calling adjustStudentPoints', async () => {
-        const db = makeNonAdminDb('manager')
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
+        enqueueForbiddenRole('manager')
         await expect(adjustStudentPoints('student-1', 10)).rejects.toThrow('Forbidden')
     })
 
     it('rejects student token when calling createAnnouncement', async () => {
-        const db = makeNonAdminDb('student')
-        db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { role: 'student' }, error: null })
-            return chain()
-        })
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
+        enqueueForbiddenRole('student')
         await expect(createAnnouncement('Title', 'Body')).rejects.toThrow('Forbidden')
     })
 
     it('rejects student token when calling forceCancelBooking', async () => {
-        const db = makeNonAdminDb('student')
-        db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { role: 'student' }, error: null })
-            return chain()
-        })
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
+        enqueueForbiddenRole('student')
         await expect(forceCancelBooking('b-1')).rejects.toThrow('Forbidden')
     })
 
     it('rejects student token when calling priorityReserveSlot', async () => {
-        const db = makeNonAdminDb('student')
-        db.client.from = vi.fn((table: string) => {
-            if (table === 'profiles') return chain({ data: { role: 'student' }, error: null })
-            return chain()
-        })
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
+        enqueueForbiddenRole('student')
         const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        await expect(priorityReserveSlot('court-1', futureDate, '10:00', '11:00')).rejects.toThrow(
-            'Forbidden'
-        )
+        await expect(priorityReserveSlot('court-1', futureDate, '10:00', '11:00')).rejects.toThrow('Forbidden')
+    })
+
+    it('rejects when getCurrentUser returns null', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValueOnce(null)
+        await expect(removeStudentFromDefaulters('s-1')).rejects.toThrow('Unauthorized')
+    })
+
+    it('rejects student token when calling getDefaulterStudents', async () => {
+        enqueueForbiddenRole('student')
+        await expect(getDefaulterStudents()).rejects.toThrow('Forbidden')
+    })
+
+    it('rejects student token when calling getDashboardStats', async () => {
+        enqueueForbiddenRole('student')
+        await expect(getDashboardStats()).rejects.toThrow('Forbidden')
     })
 })

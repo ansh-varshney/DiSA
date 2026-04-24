@@ -1,475 +1,513 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
-import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { eq, and, gt, ne, desc } from 'drizzle-orm'
+import { db } from '@/db'
+import { profiles, notifications, playRequests, bookings } from '@/db/schema'
+import { getCurrentUser } from '@/lib/session'
 import { getPlayerLimits } from '@/lib/sport-config'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type NotificationInput = {
-    recipientId: string
-    senderId?: string | null
-    type: string
-    title: string
-    body: string
-    data?: Record<string, any>
+  recipientId: string
+  senderId?: string | null
+  type: string
+  title: string
+  body: string
+  data?: Record<string, any>
 }
 
 export type AppNotification = {
-    id: string
-    recipient_id: string
-    sender_id: string | null
-    type: string
-    title: string
-    body: string
-    data: Record<string, any>
-    is_read: boolean
-    created_at: string
+  id: string
+  recipient_id: string
+  sender_id: string | null
+  type: string
+  title: string
+  body: string
+  data: Record<string, any>
+  is_read: boolean
+  created_at: Date
 }
 
-// ─── Core send helpers (use admin client — works for any recipient) ────────────
+// ─── Core send helpers ────────────────────────────────────────────────────────
 
 export async function sendNotification(input: NotificationInput): Promise<string | null> {
-    const adminSupabase = createAdminClient()
-    const { data, error } = await adminSupabase
-        .from('notifications')
-        .insert({
-            recipient_id: input.recipientId,
-            sender_id: input.senderId ?? null,
-            type: input.type,
-            title: input.title,
-            body: input.body,
-            data: input.data ?? {},
-        })
-        .select('id')
-        .single()
-
-    if (error) {
-        console.error('sendNotification error:', error)
-        return null
-    }
-    return data?.id ?? null
+  try {
+    const [row] = await db
+      .insert(notifications)
+      .values({
+        recipient_id: input.recipientId,
+        sender_id: input.senderId ?? null,
+        type: input.type,
+        title: input.title,
+        body: input.body,
+        data: input.data ?? {},
+      })
+      .returning({ id: notifications.id })
+    return row?.id ?? null
+  } catch (err) {
+    console.error('sendNotification error:', err)
+    return null
+  }
 }
 
 export async function sendNotifications(inputs: NotificationInput[]): Promise<void> {
-    if (inputs.length === 0) return
-    const adminSupabase = createAdminClient()
-    const { error } = await adminSupabase.from('notifications').insert(
-        inputs.map((n) => ({
-            recipient_id: n.recipientId,
-            sender_id: n.senderId ?? null,
-            type: n.type,
-            title: n.title,
-            body: n.body,
-            data: n.data ?? {},
-        }))
+  if (inputs.length === 0) return
+  try {
+    await db.insert(notifications).values(
+      inputs.map((n) => ({
+        recipient_id: n.recipientId,
+        sender_id: n.senderId ?? null,
+        type: n.type,
+        title: n.title,
+        body: n.body,
+        data: n.data ?? {},
+      }))
     )
-
-    if (error) console.error('sendNotifications error:', error)
+  } catch (err) {
+    console.error('sendNotifications error:', err)
+  }
 }
 
-/** Broadcast to all managers */
 export async function notifyManagers(input: Omit<NotificationInput, 'recipientId'>): Promise<void> {
-    const adminSupabase = createAdminClient()
-    const { data: managers } = await adminSupabase
-        .from('profiles')
-        .select('id')
-        .eq('role', 'manager')
-
-    if (!managers || managers.length === 0) return
-    await sendNotifications(managers.map((m: { id: string }) => ({ ...input, recipientId: m.id })))
+  const managers = await db
+    .select({ id: profiles.id })
+    .from(profiles)
+    .where(eq(profiles.role, 'manager'))
+  if (managers.length === 0) return
+  await sendNotifications(managers.map((m) => ({ ...input, recipientId: m.id })))
 }
 
-/** Broadcast to all admins */
 export async function notifyAdmins(input: Omit<NotificationInput, 'recipientId'>): Promise<void> {
-    const adminSupabase = createAdminClient()
-    const { data: admins } = await adminSupabase
-        .from('profiles')
-        .select('id')
-        .in('role', ['admin', 'superuser'])
-
-    if (!admins || admins.length === 0) return
-    await sendNotifications(admins.map((a: { id: string }) => ({ ...input, recipientId: a.id })))
+  const admins = await db
+    .select({ id: profiles.id })
+    .from(profiles)
+    .where(eq(profiles.role, 'admin'))
+  if (admins.length === 0) return
+  await sendNotifications(admins.map((a) => ({ ...input, recipientId: a.id })))
 }
 
-/** Broadcast to all managers AND admins */
 export async function notifyAdminsAndManagers(
-    input: Omit<NotificationInput, 'recipientId'>
+  input: Omit<NotificationInput, 'recipientId'>
 ): Promise<void> {
-    const adminSupabase = createAdminClient()
-    const { data: staff } = await adminSupabase
-        .from('profiles')
-        .select('id')
-        .in('role', ['admin', 'superuser', 'manager'])
-
-    if (!staff || staff.length === 0) return
-    await sendNotifications(staff.map((s: { id: string }) => ({ ...input, recipientId: s.id })))
+  const { inArray } = await import('drizzle-orm')
+  const staff = await db
+    .select({ id: profiles.id })
+    .from(profiles)
+    .where(inArray(profiles.role, ['admin', 'superuser', 'manager']))
+  if (staff.length === 0) return
+  await sendNotifications(staff.map((s) => ({ ...input, recipientId: s.id })))
 }
 
-/** Broadcast to all students */
 export async function broadcastToAllStudents(
-    input: Omit<NotificationInput, 'recipientId'>
+  input: Omit<NotificationInput, 'recipientId'>
 ): Promise<void> {
-    const adminSupabase = createAdminClient()
-    const { data: students } = await adminSupabase
-        .from('profiles')
-        .select('id')
-        .eq('role', 'student')
-
-    if (!students || students.length === 0) return
-    await sendNotifications(students.map((s: { id: string }) => ({ ...input, recipientId: s.id })))
+  const students = await db
+    .select({ id: profiles.id })
+    .from(profiles)
+    .where(eq(profiles.role, 'student'))
+  if (students.length === 0) return
+  await sendNotifications(students.map((s) => ({ ...input, recipientId: s.id })))
 }
 
 // ─── User-facing read actions ─────────────────────────────────────────────────
 
 export async function getMyNotifications(
-    unreadOnly = false,
-    limit = 60
+  unreadOnly = false,
+  limit = 60
 ): Promise<AppNotification[]> {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return []
+  const user = await getCurrentUser()
+  if (!user) return []
 
-    let query = supabase
-        .from('notifications')
-        .select('*')
-        .eq('recipient_id', user.id)
-        // Exclude play request notifications — those live on the play-requests page
-        .not('type', 'eq', 'play_request_received')
-        .order('created_at', { ascending: false })
-        .limit(limit)
+  const conditions = [
+    eq(notifications.recipient_id, user.id),
+    ne(notifications.type, 'play_request_received'),
+  ]
+  if (unreadOnly) {
+    const { eq: eqFn } = await import('drizzle-orm')
+    conditions.push(eqFn(notifications.is_read, false))
+  }
 
-    if (unreadOnly) query = query.eq('is_read', false)
+  const data = await db
+    .select()
+    .from(notifications)
+    .where(and(...conditions))
+    .orderBy(desc(notifications.created_at))
+    .limit(limit)
 
-    const { data } = await query
-    return (data || []) as AppNotification[]
+  return data as AppNotification[]
 }
 
-/** Called by the popup's polling — returns notifications created after `since` */
 export async function getNewNotifications(since: string): Promise<AppNotification[]> {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return []
+  const user = await getCurrentUser()
+  if (!user) return []
 
-    const { data } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('recipient_id', user.id)
-        .eq('is_read', false)
-        .gt('created_at', since)
-        .order('created_at', { ascending: false })
-        .limit(10)
+  const data = await db
+    .select()
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.recipient_id, user.id),
+        eq(notifications.is_read, false),
+        gt(notifications.created_at, new Date(since))
+      )
+    )
+    .orderBy(desc(notifications.created_at))
+    .limit(10)
 
-    return (data || []) as AppNotification[]
+  return data as AppNotification[]
 }
 
 export async function getUnreadCount(): Promise<number> {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return 0
+  const user = await getCurrentUser()
+  if (!user) return 0
 
-    const { count } = await supabase
-        .from('notifications')
-        .select('id', { count: 'exact', head: true })
-        .eq('recipient_id', user.id)
-        .eq('is_read', false)
-        // Exclude play request notifications — those live on the play-requests page
-        .not('type', 'eq', 'play_request_received')
-
-    return count ?? 0
+  const { count } = await import('drizzle-orm')
+  const [{ value }] = await db
+    .select({ value: count() })
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.recipient_id, user.id),
+        eq(notifications.is_read, false),
+        ne(notifications.type, 'play_request_received')
+      )
+    )
+  return value ?? 0
 }
 
 export async function markNotificationRead(notificationId: string): Promise<void> {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return
+  const user = await getCurrentUser()
+  if (!user) return
 
-    await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('id', notificationId)
-        .eq('recipient_id', user.id) // ownership guard — only marks own notifications
-    revalidatePath('/student/notifications')
-    revalidatePath('/admin/notifications')
-    revalidatePath('/manager/notifications')
+  await db
+    .update(notifications)
+    .set({ is_read: true })
+    .where(
+      and(
+        eq(notifications.id, notificationId),
+        eq(notifications.recipient_id, user.id)
+      )
+    )
+
+  revalidatePath('/student/notifications')
+  revalidatePath('/admin/notifications')
+  revalidatePath('/manager/notifications')
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return
+  const user = await getCurrentUser()
+  if (!user) return
 
-    await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('recipient_id', user.id)
-        .eq('is_read', false)
+  await db
+    .update(notifications)
+    .set({ is_read: true })
+    .where(
+      and(eq(notifications.recipient_id, user.id), eq(notifications.is_read, false))
+    )
 
-    revalidatePath('/student/notifications')
-    revalidatePath('/admin/notifications')
-    revalidatePath('/manager/notifications')
+  revalidatePath('/student/notifications')
+  revalidatePath('/admin/notifications')
+  revalidatePath('/manager/notifications')
 }
 
 // ─── Play request actions ─────────────────────────────────────────────────────
 
 export async function getMyPlayRequests() {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return []
+  const user = await getCurrentUser()
+  if (!user) return []
 
-    const { data } = await supabase
-        .from('play_requests')
-        .select(
-            `
-            *,
-            bookings (
-                id, start_time, end_time, status,
-                courts (name, sport)
-            ),
-            requester:profiles!play_requests_requester_id_fkey (full_name, student_id)
-        `
-        )
-        .eq('recipient_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(30)
+  const data = await db
+    .select({
+      id: playRequests.id,
+      booking_id: playRequests.booking_id,
+      requester_id: playRequests.requester_id,
+      recipient_id: playRequests.recipient_id,
+      status: playRequests.status,
+      notification_id: playRequests.notification_id,
+      created_at: playRequests.created_at,
+      responded_at: playRequests.responded_at,
+      bookings: {
+        id: bookings.id,
+        start_time: bookings.start_time,
+        end_time: bookings.end_time,
+        status: bookings.status,
+      },
+      requester: {
+        full_name: profiles.full_name,
+        student_id: profiles.student_id,
+      },
+    })
+    .from(playRequests)
+    .leftJoin(bookings, eq(playRequests.booking_id, bookings.id))
+    .leftJoin(profiles, eq(playRequests.requester_id, profiles.id))
+    .where(eq(playRequests.recipient_id, user.id))
+    .orderBy(desc(playRequests.created_at))
+    .limit(30)
 
-    return data || []
+  // fetch court info separately for each booking
+  const { courts } = await import('@/db/schema')
+  const bookingIds = [...new Set(data.map((r) => r.booking_id).filter(Boolean))]
+  const courtMap: Record<string, { name: string; sport: string }> = {}
+  if (bookingIds.length > 0) {
+    const { inArray } = await import('drizzle-orm')
+    const courtRows = await db
+      .select({ id: bookings.id, name: courts.name, sport: courts.sport })
+      .from(bookings)
+      .leftJoin(courts, eq(bookings.court_id, courts.id))
+      .where(inArray(bookings.id, bookingIds))
+    courtRows.forEach((r) => {
+      if (r.id) courtMap[r.id] = { name: r.name ?? '', sport: r.sport ?? '' }
+    })
+  }
+
+  return data.map((r) => ({
+    ...r,
+    bookings: r.bookings
+      ? { ...r.bookings, courts: courtMap[r.booking_id] ?? null }
+      : null,
+  }))
 }
 
 export async function acceptPlayRequest(playRequestId: string) {
-    const supabase = await createClient()
-    const adminSupabase = createAdminClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return { error: 'Unauthorized' }
+  const user = await getCurrentUser()
+  if (!user) return { error: 'Unauthorized' }
 
-    // 1. Fetch the play request + booking details
-    const { data: pr } = await adminSupabase
-        .from('play_requests')
-        .select('*, bookings(id, status, user_id, start_time, courts(name, sport))')
-        .eq('id', playRequestId)
-        .eq('recipient_id', user.id)
-        .single()
+  const { inArray } = await import('drizzle-orm')
+  const { courts } = await import('@/db/schema')
 
-    if (!pr) return { error: 'Play request not found' }
-    if (pr.status !== 'pending') return { error: 'Already responded to this request' }
+  const [pr] = await db
+    .select()
+    .from(playRequests)
+    .where(
+      and(eq(playRequests.id, playRequestId), eq(playRequests.recipient_id, user.id))
+    )
 
-    const booking = pr.bookings as any
-    if (['cancelled', 'rejected', 'completed'].includes(booking?.status)) {
-        await adminSupabase
-            .from('play_requests')
-            .update({ status: 'expired', responded_at: new Date().toISOString() })
-            .eq('id', playRequestId)
-        return { error: 'The booking has already been cancelled or completed' }
-    }
+  if (!pr) return { error: 'Play request not found' }
+  if (pr.status !== 'pending') return { error: 'Already responded to this request' }
 
-    // 2. Fetch the accepting player's profile
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, full_name, branch, gender, year')
-        .eq('id', user.id)
-        .single()
-
-    // 3. Update players_list — change this player's status to 'confirmed'
-    const { data: bk } = await adminSupabase
-        .from('bookings')
-        .select('players_list, num_players')
-        .eq('id', pr.booking_id)
-        .single()
-
-    const playersList = Array.isArray(bk?.players_list) ? bk.players_list : []
-    const inList = playersList.some((p: any) => (typeof p === 'string' ? p : p.id) === user.id)
-
-    const updatedList = inList
-        ? playersList.map((p: any) => {
-              const pid = typeof p === 'string' ? p : p.id
-              return pid === user.id ? { ...p, status: 'confirmed' } : p
-          })
-        : [
-              ...playersList,
-              {
-                  id: user.id,
-                  full_name: profile?.full_name,
-                  branch: profile?.branch,
-                  gender: profile?.gender,
-                  year: profile?.year,
-                  status: 'confirmed',
-              },
-          ]
-
-    await adminSupabase
-        .from('bookings')
-        .update({ players_list: updatedList, num_players: (bk?.num_players || 1) + 1 })
-        .eq('id', pr.booking_id)
-
-    // 4. Mark play request accepted
-    await adminSupabase
-        .from('play_requests')
-        .update({ status: 'accepted', responded_at: new Date().toISOString() })
-        .eq('id', playRequestId)
-
-    // 5. Mark the play_request notification as read
-    if (pr.notification_id) {
-        await adminSupabase
-            .from('notifications')
-            .update({ is_read: true })
-            .eq('id', pr.notification_id)
-    }
-
-    // 6. Notify the booker — N2
-    const courtName = booking.courts?.name || 'Court'
-    const startDisplay = new Date(booking.start_time).toLocaleString('en-IN', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
+  const [bkRow] = await db
+    .select({
+      id: bookings.id,
+      status: bookings.status,
+      user_id: bookings.user_id,
+      start_time: bookings.start_time,
+      players_list: bookings.players_list,
+      num_players: bookings.num_players,
+      court_name: courts.name,
+      court_sport: courts.sport,
     })
-    await sendNotification({
-        recipientId: booking.user_id,
-        senderId: user.id,
-        type: 'play_request_accepted',
-        title: 'Play Request Accepted',
-        body: `${profile?.full_name || 'A player'} accepted your play request for ${courtName} on ${startDisplay}.`,
-        data: { booking_id: pr.booking_id, player_name: profile?.full_name },
-    })
+    .from(bookings)
+    .leftJoin(courts, eq(bookings.court_id, courts.id))
+    .where(eq(bookings.id, pr.booking_id))
 
-    revalidatePath('/student/play-requests')
-    revalidatePath('/student/reservations')
-    return { success: true }
+  if (!bkRow) return { error: 'Booking not found' }
+
+  if (['cancelled', 'rejected', 'completed'].includes(bkRow.status ?? '')) {
+    await db
+      .update(playRequests)
+      .set({ status: 'expired', responded_at: new Date() })
+      .where(eq(playRequests.id, playRequestId))
+    return { error: 'The booking has already been cancelled or completed' }
+  }
+
+  const [profile] = await db
+    .select({
+      id: profiles.id,
+      full_name: profiles.full_name,
+      branch: profiles.branch,
+      gender: profiles.gender,
+      year: profiles.year,
+    })
+    .from(profiles)
+    .where(eq(profiles.id, user.id))
+
+  const playersList = Array.isArray(bkRow.players_list) ? (bkRow.players_list as any[]) : []
+  const inList = playersList.some((p: any) => (typeof p === 'string' ? p : p.id) === user.id)
+
+  const updatedList = inList
+    ? playersList.map((p: any) => {
+        const pid = typeof p === 'string' ? p : p.id
+        return pid === user.id ? { ...p, status: 'confirmed' } : p
+      })
+    : [
+        ...playersList,
+        {
+          id: user.id,
+          full_name: profile?.full_name,
+          branch: profile?.branch,
+          gender: profile?.gender,
+          year: profile?.year,
+          status: 'confirmed',
+        },
+      ]
+
+  await db
+    .update(bookings)
+    .set({ players_list: updatedList, num_players: (bkRow.num_players || 1) + 1 })
+    .where(eq(bookings.id, pr.booking_id))
+
+  await db
+    .update(playRequests)
+    .set({ status: 'accepted', responded_at: new Date() })
+    .where(eq(playRequests.id, playRequestId))
+
+  if (pr.notification_id) {
+    await db
+      .update(notifications)
+      .set({ is_read: true })
+      .where(eq(notifications.id, pr.notification_id))
+  }
+
+  const courtName = bkRow.court_name || 'Court'
+  const startDisplay = new Date(bkRow.start_time).toLocaleString('en-IN', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
+  await sendNotification({
+    recipientId: bkRow.user_id,
+    senderId: user.id,
+    type: 'play_request_accepted',
+    title: 'Play Request Accepted',
+    body: `${profile?.full_name || 'A player'} accepted your play request for ${courtName} on ${startDisplay}.`,
+    data: { booking_id: pr.booking_id, player_name: profile?.full_name },
+  })
+
+  revalidatePath('/student/play-requests')
+  revalidatePath('/student/reservations')
+  return { success: true }
 }
 
 export async function rejectPlayRequest(playRequestId: string) {
-    const supabase = await createClient()
-    const adminSupabase = createAdminClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return { error: 'Unauthorized' }
+  const user = await getCurrentUser()
+  if (!user) return { error: 'Unauthorized' }
 
-    // 1. Fetch play request + booking
-    const { data: pr } = await adminSupabase
-        .from('play_requests')
-        .select(
-            '*, bookings(id, status, user_id, start_time, num_players, equipment_ids, players_list, courts(name, sport))'
-        )
-        .eq('id', playRequestId)
-        .eq('recipient_id', user.id)
-        .single()
+  const { courts } = await import('@/db/schema')
 
-    if (!pr) return { error: 'Play request not found' }
-    if (pr.status !== 'pending') return { error: 'Already responded to this request' }
-
-    const booking = pr.bookings as any
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single()
-
-    // 2. Remove player from players_list
-    const playersList = Array.isArray(booking.players_list) ? booking.players_list : []
-    const updatedList = playersList.filter(
-        (p: any) => (typeof p === 'string' ? p : p.id) !== user.id
+  const [pr] = await db
+    .select()
+    .from(playRequests)
+    .where(
+      and(eq(playRequests.id, playRequestId), eq(playRequests.recipient_id, user.id))
     )
-    const newNumPlayers = Math.max(1, (booking.num_players || 1) - 1)
 
-    // 3. Check if booking falls below minimum
-    const sport = booking.courts?.sport || ''
-    const courtName = booking.courts?.name || 'Court'
-    const limits = getPlayerLimits(sport)
-    const startDisplay = new Date(booking.start_time).toLocaleString('en-IN', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
+  if (!pr) return { error: 'Play request not found' }
+  if (pr.status !== 'pending') return { error: 'Already responded to this request' }
+
+  const [bkRow] = await db
+    .select({
+      id: bookings.id,
+      status: bookings.status,
+      user_id: bookings.user_id,
+      start_time: bookings.start_time,
+      num_players: bookings.num_players,
+      equipment_ids: bookings.equipment_ids,
+      players_list: bookings.players_list,
+      court_name: courts.name,
+      court_sport: courts.sport,
+    })
+    .from(bookings)
+    .leftJoin(courts, eq(bookings.court_id, courts.id))
+    .where(eq(bookings.id, pr.booking_id))
+
+  if (!bkRow) return { error: 'Booking not found' }
+
+  const [profile] = await db
+    .select({ full_name: profiles.full_name })
+    .from(profiles)
+    .where(eq(profiles.id, user.id))
+
+  const playersList = Array.isArray(bkRow.players_list) ? (bkRow.players_list as any[]) : []
+  const updatedList = playersList.filter(
+    (p: any) => (typeof p === 'string' ? p : p.id) !== user.id
+  )
+  const newNumPlayers = Math.max(1, (bkRow.num_players || 1) - 1)
+
+  const sport = bkRow.court_sport || ''
+  const courtName = bkRow.court_name || 'Court'
+  const limits = getPlayerLimits(sport)
+  const startDisplay = new Date(bkRow.start_time).toLocaleString('en-IN', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+
+  let bookingCancelled = false
+
+  if (newNumPlayers < limits.min) {
+    const equipIds: string[] = (bkRow.equipment_ids as string[]) || []
+    if (equipIds.length > 0) {
+      const { equipment } = await import('@/db/schema')
+      const { inArray } = await import('drizzle-orm')
+      await db.update(equipment).set({ is_available: true }).where(inArray(equipment.id, equipIds))
+    }
+
+    await db
+      .update(bookings)
+      .set({ status: 'cancelled', players_list: updatedList, num_players: newNumPlayers })
+      .where(eq(bookings.id, pr.booking_id))
+    bookingCancelled = true
+
+    await sendNotification({
+      recipientId: bkRow.user_id,
+      senderId: user.id,
+      type: 'play_request_booking_cancelled',
+      title: 'Booking Cancelled — Not Enough Players',
+      body: `Your booking for ${courtName} on ${startDisplay} was cancelled because ${profile?.full_name || 'a player'} declined and the player count dropped below the minimum.`,
+      data: { booking_id: pr.booking_id },
     })
 
-    let bookingCancelled = false
+    const confirmedIds = updatedList
+      .filter((p: any) => !p.status || p.status === 'confirmed')
+      .map((p: any) => (typeof p === 'string' ? p : p.id))
 
-    if (newNumPlayers < limits.min) {
-        // Cancel booking — free equipment
-        const equipIds: string[] = booking.equipment_ids || []
-        if (equipIds.length > 0) {
-            await adminSupabase.from('equipment').update({ is_available: true }).in('id', equipIds)
-        }
-        await adminSupabase
-            .from('bookings')
-            .update({ status: 'cancelled', players_list: updatedList, num_players: newNumPlayers })
-            .eq('id', pr.booking_id)
-        bookingCancelled = true
-
-        // Notify booker — N4
-        await sendNotification({
-            recipientId: booking.user_id,
-            senderId: user.id,
-            type: 'play_request_booking_cancelled',
-            title: 'Booking Cancelled — Not Enough Players',
-            body: `Your booking for ${courtName} on ${startDisplay} was cancelled because ${profile?.full_name || 'a player'} declined and the player count dropped below the minimum.`,
-            data: { booking_id: pr.booking_id },
-        })
-
-        // Notify all other confirmed players — N4
-        const confirmedIds = updatedList
-            .filter((p: any) => !p.status || p.status === 'confirmed')
-            .map((p: any) => (typeof p === 'string' ? p : p.id))
-        if (confirmedIds.length > 0) {
-            await sendNotifications(
-                confirmedIds.map((pid: string) => ({
-                    recipientId: pid,
-                    type: 'play_request_booking_cancelled',
-                    title: 'Booking Cancelled',
-                    body: `The booking for ${courtName} on ${startDisplay} has been cancelled due to insufficient players.`,
-                    data: { booking_id: pr.booking_id },
-                }))
-            )
-        }
-    } else {
-        await adminSupabase
-            .from('bookings')
-            .update({ players_list: updatedList, num_players: newNumPlayers })
-            .eq('id', pr.booking_id)
-
-        // Notify booker — N3
-        await sendNotification({
-            recipientId: booking.user_id,
-            senderId: user.id,
-            type: 'play_request_rejected',
-            title: 'Play Request Declined',
-            body: `${profile?.full_name || 'A player'} declined your play request for ${courtName} on ${startDisplay}.`,
-            data: { booking_id: pr.booking_id, player_name: profile?.full_name },
-        })
+    if (confirmedIds.length > 0) {
+      await sendNotifications(
+        confirmedIds.map((pid: string) => ({
+          recipientId: pid,
+          type: 'play_request_booking_cancelled',
+          title: 'Booking Cancelled',
+          body: `The booking for ${courtName} on ${startDisplay} has been cancelled due to insufficient players.`,
+          data: { booking_id: pr.booking_id },
+        }))
+      )
     }
+  } else {
+    await db
+      .update(bookings)
+      .set({ players_list: updatedList, num_players: newNumPlayers })
+      .where(eq(bookings.id, pr.booking_id))
 
-    // 4. Mark play request rejected + notification read
-    await adminSupabase
-        .from('play_requests')
-        .update({ status: 'rejected', responded_at: new Date().toISOString() })
-        .eq('id', playRequestId)
+    await sendNotification({
+      recipientId: bkRow.user_id,
+      senderId: user.id,
+      type: 'play_request_rejected',
+      title: 'Play Request Declined',
+      body: `${profile?.full_name || 'A player'} declined your play request for ${courtName} on ${startDisplay}.`,
+      data: { booking_id: pr.booking_id, player_name: profile?.full_name },
+    })
+  }
 
-    if (pr.notification_id) {
-        await adminSupabase
-            .from('notifications')
-            .update({ is_read: true })
-            .eq('id', pr.notification_id)
-    }
+  await db
+    .update(playRequests)
+    .set({ status: 'rejected', responded_at: new Date() })
+    .where(eq(playRequests.id, playRequestId))
 
-    revalidatePath('/student/play-requests')
-    revalidatePath('/student/reservations')
-    return { success: true, bookingCancelled }
+  if (pr.notification_id) {
+    await db
+      .update(notifications)
+      .set({ is_read: true })
+      .where(eq(notifications.id, pr.notification_id))
+  }
+
+  revalidatePath('/student/play-requests')
+  revalidatePath('/student/reservations')
+  return { success: true, bookingCancelled }
 }

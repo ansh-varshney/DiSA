@@ -1,67 +1,58 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { makeMockDb } from '../mocks/supabase'
 
-vi.mock('@/utils/supabase/server')
+// Mock storage I/O — uploadEquipmentImages / deleteEquipmentImages delegate to these
+vi.mock('@/lib/storage', () => ({
+    uploadFile: vi.fn().mockResolvedValue('/uploads/equipment-images/badminton/eq-1/123-photo.jpg'),
+    deleteFile: vi.fn().mockResolvedValue(undefined),
+}))
 
-import { createClient } from '@/utils/supabase/server'
-
-import { uploadEquipmentImages, deleteEquipmentImages, validateImageFile } from '@/lib/upload'
+import { uploadFile, deleteFile } from '@/lib/storage'
+import { validateImageFile, uploadEquipmentImages, deleteEquipmentImages } from '@/lib/upload'
 
 // ─── validateImageFile ─────────────────────────────────────────────────────────
 
 describe('validateImageFile', () => {
     function makeFile(name: string, type: string, size: number): File {
-        const file = new File(['x'.repeat(size)], name, { type })
-        return file
+        return new File(['x'.repeat(size)], name, { type })
     }
 
     it('returns null for a valid JPEG file under 5MB', () => {
-        const file = makeFile('photo.jpg', 'image/jpeg', 1024)
-        expect(validateImageFile(file)).toBeNull()
+        expect(validateImageFile(makeFile('photo.jpg', 'image/jpeg', 1024))).toBeNull()
     })
 
     it('returns null for a valid PNG file', () => {
-        const file = makeFile('image.png', 'image/png', 2048)
-        expect(validateImageFile(file)).toBeNull()
+        expect(validateImageFile(makeFile('image.png', 'image/png', 2048))).toBeNull()
     })
 
     it('returns null for a valid WebP file', () => {
-        const file = makeFile('image.webp', 'image/webp', 512)
-        expect(validateImageFile(file)).toBeNull()
+        expect(validateImageFile(makeFile('image.webp', 'image/webp', 512))).toBeNull()
     })
 
     it('returns null for a valid JPG (image/jpg) file', () => {
-        const file = makeFile('image.jpg', 'image/jpg', 100)
-        expect(validateImageFile(file)).toBeNull()
+        expect(validateImageFile(makeFile('image.jpg', 'image/jpg', 100))).toBeNull()
     })
 
     it('returns error for invalid file type (PDF)', () => {
-        const file = makeFile('doc.pdf', 'application/pdf', 1024)
-        const result = validateImageFile(file)
+        const result = validateImageFile(makeFile('doc.pdf', 'application/pdf', 1024))
         expect(result).not.toBeNull()
         expect(result).toContain('doc.pdf')
         expect(result).toContain('Invalid file type')
     })
 
     it('returns error for invalid file type (GIF)', () => {
-        const file = makeFile('anim.gif', 'image/gif', 100)
-        const result = validateImageFile(file)
+        const result = validateImageFile(makeFile('anim.gif', 'image/gif', 100))
         expect(result).toContain('Invalid file type')
     })
 
     it('returns error for file exceeding 5MB', () => {
-        const fiveMBPlusOne = 5 * 1024 * 1024 + 1
-        const file = makeFile('big.jpg', 'image/jpeg', fiveMBPlusOne)
-        const result = validateImageFile(file)
+        const result = validateImageFile(makeFile('big.jpg', 'image/jpeg', 5 * 1024 * 1024 + 1))
         expect(result).not.toBeNull()
         expect(result).toContain('big.jpg')
         expect(result).toContain('too large')
     })
 
-    it('returns null for a file exactly at 5MB limit', () => {
-        const fiveMB = 5 * 1024 * 1024
-        const file = makeFile('exact.jpg', 'image/jpeg', fiveMB)
-        expect(validateImageFile(file)).toBeNull()
+    it('returns null for a file exactly at the 5MB limit', () => {
+        expect(validateImageFile(makeFile('exact.jpg', 'image/jpeg', 5 * 1024 * 1024))).toBeNull()
     })
 })
 
@@ -74,38 +65,31 @@ describe('uploadEquipmentImages', () => {
         return new File(['x'.repeat(size)], name, { type: 'image/jpeg' })
     }
 
-    it('uploads files and returns public URLs', async () => {
-        const db = makeMockDb()
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
+    it('calls uploadFile for each file and returns URLs', async () => {
         const files = [makeFile('photo1.jpg'), makeFile('photo2.jpg')]
         const urls = await uploadEquipmentImages(files, 'badminton', 'eq-1')
 
+        expect(uploadFile).toHaveBeenCalledTimes(2)
+        expect(uploadFile).toHaveBeenCalledWith(files[0], 'equipment-images/badminton/eq-1')
         expect(urls).toHaveLength(2)
-        expect(urls[0]).toBe('https://mock.url/img.jpg')
     })
 
     it('returns empty array for empty file list', async () => {
-        const db = makeMockDb()
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
         const urls = await uploadEquipmentImages([], 'badminton', 'eq-1')
         expect(urls).toEqual([])
+        expect(uploadFile).not.toHaveBeenCalled()
     })
 
-    it('throws when storage upload fails', async () => {
-        const db = makeMockDb()
-        ;(db.client.storage.from as ReturnType<typeof vi.fn>).mockReturnValue({
-            upload: vi.fn().mockResolvedValue({ error: { message: 'upload failed' } }),
-            getPublicUrl: vi.fn().mockReturnValue({ data: { publicUrl: '' } }),
-            remove: vi.fn().mockResolvedValue({ error: null }),
-        })
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
+    it('filters out null results from failed individual uploads', async () => {
+        vi.mocked(uploadFile)
+            .mockResolvedValueOnce(null) // first fails
+            .mockResolvedValueOnce('/uploads/equipment-images/badminton/eq-1/good.jpg') // second succeeds
 
-        const files = [makeFile('photo.jpg')]
-        await expect(uploadEquipmentImages(files, 'badminton', 'eq-1')).rejects.toThrow(
-            'Failed to upload photo.jpg'
-        )
+        const files = [makeFile('bad.jpg'), makeFile('good.jpg')]
+        const urls = await uploadEquipmentImages(files, 'badminton', 'eq-1')
+
+        expect(urls).toHaveLength(1)
+        expect(urls[0]).toContain('good.jpg')
     })
 })
 
@@ -114,42 +98,26 @@ describe('uploadEquipmentImages', () => {
 describe('deleteEquipmentImages', () => {
     beforeEach(() => vi.clearAllMocks())
 
-    it('deletes images by extracting file path from URL', async () => {
-        const db = makeMockDb()
-        const removeMock = vi.fn().mockResolvedValue({ error: null })
-        ;(db.client.storage.from as ReturnType<typeof vi.fn>).mockReturnValue({
-            upload: vi.fn(),
-            getPublicUrl: vi.fn(),
-            remove: removeMock,
-        })
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
+    it('calls deleteFile for each URL', async () => {
         const urls = [
-            'https://example.com/storage/v1/object/public/equipment-images/badminton/eq-1/photo.jpg',
+            '/uploads/equipment-images/badminton/eq-1/photo1.jpg',
+            '/uploads/equipment-images/badminton/eq-1/photo2.jpg',
         ]
         await deleteEquipmentImages(urls)
 
-        expect(removeMock).toHaveBeenCalledWith(['badminton/eq-1/photo.jpg'])
+        expect(deleteFile).toHaveBeenCalledTimes(2)
+        expect(deleteFile).toHaveBeenCalledWith(urls[0])
+        expect(deleteFile).toHaveBeenCalledWith(urls[1])
     })
 
-    it('skips URLs that do not contain the storage path pattern', async () => {
-        const db = makeMockDb()
-        const removeMock = vi.fn().mockResolvedValue({ error: null })
-        ;(db.client.storage.from as ReturnType<typeof vi.fn>).mockReturnValue({
-            upload: vi.fn(),
-            getPublicUrl: vi.fn(),
-            remove: removeMock,
-        })
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
-        await deleteEquipmentImages(['https://other.example.com/image.jpg'])
-        expect(removeMock).not.toHaveBeenCalled()
-    })
-
-    it('handles empty URL list gracefully', async () => {
-        const db = makeMockDb()
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
+    it('handles empty list gracefully', async () => {
         await expect(deleteEquipmentImages([])).resolves.toBeUndefined()
+        expect(deleteFile).not.toHaveBeenCalled()
+    })
+
+    it('handles Supabase-style URLs by delegating to deleteFile (which ignores non-/uploads/ paths)', async () => {
+        // deleteFile in storage.ts silently ignores URLs that don't start with /uploads/
+        await deleteEquipmentImages(['https://old.supabase.co/storage/v1/object/public/equipment-images/photo.jpg'])
+        expect(deleteFile).toHaveBeenCalledTimes(1)
     })
 })

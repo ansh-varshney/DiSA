@@ -28,15 +28,15 @@ type Court = { id: string; name: string; sport: string }
 type Booking = {
     id: string
     court_id: string
-    start_time: string
-    end_time: string
-    status: string
+    start_time: Date | string
+    end_time: Date | string
+    status: string | null
     user_id: string
-    profiles?: { full_name: string }
-    num_players?: number
+    profiles?: { full_name: string | null } | null
+    num_players?: number | null
 }
-type Equipment = { id: string; name: string; sport: string; condition: string; in_use?: boolean }
-type Player = { id: string; full_name: string; student_id: string }
+type Equipment = { id: string; name: string; sport: string; condition: string | null; in_use?: boolean }
+type Player = { id: string; full_name: string | null; student_id: string | null }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const generateTimeSlots = () => {

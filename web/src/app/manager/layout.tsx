@@ -1,25 +1,21 @@
-﻿import { createClient } from '@/utils/supabase/server'
+import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
+import { db } from '@/db'
+import { profiles } from '@/db/schema'
+import { eq } from 'drizzle-orm'
 import { ManagerNav } from '@/components/manager-nav'
 import { NotificationPopup } from '@/components/notification-popup'
 import { getMyNotifications } from '@/actions/notifications'
 
 export default async function ManagerLayout({ children }: { children: React.ReactNode }) {
-    const supabase = await createClient()
+    const session = await auth()
+    if (!session?.user?.id) redirect('/login?role=manager')
 
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-        redirect('/login?role=manager')
-    }
-
-    // Role Check
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
+    const [profile] = await db
+        .select({ role: profiles.role })
+        .from(profiles)
+        .where(eq(profiles.id, session.user.id))
+        .limit(1)
 
     if (
         profile &&

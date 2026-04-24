@@ -1,26 +1,28 @@
-import { createClient } from '@/utils/supabase/server'
-import { createAdminClient } from '@/utils/supabase/admin'
+import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
+import { db } from '@/db'
+import { profiles } from '@/db/schema'
+import { eq, desc, sql } from 'drizzle-orm'
 import { Card, CardContent } from '@/components/ui/card'
-import { Trophy, Medal, Star, TrendingUp } from 'lucide-react'
+import { Trophy, Star, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { sendNotifications } from '@/actions/notifications'
 
 export default async function LeaderboardPage() {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) redirect('/login')
+    const session = await auth()
+    if (!session?.user?.id) redirect('/login')
+    const userId = session.user.id
 
-    // Trigger monthly reset (idempotent — no-op if already reset this month).
-    // When a new month's reset runs, the RPC returns the top-5 student IDs that
-    // were awarded a priority booking slot so we can notify them here.
-    const adminSupabase = createAdminClient()
-    const { data: resetResult } = await adminSupabase.rpc('reset_monthly_points')
+    // Trigger monthly reset (idempotent — no-op if already reset this month)
+    const resetRows = await db.execute(sql`SELECT reset_monthly_points() as result`)
+    const resetResult = (resetRows[0] as any)?.result as
+        | { reset_count: number; top5_ids: string[] }
+        | undefined
+
     if (
-        resetResult?.reset_count > 0 &&
-        Array.isArray(resetResult?.top5_ids) &&
+        resetResult &&
+        resetResult.reset_count > 0 &&
+        Array.isArray(resetResult.top5_ids) &&
         resetResult.top5_ids.length > 0
     ) {
         await sendNotifications(
@@ -34,23 +36,21 @@ export default async function LeaderboardPage() {
         )
     }
 
-    // Get top 5 students by points
-    const { data: topStudents } = await supabase
-        .from('profiles')
-        .select('id, full_name, points')
-        .eq('role', 'student')
-        .order('points', { ascending: false })
+    const topStudents = await db
+        .select({ id: profiles.id, full_name: profiles.full_name, points: profiles.points })
+        .from(profiles)
+        .where(eq(profiles.role, 'student'))
+        .orderBy(desc(profiles.points))
         .limit(5)
 
-    // Get current user's rank
-    const { data: allStudents } = await supabase
-        .from('profiles')
-        .select('id, points')
-        .eq('role', 'student')
-        .order('points', { ascending: false })
+    const allStudents = await db
+        .select({ id: profiles.id, points: profiles.points })
+        .from(profiles)
+        .where(eq(profiles.role, 'student'))
+        .orderBy(desc(profiles.points))
 
-    const userRank = allStudents?.findIndex((s) => s.id === user.id) ?? -1
-    const userProfile = allStudents?.find((s) => s.id === user.id)
+    const userRank = allStudents.findIndex((s) => s.id === userId)
+    const userProfile = allStudents.find((s) => s.id === userId)
 
     const medalIcons = ['🥇', '🥈', '🥉']
 
@@ -66,23 +66,22 @@ export default async function LeaderboardPage() {
 
             {/* Top 5 */}
             <div className="space-y-3">
-                {!topStudents || topStudents.length === 0 ? (
+                {topStudents.length === 0 ? (
                     <div className="p-8 text-center text-gray-400 border-2 border-dashed rounded-xl">
                         No students yet
                     </div>
                 ) : (
-                    topStudents.map((student: any, index: number) => (
+                    topStudents.map((student, index) => (
                         <Card
                             key={student.id}
                             className={cn(
                                 'transition-all',
                                 index === 0 &&
                                     'border-2 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.15)]',
-                                student.id === user.id && 'ring-2 ring-[#004d40]'
+                                student.id === userId && 'ring-2 ring-[#004d40]'
                             )}
                         >
                             <CardContent className="p-4 flex items-center gap-4">
-                                {/* Rank */}
                                 <div
                                     className={cn(
                                         'w-10 h-10 rounded-full flex items-center justify-center font-black text-lg shrink-0',
@@ -98,25 +97,21 @@ export default async function LeaderboardPage() {
                                     {index < 3 ? medalIcons[index] : index + 1}
                                 </div>
 
-                                {/* Name */}
                                 <div className="flex-1">
                                     <h3 className="font-bold text-gray-800 flex items-center gap-2">
                                         {student.full_name || 'Anonymous'}
-                                        {student.id === user.id && (
+                                        {student.id === userId && (
                                             <span className="text-[10px] bg-[#004d40] text-white px-1.5 py-0.5 rounded">
                                                 YOU
                                             </span>
                                         )}
                                     </h3>
-                                    {index < 5 && (
-                                        <p className="text-xs text-yellow-600 flex items-center gap-1">
-                                            <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                                            Eligible for 3 consecutive bookings
-                                        </p>
-                                    )}
+                                    <p className="text-xs text-yellow-600 flex items-center gap-1">
+                                        <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                                        Eligible for 3 consecutive bookings
+                                    </p>
                                 </div>
 
-                                {/* Points */}
                                 <div className="text-right">
                                     <div className="font-black text-lg text-gray-800">
                                         {student.points || 0}
@@ -129,7 +124,7 @@ export default async function LeaderboardPage() {
                 )}
             </div>
 
-            {/* My Rank */}
+            {/* My Rank (if outside top 5) */}
             {userRank >= 5 && (
                 <div className="pt-4 border-t border-dashed">
                     <p className="text-xs text-gray-400 uppercase font-bold mb-2">Your Position</p>

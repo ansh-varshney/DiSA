@@ -137,11 +137,11 @@ export default async function EquipmentManagement({
                                                 <TableCell>
                                                     <Badge
                                                         variant={
-                                                            conditionVariants[item.condition] ||
+                                                            conditionVariants[item.condition ?? 'good'] ||
                                                             'default'
                                                         }
                                                     >
-                                                        {item.condition.replace('_', ' ')}
+                                                        {(item.condition ?? '').replace('_', ' ')}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -153,7 +153,7 @@ export default async function EquipmentManagement({
                                                     {item.vendor_name || '-'}
                                                 </TableCell>
                                                 <TableCell className="text-gray-900 font-medium">
-                                                    {item.cost ? `₹${item.cost.toFixed(2)}` : '-'}
+                                                    {item.cost ? `₹${parseFloat(String(item.cost)).toFixed(2)}` : '-'}
                                                 </TableCell>
                                                 <TableCell>
                                                     {item.condition === 'damaged' ||

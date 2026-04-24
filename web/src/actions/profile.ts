@@ -1,14 +1,13 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { db } from '@/db'
+import { profiles } from '@/db/schema'
+import { getCurrentUser } from '@/lib/session'
+import { eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 
 export async function updateStudentProfile(formData: FormData) {
-    const supabase = await createClient()
-
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getCurrentUser()
     if (!user) return { error: 'Not authenticated' }
 
     const branch = (formData.get('branch') as string)?.trim()
@@ -19,12 +18,11 @@ export async function updateStudentProfile(formData: FormData) {
         return { error: 'Branch, year, and gender are required' }
     }
 
-    const { error } = await supabase
-        .from('profiles')
-        .update({ branch, year, gender })
-        .eq('id', user.id)
-
-    if (error) return { error: error.message }
+    try {
+        await db.update(profiles).set({ branch, year, gender }).where(eq(profiles.id, user.id))
+    } catch (e: any) {
+        return { error: e?.message ?? 'Failed to update profile' }
+    }
 
     revalidatePath('/student', 'layout')
     revalidatePath('/student/profile')

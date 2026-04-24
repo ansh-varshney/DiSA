@@ -24,11 +24,11 @@ import { ActiveSessionView } from '@/components/active-session'
 interface Booking {
     id: string
     user_id: string
-    start_time: string
-    end_time: string
-    status: string
-    num_players: number
-    courts: { name: string; sport: string }
+    start_time: Date | string
+    end_time: Date | string
+    status: string | null
+    num_players: number | null
+    courts: { name: string; sport: string } | null
 }
 
 interface ReservationsListProps {
@@ -118,10 +118,10 @@ export function ReservationsList({ current, upcoming, past, userId }: Reservatio
                             <CardContent className="p-4 flex justify-between items-start">
                                 <div>
                                     <h3 className="font-bold text-gray-800">
-                                        {booking.courts.name}
+                                        {booking.courts?.name}
                                     </h3>
                                     <span className="text-xs uppercase tracking-wider font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                                        {booking.courts.sport}
+                                        {booking.courts?.sport}
                                     </span>
                                     <p className="text-sm text-gray-600 mt-2 flex items-center gap-1">
                                         <Clock className="w-3 h-3" />
@@ -138,17 +138,17 @@ export function ReservationsList({ current, upcoming, past, userId }: Reservatio
                                     <span
                                         className={cn(
                                             'px-2 py-1 text-xs rounded-full font-semibold capitalize',
-                                            statusColors[booking.status] ||
+                                            statusColors[booking.status ?? ''] ||
                                                 'bg-gray-100 text-gray-600'
                                         )}
                                     >
-                                        {booking.status.replace(/_/g, ' ')}
+                                        {(booking.status ?? '').replace(/_/g, ' ')}
                                     </span>
                                     {[
                                         'pending_confirmation',
                                         'confirmed',
                                         'waiting_manager',
-                                    ].includes(booking.status) &&
+                                    ].includes(booking.status ?? '') &&
                                         (booking.user_id === userId ? (
                                             <Button
                                                 variant="ghost"
@@ -218,7 +218,7 @@ export function ReservationsList({ current, upcoming, past, userId }: Reservatio
                                         <CardContent className="p-3 flex justify-between items-center">
                                             <div>
                                                 <h3 className="font-semibold text-gray-700 text-sm">
-                                                    {booking.courts.name}
+                                                    {booking.courts?.name}
                                                 </h3>
                                                 <p className="text-xs text-gray-400">
                                                     {format(
@@ -230,11 +230,11 @@ export function ReservationsList({ current, upcoming, past, userId }: Reservatio
                                             <span
                                                 className={cn(
                                                     'px-2 py-0.5 text-xs rounded-full capitalize',
-                                                    statusColors[booking.status] ||
+                                                    statusColors[booking.status ?? ''] ||
                                                         'bg-gray-100 text-gray-600'
                                                 )}
                                             >
-                                                {booking.status.replace(/_/g, ' ')}
+                                                {(booking.status ?? '').replace(/_/g, ' ')}
                                             </span>
                                         </CardContent>
                                     </Card>

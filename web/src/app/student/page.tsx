@@ -1,4 +1,7 @@
-import { createClient } from '@/utils/supabase/server'
+import { auth } from '@/auth'
+import { db } from '@/db'
+import { profiles, bookings, courts, announcements } from '@/db/schema'
+import { eq, and, inArray, gte, asc, desc } from 'drizzle-orm'
 import { Card, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
 import { CalendarPlus, Trophy, AlertCircle, Megaphone, Clock } from 'lucide-react'
@@ -6,36 +9,71 @@ import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 
 export default async function StudentHome() {
-    const supabase = await createClient()
+    const session = await auth()
+    const userId = session?.user?.id
 
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user?.id)
-        .single()
+    let profile: { full_name: string | null; avatar_url: string | null; points: number | null } | undefined
+    let upcomingBookings: Array<{
+        id: string
+        status: string | null
+        start_time: Date
+        court_name: string | null
+    }> = []
+    let announcementList: Array<{
+        id: string
+        title: string
+        content: string
+        created_at: Date
+    }> = []
+
+    if (userId) {
+        const [p] = await db
+            .select({
+                full_name: profiles.full_name,
+                avatar_url: profiles.avatar_url,
+                points: profiles.points,
+            })
+            .from(profiles)
+            .where(eq(profiles.id, userId))
+            .limit(1)
+        profile = p
+
+        upcomingBookings = await db
+            .select({
+                id: bookings.id,
+                status: bookings.status,
+                start_time: bookings.start_time,
+                court_name: courts.name,
+            })
+            .from(bookings)
+            .leftJoin(courts, eq(bookings.court_id, courts.id))
+            .where(
+                and(
+                    eq(bookings.user_id, userId),
+                    inArray(bookings.status, [
+                        'pending_confirmation',
+                        'confirmed',
+                        'active',
+                    ]),
+                    gte(bookings.end_time, new Date())
+                )
+            )
+            .orderBy(asc(bookings.start_time))
+            .limit(3)
+    }
+
+    announcementList = await db
+        .select({
+            id: announcements.id,
+            title: announcements.title,
+            content: announcements.content,
+            created_at: announcements.created_at,
+        })
+        .from(announcements)
+        .orderBy(desc(announcements.created_at))
+        .limit(3)
 
     const userName = profile?.full_name?.split(' ')[0] || 'Student'
-
-    // Fetch upcoming bookings (today+)
-    const now = new Date()
-    const { data: upcomingBookings } = await supabase
-        .from('bookings')
-        .select('*, courts (name, sport)')
-        .eq('user_id', user?.id)
-        .in('status', ['pending_confirmation', 'confirmed', 'active'])
-        .gte('end_time', now.toISOString())
-        .order('start_time', { ascending: true })
-        .limit(3)
-
-    // Fetch announcements
-    const { data: announcements } = await supabase
-        .from('announcements')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(3)
 
     return (
         <div className="p-4 md:p-8 space-y-6">
@@ -99,7 +137,7 @@ export default async function StudentHome() {
                         View all →
                     </Link>
                 </div>
-                {!upcomingBookings || upcomingBookings.length === 0 ? (
+                {upcomingBookings.length === 0 ? (
                     <Card className="bg-gray-50 border-dashed">
                         <CardContent className="p-8 text-center text-gray-400">
                             <p>No upcoming bookings.</p>
@@ -113,7 +151,7 @@ export default async function StudentHome() {
                     </Card>
                 ) : (
                     <div className="space-y-2">
-                        {upcomingBookings.map((booking: any) => (
+                        {upcomingBookings.map((booking) => (
                             <Link key={booking.id} href="/student/reservations" className="block">
                                 <Card
                                     className={cn(
@@ -125,7 +163,7 @@ export default async function StudentHome() {
                                     <CardContent className="p-4 flex justify-between items-center">
                                         <div>
                                             <h4 className="font-semibold text-gray-800">
-                                                {booking.courts?.name}
+                                                {booking.court_name}
                                             </h4>
                                             <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
                                                 <Clock className="w-3 h-3" />
@@ -163,7 +201,7 @@ export default async function StudentHome() {
                     <Megaphone className="w-5 h-5 text-[#004d40]" />
                     Announcements
                 </h3>
-                {!announcements || announcements.length === 0 ? (
+                {announcementList.length === 0 ? (
                     <Card className="bg-gray-50 border-dashed">
                         <CardContent className="p-6 text-center text-gray-400 text-sm">
                             No announcements right now
@@ -171,7 +209,7 @@ export default async function StudentHome() {
                     </Card>
                 ) : (
                     <div className="space-y-2">
-                        {announcements.map((ann: any) => (
+                        {announcementList.map((ann) => (
                             <Card key={ann.id}>
                                 <CardContent className="p-4 flex gap-3">
                                     <AlertCircle className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />

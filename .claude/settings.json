@@ -14,7 +14,17 @@
       "Read(//c/Users/Ansh Varshney/.claude/projects/c--Users-Ansh-Varshney-Desktop-IIITD-Semester-8-DiSA/memory/**)",
       "Bash(npm ci *)",
       "Bash(grep -E \"\\\\.ts$|\\\\.tsx$|\\\\.js$\")",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(npx jest *)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('scripts', {}\\), indent=2\\)\\)\")",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('next-auth:', p.dependencies['next-auth']\\); console.log\\('bcryptjs:', p.dependencies['bcryptjs']\\)\")",
+      "Bash(grep -E \"^\\\\.\\\\/web/[^/]+$|^\\\\.\\\\/web/src/[^/]+$|^\\\\.\\\\/web/drizzle/|^\\\\.\\\\/web/database/\")",
+      "Bash(sort -t: -k2 -rn)",
+      "Bash(grep -v \"^$\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Ansh Varshney\\Desktop\\IIITD\\Semester 8\\DiSA\\web\\src",
+      "c:\\Users\\Ansh Varshney\\Desktop\\IIITD\\Semester 8\\DiSA\\web\\src\\app\\api\\auth"
     ]
   }
 }

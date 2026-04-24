@@ -17,17 +17,17 @@ import { Upload, X, Image as ImageIcon } from 'lucide-react'
 
 interface Equipment {
     id: string
-    equipment_id?: string
+    equipment_id?: string | null
     name: string
     sport: string
-    condition: string
-    vendor_name?: string
-    cost?: number
-    purchase_date?: string
-    expected_lifespan_days?: number
-    total_usage_count?: number
-    pictures?: string[]
-    notes?: string
+    condition: string | null
+    vendor_name?: string | null
+    cost?: string | number | null
+    purchase_date?: string | null
+    expected_lifespan_days?: number | null
+    total_usage_count?: number | null
+    pictures?: string[] | null
+    notes?: string | null
 }
 
 interface EquipmentFormProps {
@@ -261,7 +261,7 @@ export function EquipmentForm({ mode, equipment, sport, children }: EquipmentFor
                                         id="vendor_name"
                                         name="vendor_name"
                                         required
-                                        defaultValue={equipment?.vendor_name}
+                                        defaultValue={equipment?.vendor_name ?? undefined}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40] text-gray-900 font-medium"
                                         placeholder="e.g., Sports Inc."
                                     />
@@ -283,7 +283,7 @@ export function EquipmentForm({ mode, equipment, sport, children }: EquipmentFor
                                             required
                                             step="0.01"
                                             min="0"
-                                            defaultValue={equipment?.cost}
+                                            defaultValue={equipment?.cost != null ? String(equipment.cost) : undefined}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40] text-gray-900 font-medium"
                                             placeholder="0.00"
                                         />
@@ -303,7 +303,7 @@ export function EquipmentForm({ mode, equipment, sport, children }: EquipmentFor
                                             name="purchase_date"
                                             required
                                             max={new Date().toISOString().split('T')[0]}
-                                            defaultValue={equipment?.purchase_date}
+                                            defaultValue={equipment?.purchase_date ?? undefined}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40] text-gray-900 font-medium"
                                         />
                                     </div>

@@ -5,7 +5,7 @@
 
 ## Overview
 
-DiSA is a sports facility management web application for IIITD. It has three distinct user roles (Student, Manager, Admin/Superuser) built on **Next.js 15 (App Router)** with **Supabase** as the backend (auth, database, storage). The UI uses **Tailwind CSS + shadcn/ui** components. Auth is handled via Supabase Auth (email/password, Google OAuth, Phone+OTP).
+DiSA is a sports facility management web application for IIITD. It has three distinct user roles (Student, Manager, Admin/Superuser) built on **Next.js 16 (App Router)** with **PostgreSQL + Drizzle ORM** for the database, **Auth.js v5 (NextAuth)** for authentication, and local disk storage. The UI uses **Tailwind CSS v4 + shadcn/ui** components.
 
 **App color**: Dark Teal `#004d40`  
 **Home URL**: `/` — three role entry points (Student, Manager, Admin).
@@ -16,20 +16,21 @@ DiSA is a sports facility management web application for IIITD. It has three dis
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 15 (App Router, React Server Components) |
+| Framework | Next.js 16 (App Router, React Server Components) |
 | Language | TypeScript |
-| Styling | Tailwind CSS + shadcn/ui |
-| Backend / DB | Supabase (PostgreSQL, RLS, Storage) |
-| Auth | Supabase Auth (Email/Password, Google OAuth, Phone OTP) |
-| Testing | Vitest (unit + integration) |
-| Deployment | Vercel (assumed) |
+| Styling | Tailwind CSS v4 + shadcn/ui |
+| Database | PostgreSQL (self-hosted) via Drizzle ORM + `postgres` driver |
+| Auth | Auth.js v5 (NextAuth) — Google OAuth (students) + Credentials stub (staff) |
+| Storage | Local disk (`public/uploads/`) served statically by Next.js |
+| Testing | Vitest + React Testing Library |
+| Deployment | Vercel / self-hosted |
 
 ---
 
 ## Database Schema Summary
 
 ### Core Tables
-- **profiles** — extends `auth.users`; fields: `full_name`, `role` (student/manager/admin/superuser), `phone_number`, `student_id`, `branch`, `gender`, `year`, `points`, `is_eligible_for_consecutive`, `banned_until`, `last_points_reset`, `priority_booking_remaining`
+- **profiles** — standalone user table (not linked to Supabase auth); fields: `email`, `full_name`, `role` (student/manager/admin/superuser), `phone_number`, `student_id`, `branch`, `gender`, `year`, `points`, `is_eligible_for_consecutive`, `banned_until`, `last_points_reset`, `priority_booking_remaining`, `password_hash` (nullable, for Credentials login), `avatar_url`
 - **courts** — `name`, `sport`, `type`, `capacity`, `is_active`, `condition` (excellent/good/needs_maintenance), `maintenance_notes`, `usage_count`, `last_maintenance_date`
 - **equipment** — `name`, `sport`, `condition` (good/minor_damage/damaged/lost), `is_available`, `total_usage_count`, `vendor_name`, `cost`, `purchase_date`, `expected_lifespan_days`, `pictures`, `notes`, `equipment_id`
 - **bookings** — `user_id`, `court_id`, `start_time`, `end_time`, `status` (pending_confirmation → confirmed → waiting_manager → active → completed | cancelled | rejected), `players_list` (JSONB with id/status/name/branch/gender/year), `equipment_ids`, `num_players`, `is_maintenance`, `is_priority`
@@ -52,9 +53,9 @@ DiSA is a sports facility management web application for IIITD. It has three dis
 
 | Role | Auth Methods | Access |
 |---|---|---|
-| **Student** | Email/Password, Google OAuth, Phone+OTP | Booking, reservations, profile, leaderboard, notifications, play requests |
-| **Manager** | Email/Password, Phone+OTP | Approval dashboard, active session management, reports |
-| **Admin / Superuser** | Email/Password, Phone+OTP | Full system management + analytics |
+| **Student** | Google OAuth (`@iiitd.ac.in`) | Booking, reservations, profile, leaderboard, notifications, play requests |
+| **Manager** | Credentials (DB-provisioned) | Approval dashboard, active session management, reports |
+| **Admin / Superuser** | Credentials (DB-provisioned) | Full system management + analytics |
 
 ---
 
@@ -62,12 +63,13 @@ DiSA is a sports facility management web application for IIITD. It has three dis
 
 ### 1. Authentication
 
-**Methods (all roles share the same login page with role query param):**
-- **Email/Password** — sign in or sign up (sign-up collects full name, branch, year, gender)
-- **Google OAuth** — one-click sign-in via Google
-- **Phone + OTP** — enter phone number → receive SMS OTP → verify
+**Methods:**
+- **Students** — Google OAuth (`@iiitd.ac.in` domain only). On first sign-in, a `profiles` row is upserted automatically.
+- **Managers / Admins** — Credentials login (email + password hashed with bcrypt). Accounts must be provisioned in the DB directly.
 
-After first login, if profile is incomplete (missing branch/year/gender), the student is redirected to `/complete-profile` (or `/student/complete-profile`).
+All roles share the same login page (`/login`). Auth is handled by Auth.js v5 (NextAuth) with a JWT session strategy. The session exposes `session.user.id` (our profile UUID) and `session.user.role`.
+
+After first Google sign-in, if profile is incomplete (missing branch/year/gender), the student is redirected to `/complete-profile`.
 
 ### 2. Student Home (`/student`)
 
@@ -80,7 +82,7 @@ After first login, if profile is incomplete (missing branch/year/gender), the st
   - **Notifications** → `/student/notifications`
   - **Play Requests** → `/student/play-requests`
 - Maintenance flashcard (if any courts are under maintenance today)
-- Notification popup (polls every 30s for new unread notifications; shows toast overlays)
+- Notification popup (polls `GET /api/notifications` every 8 s for new unread notifications; shows toast overlays)
 
 ### 3. Book Courts (`/student/book`)
 

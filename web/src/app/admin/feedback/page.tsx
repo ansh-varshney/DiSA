@@ -144,9 +144,9 @@ export default async function FeedbackManagement({
                                             </TableCell>
                                             <TableCell>
                                                 <Badge
-                                                    variant={statusVariants[item.status] || 'info'}
+                                                    variant={statusVariants[item.status ?? 'open'] || 'info'}
                                                 >
-                                                    {item.status.replace('_', ' ')}
+                                                    {(item.status ?? '').replace('_', ' ')}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-gray-800 text-sm">
@@ -155,7 +155,7 @@ export default async function FeedbackManagement({
                                             <TableCell className="text-right">
                                                 <FeedbackActions
                                                     feedbackId={item.id}
-                                                    currentStatus={item.status}
+                                                    currentStatus={item.status ?? 'open'}
                                                 />
                                             </TableCell>
                                         </TableRow>

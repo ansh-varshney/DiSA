@@ -7,18 +7,20 @@ import type { AppNotification } from '@/actions/notifications'
 // ─── Mock server actions ───────────────────────────────────────────────────────
 
 vi.mock('@/actions/notifications', () => ({
-    getNewNotifications: vi.fn().mockResolvedValue([]),
     markNotificationRead: vi.fn().mockResolvedValue(undefined),
     acceptPlayRequest: vi.fn().mockResolvedValue({ success: true }),
     rejectPlayRequest: vi.fn().mockResolvedValue({ success: true, bookingCancelled: false }),
 }))
 
 import {
-    getNewNotifications,
     markNotificationRead,
     acceptPlayRequest,
     rejectPlayRequest,
 } from '@/actions/notifications'
+
+// Stub global fetch — polling calls /api/notifications
+const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) })
+vi.stubGlobal('fetch', mockFetch)
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -55,6 +57,7 @@ describe('NotificationPopup', () => {
 
     beforeEach(() => {
         vi.clearAllMocks()
+        mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve([]) })
         vi.useFakeTimers()
         // Pass advanceTimers so userEvent internals don't hang on fake clock
         user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime.bind(vi) })
@@ -186,32 +189,36 @@ describe('NotificationPopup', () => {
         expect(screen.getByText('Persistent Request')).toBeInTheDocument()
     })
 
-    it('polls for new notifications every 20 seconds', async () => {
+    it('polls for new notifications every 8 seconds', async () => {
         render(<NotificationPopup initial={[]} />)
 
         // Not called immediately
-        expect(vi.mocked(getNewNotifications)).not.toHaveBeenCalled()
+        expect(mockFetch).not.toHaveBeenCalled()
 
         await act(async () => {
-            vi.advanceTimersByTime(20_000)
+            vi.advanceTimersByTime(8_000)
         })
-        expect(vi.mocked(getNewNotifications)).toHaveBeenCalledTimes(1)
+        expect(mockFetch).toHaveBeenCalledTimes(1)
+        expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('/api/notifications'))
 
         await act(async () => {
-            vi.advanceTimersByTime(20_000)
+            vi.advanceTimersByTime(8_000)
         })
-        expect(vi.mocked(getNewNotifications)).toHaveBeenCalledTimes(2)
+        expect(mockFetch).toHaveBeenCalledTimes(2)
     })
 
     it('displays new notifications returned by polling', async () => {
         const newNotif = makeNotification({ id: 'polled-1', title: 'Polled Notification' })
-        vi.mocked(getNewNotifications).mockResolvedValueOnce([newNotif])
+        mockFetch.mockResolvedValueOnce({
+            ok: true,
+            json: () => Promise.resolve([newNotif]),
+        })
 
         render(<NotificationPopup initial={[]} />)
 
         // Advance time to trigger polling, then flush async state updates
         await act(async () => {
-            vi.advanceTimersByTime(20_000)
+            vi.advanceTimersByTime(8_000)
             // Let the resolved promise settle
             await Promise.resolve()
         })
@@ -221,12 +228,15 @@ describe('NotificationPopup', () => {
 
     it('does not duplicate notifications already shown', async () => {
         const notif = makeNotification({ id: 'existing-1', title: 'Existing' })
-        vi.mocked(getNewNotifications).mockResolvedValueOnce([notif])
+        mockFetch.mockResolvedValueOnce({
+            ok: true,
+            json: () => Promise.resolve([notif]),
+        })
 
         render(<NotificationPopup initial={[notif]} />)
 
         await act(async () => {
-            vi.advanceTimersByTime(20_000)
+            vi.advanceTimersByTime(8_000)
             await Promise.resolve()
         })
 

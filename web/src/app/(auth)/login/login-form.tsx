@@ -58,8 +58,6 @@ export function LoginForm() {
             const result = await signInWithPhone(null, formData)
             if (result?.error) {
                 setError(result.error)
-            } else if (result?.success) {
-                setStep('otp')
             }
         })
     }

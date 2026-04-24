@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { X, Bell, CheckCircle, AlertTriangle, Info, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
-    getNewNotifications,
     markNotificationRead,
     type AppNotification,
 } from '@/actions/notifications'
@@ -137,7 +136,9 @@ export function NotificationPopup({ initial = [] }: NotificationPopupProps) {
     )
     // Track the latest created_at we've seen so we only fetch newer ones
     const lastSeenRef = useRef<string>(
-        initial.length > 0 ? initial[0].created_at : new Date().toISOString()
+        initial.length > 0
+            ? new Date(initial[0].created_at).toISOString()
+            : new Date().toISOString()
     )
     const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
@@ -172,14 +173,18 @@ export function NotificationPopup({ initial = [] }: NotificationPopupProps) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    // Polling every 20 seconds
+    // Polling every 8 seconds
     useEffect(() => {
         const interval = setInterval(async () => {
-            const fresh = await getNewNotifications(lastSeenRef.current)
+            const res = await fetch(
+                `/api/notifications?since=${encodeURIComponent(lastSeenRef.current)}`
+            )
+            if (!res.ok) return
+            const fresh: AppNotification[] = await res.json()
             if (fresh.length === 0) return
 
             // Update watermark
-            lastSeenRef.current = fresh[0].created_at
+            lastSeenRef.current = new Date(fresh[0].created_at).toISOString()
 
             setToasts((prev) => {
                 const existingIds = new Set(prev.map((e) => e.notification.id))
@@ -193,7 +198,7 @@ export function NotificationPopup({ initial = [] }: NotificationPopupProps) {
             for (const n of fresh) {
                 scheduleAutoDismiss(n.id, n.type)
             }
-        }, 20_000)
+        }, 8_000)
 
         return () => clearInterval(interval)
     }, [scheduleAutoDismiss])

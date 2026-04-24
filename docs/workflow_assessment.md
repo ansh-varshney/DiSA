@@ -2,41 +2,37 @@
 
 ---
 
-### WORKFLOW 1 — Student Authentication
+### WORKFLOW 1 — Authentication
 
-**1a. Email Sign-Up (new student)**
-- [ ] Navigate to `/login?role=student`, switch to Email tab, toggle to Sign Up
-- [ ] Fill in Full Name, Branch, Year, Gender, Email, Password → Submit
-- [ ] Account created, redirected to `/complete-profile` (if profile incomplete) or `/student`
-- [ ] Supabase `profiles` table has a new row with `role = student`
+**1a. Google OAuth (student — primary method)**
+- [ ] Navigate to `/login`, click "Continue with Google"
+- [ ] Google OAuth flow → only `@iiitd.ac.in` accounts are allowed through
+- [ ] Non-IIITD account → redirected to `/login?error=AccessDenied`
+- [ ] On first sign-in: `profiles` row upserted automatically with `role = student`
+- [ ] Redirected to `/complete-profile` if `branch`/`year`/`gender` are not set, otherwise to `/student`
 
-**1b. Email Sign-In (existing student)**
-- [ ] Sign in with email + password → lands on `/student`
-- [ ] Wrong password shows error message, does not redirect
+**1b. Credentials login (manager)**
+- [ ] Navigate to `/login`, enter manager email + password (account must be pre-provisioned in DB)
+- [ ] Correct credentials → lands on `/manager`
+- [ ] Wrong password → error shown, no redirect
 
-**1c. Google OAuth (student)**
-- [ ] Click Google button → Google OAuth flow → redirected back → lands on `/student`
-- [ ] Profile row exists in `profiles`
+**1c. Credentials login (admin)**
+- [ ] Navigate to `/login`, enter admin email + password (account must be pre-provisioned in DB)
+- [ ] Correct credentials → lands on `/admin`
 
-**1d. Phone + OTP (student)**
-- [ ] Switch to Phone tab, enter `+91` number → Send OTP → receive SMS
-- [ ] Enter 6-digit OTP → Verify → lands on `/student`
+**1d. Role redirect guard**
+- [ ] Student tries to access `/admin` or `/manager` → redirected to `/student`
+- [ ] Unauthenticated user accessing any protected route → redirected to `/login`
+- [ ] Already-authenticated user visiting `/login` → redirected to their portal
 
-**1e. Manager login**
-- [ ] Navigate to `/login?role=manager` → Email/Password → lands on `/manager`
-
-**1f. Admin login**
-- [ ] Navigate to `/login?role=admin` → Email/Password → lands on `/admin`
-
-**1g. Role redirect guard**
-- [ ] Student tries to access `/admin` → redirected away
-- [ ] Unauthenticated user accessing `/student/book` → redirected to login
+**1e. Sign out**
+- [ ] Click Sign Out in any portal → session cleared → redirected to `/login`
 
 ---
 
 ### WORKFLOW 2 — Profile Completion (First Login)
 
-- [ ] New Google/phone sign-in user redirected to `/complete-profile`
+- [ ] New Google sign-in user redirected to `/complete-profile`
 - [ ] Form has Branch, Year, Gender fields (required)
 - [ ] Submit → profile updated → redirected to `/student`
 - [ ] Revisiting `/complete-profile` after completion → redirected to `/student`
@@ -381,7 +377,7 @@
 **22a. Real-time popup**
 - [ ] Trigger any action that sends a notification (e.g., booking created)
 - [ ] Bell icon in nav shows unread count badge
-- [ ] Toast popup appears (bottom-right) within 30 seconds
+- [ ] Toast popup appears (top-right) within 8 seconds (polling interval)
 - [ ] Clicking toast marks it read and removes it
 - [ ] Dismiss (X) removes toast
 
