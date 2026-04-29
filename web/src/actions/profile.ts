@@ -13,13 +13,17 @@ export async function updateStudentProfile(formData: FormData) {
     const branch = (formData.get('branch') as string)?.trim()
     const year = (formData.get('year') as string)?.trim()
     const gender = (formData.get('gender') as string)?.trim()
+    const phone_number = (formData.get('phone_number') as string)?.trim() || null
 
     if (!branch || !year || !gender) {
         return { error: 'Branch, year, and gender are required' }
     }
 
     try {
-        await db.update(profiles).set({ branch, year, gender }).where(eq(profiles.id, user.id))
+        await db
+            .update(profiles)
+            .set({ branch, year, gender, ...(phone_number ? { phone_number } : {}) })
+            .where(eq(profiles.id, user.id))
     } catch (e: any) {
         return { error: e?.message ?? 'Failed to update profile' }
     }

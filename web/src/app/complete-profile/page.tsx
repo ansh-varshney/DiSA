@@ -66,6 +66,19 @@ export default function CompleteProfilePage() {
 
                         <div className="space-y-1">
                             <label className="text-xs font-medium text-gray-600">
+                                Phone Number <span className="text-red-500">*</span>
+                            </label>
+                            <Input
+                                name="phone_number"
+                                type="tel"
+                                placeholder="+91 99999 99999"
+                                required
+                                className="h-11"
+                            />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-xs font-medium text-gray-600">
                                 Branch <span className="text-red-500">*</span>
                             </label>
                             <select

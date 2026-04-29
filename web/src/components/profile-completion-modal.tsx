@@ -44,6 +44,20 @@ export function ProfileCompletionModal() {
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Phone Number */}
+                    <div className="space-y-1.5">
+                        <label className="block text-sm font-medium text-gray-700">
+                            Phone Number <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            name="phone_number"
+                            type="tel"
+                            placeholder="+91 99999 99999"
+                            required
+                            className="w-full h-11 border border-gray-300 rounded-lg px-3 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                        />
+                    </div>
+
                     {/* Branch */}
                     <div className="space-y-1.5">
                         <label className="block text-sm font-medium text-gray-700">

@@ -13,7 +13,12 @@ export default async function StudentLayout({ children }: { children: React.Reac
     if (!session?.user?.id) redirect('/login')
 
     const [profile] = await db
-        .select({ role: profiles.role, branch: profiles.branch, gender: profiles.gender })
+        .select({
+            role: profiles.role,
+            branch: profiles.branch,
+            gender: profiles.gender,
+            phone_number: profiles.phone_number,
+        })
         .from(profiles)
         .where(eq(profiles.id, session.user.id))
         .limit(1)
@@ -22,7 +27,9 @@ export default async function StudentLayout({ children }: { children: React.Reac
         redirect('/')
     }
 
-    const needsCompletion = profile?.role === 'student' && (!profile?.branch || !profile?.gender)
+    const needsCompletion =
+        profile?.role === 'student' &&
+        (!profile?.branch || !profile?.gender || !profile?.phone_number)
 
     const initialNotifications = await getMyNotifications(true, 10)
 

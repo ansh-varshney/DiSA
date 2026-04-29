@@ -234,6 +234,16 @@ export const playRequests = pgTable('play_requests', {
   responded_at: timestamp('responded_at', { withTimezone: true }),
 })
 
+// ─── OTP Tokens (manager/admin phone login) ──────────────────────────────────
+
+export const otpTokens = pgTable('otp_tokens', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  phone_number: text('phone_number').notNull(),
+  otp: text('otp').notNull(),
+  expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
 // ─── Inferred Types ───────────────────────────────────────────────────────────
 
 export type Profile = typeof profiles.$inferSelect

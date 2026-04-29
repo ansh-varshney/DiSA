@@ -5,70 +5,48 @@ import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import {
-    loginWithGoogle,
-    signInWithPhone,
-    verifyOtp,
-    loginWithEmail,
-    signUpWithEmail,
-} from './actions'
+import { loginWithGoogle, signInWithPhone, verifyOtp } from './actions'
 import { ShieldCheck, ArrowLeft, Loader2 } from 'lucide-react'
 import Link from 'next/link'
-import { BRANCHES, YEARS, GENDERS } from '@/lib/profile-options'
 
 export function LoginForm() {
     const searchParams = useSearchParams()
     const role = searchParams.get('role') || 'student'
 
-    // Auth Method State
-    const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('email')
-    const [isSignUp, setIsSignUp] = useState(false)
-
-    // Phone States
     const [phone, setPhone] = useState('')
     const [otp, setOtp] = useState('')
     const [step, setStep] = useState<'phone' | 'otp'>('phone')
 
-    // Common States
     const [isPending, startTransition] = useTransition()
     const [error, setError] = useState<string | null>(null)
 
-    const handleGoogleLogin = async () => {
+    const handleGoogleLogin = () => {
         startTransition(async () => {
             await loginWithGoogle(role)
         })
     }
 
-    const handleEmailSubmit = async (formData: FormData) => {
+    const handlePhoneSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
         setError(null)
-        startTransition(async () => {
-            if (isSignUp) {
-                const result = await signUpWithEmail(null, formData)
-                if (result?.error) setError(result.error)
-            } else {
-                const result = await loginWithEmail(null, formData)
-                if (result?.error) setError(result.error)
-            }
-        })
-    }
-
-    const handlePhoneSubmit = async (formData: FormData) => {
-        setError(null)
+        const formData = new FormData(e.currentTarget)
         startTransition(async () => {
             const result = await signInWithPhone(null, formData)
             if (result?.error) {
                 setError(result.error)
+            } else {
+                setStep('otp')
             }
         })
     }
 
-    const handleOtpSubmit = async (formData: FormData) => {
+    const handleOtpSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
         setError(null)
+        const formData = new FormData(e.currentTarget)
         startTransition(async () => {
             const result = await verifyOtp(null, formData)
-            if (result?.error) {
-                setError(result.error)
-            }
+            if (result?.error) setError(result.error)
         })
     }
 
@@ -85,144 +63,23 @@ export function LoginForm() {
                 </div>
                 <CardTitle className="text-xl font-bold text-gray-900">{roleTitle} Login</CardTitle>
                 <CardDescription>
-                    {isSignUp
-                        ? 'Create an account to get started'
-                        : 'Sign in to access your account'}
+                    {role === 'student'
+                        ? 'Sign in with your @iiitd.ac.in Google account'
+                        : 'Enter your registered phone number to receive an OTP'}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                {/* Method Switcher */}
-                <div className="flex border rounded-md p-1 mb-4">
-                    <button
-                        onClick={() => setAuthMethod('email')}
-                        className={`flex-1 py-1.5 text-sm font-medium rounded-sm transition-all ${authMethod === 'email' ? 'bg-white shadow text-black' : 'text-gray-500 hover:text-gray-900'}`}
+                {role === 'student' ? (
+                    <Button
+                        type="button"
+                        onClick={handleGoogleLogin}
+                        variant="outline"
+                        className="w-full h-11"
+                        disabled={isPending}
                     >
-                        Email
-                    </button>
-                    <button
-                        onClick={() => setAuthMethod('phone')}
-                        className={`flex-1 py-1.5 text-sm font-medium rounded-sm transition-all ${authMethod === 'phone' ? 'bg-white shadow text-black' : 'text-gray-500 hover:text-gray-900'}`}
-                    >
-                        Phone
-                    </button>
-                </div>
-
-                {authMethod === 'email' ? (
-                    <form
-                        key={isSignUp ? 'email-signup' : 'email-signin'}
-                        action={handleEmailSubmit}
-                        className="space-y-4"
-                    >
-                        <input type="hidden" name="role" value={role} />
-                        {isSignUp && (
-                            <div className="space-y-2">
-                                <Input
-                                    name="fullName"
-                                    type="text"
-                                    placeholder="Full Name"
-                                    required
-                                    className="h-11"
-                                />
-                                <select
-                                    name="branch"
-                                    required
-                                    defaultValue=""
-                                    className="w-full h-11 border border-input rounded-md px-3 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                                >
-                                    <option value="" disabled>
-                                        Select Branch
-                                    </option>
-                                    {BRANCHES.map((b) => (
-                                        <option key={b} value={b}>
-                                            {b}
-                                        </option>
-                                    ))}
-                                </select>
-                                <select
-                                    name="year"
-                                    required
-                                    defaultValue=""
-                                    className="w-full h-11 border border-input rounded-md px-3 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                                >
-                                    <option value="" disabled>
-                                        Select Academic Year
-                                    </option>
-                                    {YEARS.map((y) => (
-                                        <option key={y} value={y}>
-                                            {y}
-                                        </option>
-                                    ))}
-                                </select>
-                                <div className="flex gap-3">
-                                    {GENDERS.map((g) => (
-                                        <label
-                                            key={g}
-                                            className="flex-1 flex items-center justify-center gap-2 h-11 border border-input rounded-md cursor-pointer hover:border-[#004d40] has-[:checked]:border-[#004d40] has-[:checked]:bg-[#004d40]/5 transition-colors"
-                                        >
-                                            <input
-                                                type="radio"
-                                                name="gender"
-                                                value={g}
-                                                required
-                                                className="accent-[#004d40]"
-                                            />
-                                            <span className="text-sm font-medium text-gray-900">
-                                                {g}
-                                            </span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                        <Input
-                            name="email"
-                            type="email"
-                            placeholder="Email@example.com"
-                            required
-                            className="h-11"
-                        />
-                        <Input
-                            name="password"
-                            type="password"
-                            placeholder="Password"
-                            required
-                            className="h-11"
-                        />
-
-                        {error && <p className="text-sm text-red-500">{error}</p>}
-
-                        <Button type="submit" className="w-full bg-[#004d40]" disabled={isPending}>
-                            {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                            {isSignUp ? 'Create Account' : 'Sign In'}
-                        </Button>
-
-                        <p
-                            className="text-center text-xs text-gray-500 mt-4 cursor-pointer hover:underline"
-                            onClick={() => setIsSignUp(!isSignUp)}
-                        >
-                            {isSignUp
-                                ? 'Already have an account? Sign In'
-                                : "Don't have an account? Sign Up"}
-                        </p>
-
-                        <div className="relative my-4">
-                            <div className="absolute inset-0 flex items-center">
-                                <span className="w-full border-t" />
-                            </div>
-                            <div className="relative flex justify-center text-xs uppercase">
-                                <span className="bg-white px-2 text-muted-foreground">
-                                    Or continue with
-                                </span>
-                            </div>
-                        </div>
-
-                        <Button
-                            type="button"
-                            onClick={handleGoogleLogin}
-                            variant="outline"
-                            className="w-full h-11"
-                            disabled={isPending}
-                        >
+                        {isPending ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
                             <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                                 <path
                                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -241,46 +98,55 @@ export function LoginForm() {
                                     fill="#EA4335"
                                 />
                             </svg>
-                            Google
-                        </Button>
-                    </form>
+                        )}
+                        Continue with Google
+                    </Button>
                 ) : step === 'phone' ? (
-                    <form key="phone" action={handlePhoneSubmit} className="space-y-4">
+                    <form onSubmit={handlePhoneSubmit} className="space-y-4">
                         <input type="hidden" name="role" value={role} />
-                        <div className="space-y-2">
-                            <Input
-                                name="phone"
-                                type="tel"
-                                placeholder="+91 99999 99999"
-                                required
-                                className="h-11"
-                                value={phone}
-                                onChange={(e) => setPhone(e.target.value)}
-                            />
-                        </div>
+                        <Input
+                            name="phone"
+                            type="tel"
+                            placeholder="+91 99999 99999"
+                            required
+                            className="h-11"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                        />
                         {error && <p className="text-sm text-red-500">{error}</p>}
-                        <Button type="submit" className="w-full bg-[#004d40]" disabled={isPending}>
+                        <Button
+                            type="submit"
+                            className="w-full h-11 bg-[#004d40]"
+                            disabled={isPending}
+                        >
                             {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                             Send OTP
                         </Button>
                     </form>
                 ) : (
-                    <form key="otp" action={handleOtpSubmit} className="space-y-4">
+                    <form onSubmit={handleOtpSubmit} className="space-y-4">
                         <input type="hidden" name="phone" value={phone} />
-                        <div className="space-y-2">
-                            <Input
-                                name="token"
-                                type="text"
-                                placeholder="Enter 6-digit OTP"
-                                required
-                                className="h-11 text-center tracking-widest text-lg"
-                                maxLength={6}
-                                value={otp}
-                                onChange={(e) => setOtp(e.target.value)}
-                            />
-                        </div>
+                        <input type="hidden" name="role" value={role} />
+                        <p className="text-sm text-gray-500 text-center">
+                            OTP sent to{' '}
+                            <span className="font-medium text-gray-900">{phone}</span>
+                        </p>
+                        <Input
+                            name="otp"
+                            type="text"
+                            placeholder="Enter 6-digit OTP"
+                            required
+                            className="h-11 text-center tracking-widest text-lg"
+                            maxLength={6}
+                            value={otp}
+                            onChange={(e) => setOtp(e.target.value)}
+                        />
                         {error && <p className="text-sm text-red-500">{error}</p>}
-                        <Button type="submit" className="w-full bg-[#004d40]" disabled={isPending}>
+                        <Button
+                            type="submit"
+                            className="w-full h-11 bg-[#004d40]"
+                            disabled={isPending}
+                        >
                             {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                             Verify & Login
                         </Button>
@@ -288,7 +154,10 @@ export function LoginForm() {
                             type="button"
                             variant="ghost"
                             className="w-full"
-                            onClick={() => setStep('phone')}
+                            onClick={() => {
+                                setStep('phone')
+                                setError(null)
+                            }}
                             disabled={isPending}
                         >
                             Change Phone Number

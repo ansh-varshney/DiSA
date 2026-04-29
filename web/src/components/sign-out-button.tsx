@@ -13,6 +13,7 @@ export function SignOutButton({ className, variant = 'desktop' }: SignOutButtonP
     return (
         <button
             onClick={() => signOut()}
+            suppressHydrationWarning
             className={cn(
                 'flex items-center transition-colors text-white/70 hover:text-white',
                 variant === 'desktop'
