@@ -1,7 +1,7 @@
 'use server'
 
 import { db } from '@/db'
-import { bookings, profiles, courts, equipment, feedbackComplaints, playRequests, studentViolations } from '@/db/schema'
+import { bookings, profiles, courts, equipment, feedbackComplaints, playRequests, studentViolations, notifications } from '@/db/schema'
 import { getCurrentUser } from '@/lib/session'
 import {
     eq, ne, and, or, gt, lt, gte, lte, desc, asc, inArray, notInArray, isNull, ilike, sql,
@@ -63,7 +63,14 @@ export async function getAvailableEquipment(
             is_available: equipment.is_available,
         })
         .from(equipment)
-        .where(and(ilike(equipment.sport, sport), ne(equipment.condition, 'lost')))
+        .where(
+            and(
+                ilike(equipment.sport, sport),
+                ne(equipment.condition, 'lost'),
+                ne(equipment.condition, 'retired'),
+                eq(equipment.is_available, true)
+            )
+        )
         .orderBy(asc(equipment.name))
 
     if (!allEquipment || allEquipment.length === 0) return []
@@ -93,7 +100,7 @@ export async function getAvailableEquipment(
 
     return allEquipment.map((eq_) => ({
         ...eq_,
-        in_use: reservedIds.has(eq_.id) || !eq_.is_available,
+        in_use: reservedIds.has(eq_.id),
     }))
 }
 
@@ -238,23 +245,28 @@ export async function createBooking(prevState: any, formData: FormData) {
         }
     }
 
-    // Lock equipment optimistically
+    // Check for time-slot conflicts on requested equipment
     if (equipmentIds.length > 0) {
-        const locked = await db
-            .update(equipment)
-            .set({ is_available: false })
-            .where(and(inArray(equipment.id, equipmentIds), eq(equipment.is_available, true)))
-            .returning({ id: equipment.id })
+        const conflicts = await db
+            .select({ equipment_ids: bookings.equipment_ids })
+            .from(bookings)
+            .where(
+                and(
+                    ne(bookings.status, 'cancelled'),
+                    ne(bookings.status, 'rejected'),
+                    ne(bookings.status, 'completed'),
+                    lt(bookings.start_time, endTime),
+                    gt(bookings.end_time, startTime)
+                )
+            )
 
-        if (locked.length < equipmentIds.length) {
-            if (locked.length > 0) {
-                await db
-                    .update(equipment)
-                    .set({ is_available: true })
-                    .where(inArray(equipment.id, locked.map((e) => e.id)))
-            }
+        const conflictingIds = new Set<string>()
+        conflicts.forEach((b) => (b.equipment_ids || []).forEach((id) => conflictingIds.add(id)))
+
+        const hasConflict = equipmentIds.some((id) => conflictingIds.has(id))
+        if (hasConflict) {
             return {
-                error: 'One or more equipment items are no longer available. Please refresh and try again.',
+                error: 'One or more equipment items are already booked for this time slot. Please refresh and try again.',
             }
         }
     }
@@ -275,9 +287,6 @@ export async function createBooking(prevState: any, formData: FormData) {
         .returning({ id: bookings.id })
 
     if (!newBooking) {
-        if (equipmentIds.length > 0) {
-            await db.update(equipment).set({ is_available: true }).where(inArray(equipment.id, equipmentIds))
-        }
         return { error: 'Failed to create booking' }
     }
 
@@ -300,6 +309,18 @@ export async function createBooking(prevState: any, formData: FormData) {
         const bookerName = bookerProfile?.full_name || 'Someone'
 
         for (const player of rawPlayersList) {
+            // Create play request first to get its ID, then include it in the notification data
+            const [newPR] = await db
+                .insert(playRequests)
+                .values({
+                    booking_id: newBooking.id,
+                    requester_id: user.id,
+                    recipient_id: player.id,
+                    status: 'pending',
+                    notification_id: null,
+                })
+                .returning({ id: playRequests.id })
+
             const notifId = await sendNotification({
                 recipientId: player.id,
                 senderId: user.id,
@@ -308,6 +329,7 @@ export async function createBooking(prevState: any, formData: FormData) {
                 body: `${bookerName} invited you to play ${sport} at ${courtName} on ${startDisplay}. Accept or decline below.`,
                 data: {
                     booking_id: newBooking.id,
+                    play_request_id: newPR.id,
                     court_name: courtName,
                     sport,
                     start_time: startTime.toISOString(),
@@ -316,13 +338,12 @@ export async function createBooking(prevState: any, formData: FormData) {
                 },
             })
 
-            await db.insert(playRequests).values({
-                booking_id: newBooking.id,
-                requester_id: user.id,
-                recipient_id: player.id,
-                status: 'pending',
-                notification_id: notifId,
-            })
+            if (notifId) {
+                await db
+                    .update(playRequests)
+                    .set({ notification_id: notifId })
+                    .where(eq(playRequests.id, newPR.id))
+            }
         }
 
         // Notify managers of new booking
@@ -363,6 +384,27 @@ export async function createBooking(prevState: any, formData: FormData) {
     return { success: true }
 }
 
+async function cancelPendingPlayRequests(bookingId: string): Promise<void> {
+    const pending = await db
+        .select({ id: playRequests.id, notification_id: playRequests.notification_id })
+        .from(playRequests)
+        .where(and(eq(playRequests.booking_id, bookingId), eq(playRequests.status, 'pending')))
+
+    if (pending.length === 0) return
+
+    await db
+        .update(playRequests)
+        .set({ status: 'expired', responded_at: new Date() })
+        .where(and(eq(playRequests.booking_id, bookingId), eq(playRequests.status, 'pending')))
+
+    const notifIds = pending.map((r) => r.notification_id).filter((id): id is string => id !== null)
+    if (notifIds.length > 0) {
+        await db.update(notifications).set({ is_read: true }).where(inArray(notifications.id, notifIds))
+    }
+
+    revalidatePath('/student/play-requests')
+}
+
 export async function cancelBooking(bookingId: string) {
     const user = await getCurrentUser()
     if (!user) return { error: 'Unauthorized' }
@@ -386,18 +428,17 @@ export async function cancelBooking(bookingId: string) {
         return { error: 'Cannot cancel this booking' }
     }
 
-    const equipmentIds: string[] = booking.equipment_ids || []
-    if (equipmentIds.length > 0) {
-        await db.update(equipment).set({ is_available: true }).where(inArray(equipment.id, equipmentIds))
-    }
-
     // Deduct -3 points if cancellation < 3 hours before start
     const threeHoursFromNow = new Date(Date.now() + 3 * 60 * 60 * 1000)
     if (new Date(booking.start_time) < threeHoursFromNow) {
-        await db.execute(sql`SELECT update_student_points(${user.id}::uuid, ${-3}::integer)`)
+        await db
+            .update(profiles)
+            .set({ points: sql`COALESCE(${profiles.points}, 0) + ${-3}` })
+            .where(and(eq(profiles.id, user.id), eq(profiles.role, 'student')))
     }
 
     await db.update(bookings).set({ status: 'cancelled' }).where(eq(bookings.id, bookingId))
+    await cancelPendingPlayRequests(bookingId)
 
     const courtInfo = booking.courts
     const playersList = Array.isArray(booking.players_list) ? booking.players_list : []
@@ -471,12 +512,8 @@ export async function withdrawFromBooking(bookingId: string) {
     const limits = getPlayerLimits(sport)
 
     if (newNumPlayers < limits.min) {
-        const equipmentIds: string[] = booking.equipment_ids || []
-        if (equipmentIds.length > 0) {
-            await db.update(equipment).set({ is_available: true }).where(inArray(equipment.id, equipmentIds))
-        }
-
         await db.update(bookings).set({ status: 'cancelled' }).where(eq(bookings.id, bookingId))
+        await cancelPendingPlayRequests(bookingId)
 
         const courtInfo = booking.courts
         const startDisplay = new Date(booking.start_time).toLocaleString('en-IN', {

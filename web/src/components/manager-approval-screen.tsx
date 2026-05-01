@@ -886,8 +886,8 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
 
             {/* Reject Modal */}
             {showRejectModal && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
-                    <div className="bg-white w-full rounded-t-2xl p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-md rounded-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
                         <h3 className="font-bold text-gray-900">Reject / Cancel Booking</h3>
                         <p className="text-sm text-gray-500">
                             Select a reason. A warning will be issued to all involved students.

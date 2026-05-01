@@ -162,6 +162,7 @@ export default async function ProfilePage() {
                             branch: profile?.branch ?? null,
                             year: profile?.year ?? null,
                             gender: profile?.gender ?? null,
+                            phone_number: profile?.phone_number ?? null,
                         }}
                     />
                 </CardContent>

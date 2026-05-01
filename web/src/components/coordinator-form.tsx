@@ -13,6 +13,7 @@ import {
 import { Button } from './ui/button'
 import { createCoordinator, updateCoordinator, deleteCoordinator } from '@/actions/admin'
 import { useRouter } from 'next/navigation'
+import { SPORTS_LIST } from '@/lib/sports'
 
 interface Coordinator {
     id: string
@@ -114,7 +115,7 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                                 <div>
                                     <label
                                         htmlFor="name"
-                                        className="block text-sm font-medium text-gray-700 mb-1"
+                                        className="block text-sm font-semibold text-gray-900 mb-1"
                                     >
                                         Full Name *
                                     </label>
@@ -124,7 +125,7 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                                         name="name"
                                         required
                                         defaultValue={coordinator?.name}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40] text-gray-900 font-medium"
                                         placeholder="e.g., John Smith"
                                     />
                                 </div>
@@ -133,7 +134,7 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                                     <div>
                                         <label
                                             htmlFor="role"
-                                            className="block text-sm font-medium text-gray-700 mb-1"
+                                            className="block text-sm font-semibold text-gray-900 mb-1"
                                         >
                                             Role *
                                         </label>
@@ -142,7 +143,7 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                                             name="role"
                                             required
                                             defaultValue={coordinator?.role}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40] text-gray-900 font-medium"
                                         >
                                             <option value="">Select Role</option>
                                             <option value="Coach">Coach</option>
@@ -155,7 +156,7 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                                     <div>
                                         <label
                                             htmlFor="sport"
-                                            className="block text-sm font-medium text-gray-700 mb-1"
+                                            className="block text-sm font-semibold text-gray-900 mb-1"
                                         >
                                             Sport *
                                         </label>
@@ -164,13 +165,14 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                                             name="sport"
                                             required
                                             defaultValue={coordinator?.sport}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40] text-gray-900 font-medium"
                                         >
                                             <option value="">Select Sport</option>
-                                            <option value="badminton">Badminton</option>
-                                            <option value="tennis">Tennis</option>
-                                            <option value="basketball">Basketball</option>
-                                            <option value="football">Football</option>
+                                            {SPORTS_LIST.map((s) => (
+                                                <option key={s} value={s}>
+                                                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                                                </option>
+                                            ))}
                                         </select>
                                     </div>
                                 </div>
@@ -179,7 +181,7 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                                     <div>
                                         <label
                                             htmlFor="email"
-                                            className="block text-sm font-medium text-gray-700 mb-1"
+                                            className="block text-sm font-semibold text-gray-900 mb-1"
                                         >
                                             Email
                                         </label>
@@ -188,7 +190,7 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                                             id="email"
                                             name="email"
                                             defaultValue={coordinator?.email ?? undefined}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40] text-gray-900 font-medium"
                                             placeholder="john@example.com"
                                         />
                                     </div>
@@ -196,7 +198,7 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                                     <div>
                                         <label
                                             htmlFor="phone"
-                                            className="block text-sm font-medium text-gray-700 mb-1"
+                                            className="block text-sm font-semibold text-gray-900 mb-1"
                                         >
                                             Phone
                                         </label>
@@ -205,7 +207,7 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                                             id="phone"
                                             name="phone"
                                             defaultValue={coordinator?.phone ?? undefined}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40] text-gray-900 font-medium"
                                             placeholder="+1 234 567 8900"
                                         />
                                     </div>
@@ -214,7 +216,7 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                                 <div>
                                     <label
                                         htmlFor="notes"
-                                        className="block text-sm font-medium text-gray-700 mb-1"
+                                        className="block text-sm font-semibold text-gray-900 mb-1"
                                     >
                                         Notes
                                     </label>
@@ -223,7 +225,7 @@ export function CoordinatorForm({ mode, coordinator, children }: CoordinatorForm
                                         name="notes"
                                         rows={3}
                                         defaultValue={coordinator?.notes ?? undefined}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40] resize-none text-gray-900 font-medium"
                                         placeholder="Additional information..."
                                     />
                                 </div>

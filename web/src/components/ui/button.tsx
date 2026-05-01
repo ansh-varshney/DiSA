@@ -18,7 +18,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
                         'bg-[#004d40] text-white hover:bg-[#004d40]/90': variant === 'default',
                         'border border-input bg-background hover:bg-accent hover:text-accent-foreground':
                             variant === 'outline',
-                        'hover:bg-accent hover:text-accent-foreground': variant === 'ghost',
+                        'text-gray-700 hover:bg-accent hover:text-accent-foreground': variant === 'ghost',
                         'bg-red-500 text-white hover:bg-red-600': variant === 'destructive',
                         'h-10 px-4 py-2': size === 'default',
                         'h-9 rounded-md px-3': size === 'sm',

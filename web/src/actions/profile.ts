@@ -22,7 +22,7 @@ export async function updateStudentProfile(formData: FormData) {
     try {
         await db
             .update(profiles)
-            .set({ branch, year, gender, ...(phone_number ? { phone_number } : {}) })
+            .set({ branch, year, gender, phone_number })
             .where(eq(profiles.id, user.id))
     } catch (e: any) {
         return { error: e?.message ?? 'Failed to update profile' }

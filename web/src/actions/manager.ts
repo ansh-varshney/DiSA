@@ -8,13 +8,54 @@ import {
     equipment,
     feedbackComplaints,
     studentViolations,
+    playRequests,
+    notifications,
 } from '@/db/schema'
 import { getCurrentUser } from '@/lib/session'
 import { sendNotification, sendNotifications, notifyAdmins } from '@/actions/notifications'
 import {
-    eq, ne, and, or, gte, lte, gt, inArray, notInArray, isNotNull, asc, desc, sql,
+    eq, ne, and, or, gte, lte, gt, inArray, notInArray, isNotNull, isNull, asc, desc, sql, count,
 } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
+
+// ─── Helper: expire all pending play requests for a booking ──────────────────
+
+async function cancelPendingPlayRequests(bookingId: string): Promise<void> {
+    const pending = await db
+        .select({ id: playRequests.id, notification_id: playRequests.notification_id })
+        .from(playRequests)
+        .where(
+            and(
+                eq(playRequests.booking_id, bookingId),
+                eq(playRequests.status, 'pending')
+            )
+        )
+
+    if (pending.length === 0) return
+
+    await db
+        .update(playRequests)
+        .set({ status: 'expired', responded_at: new Date() })
+        .where(
+            and(
+                eq(playRequests.booking_id, bookingId),
+                eq(playRequests.status, 'pending')
+            )
+        )
+
+    const notifIds = pending
+        .map((r) => r.notification_id)
+        .filter((id): id is string => id !== null)
+
+    if (notifIds.length > 0) {
+        await db
+            .update(notifications)
+            .set({ is_read: true })
+            .where(inArray(notifications.id, notifIds))
+    }
+
+    revalidatePath('/student/play-requests')
+}
 
 // ─── Role guard ───────────────────────────────────────────────────────────────
 
@@ -97,7 +138,9 @@ async function applyPoints(studentIds: string[], delta: number): Promise<void> {
     if (studentIds.length === 0 || delta === 0) return
     await Promise.all(
         studentIds.map((id) =>
-            db.execute(sql`SELECT update_student_points(${id}::uuid, ${delta}::integer)`)
+            db.update(profiles)
+                .set({ points: sql`COALESCE(${profiles.points}, 0) + ${delta}` })
+                .where(and(eq(profiles.id, id), eq(profiles.role, 'student')))
         )
     )
 }
@@ -108,14 +151,7 @@ async function freeBookingEquipment(bookingId: string): Promise<string[]> {
         .from(bookings)
         .where(eq(bookings.id, bookingId))
 
-    const equipmentIds: string[] = bk?.equipment_ids || []
-    if (equipmentIds.length > 0) {
-        await db
-            .update(equipment)
-            .set({ is_available: true })
-            .where(inArray(equipment.id, equipmentIds))
-    }
-    return equipmentIds
+    return (bk?.equipment_ids || []) as string[]
 }
 
 // ─── Exports ──────────────────────────────────────────────────────────────────
@@ -282,17 +318,6 @@ export async function updateBookingStatus(
     status: 'confirmed' | 'rejected' | 'active' | 'completed' | 'cancelled'
 ): Promise<{ success: boolean; error?: string }> {
     try {
-        const terminalStatuses = ['cancelled', 'rejected', 'completed']
-        let equipmentIds: string[] = []
-
-        if (terminalStatuses.includes(status)) {
-            const [bk] = await db
-                .select({ equipment_ids: bookings.equipment_ids })
-                .from(bookings)
-                .where(eq(bookings.id, bookingId))
-            equipmentIds = bk?.equipment_ids || []
-        }
-
         const whereClause =
             status === 'active'
                 ? and(
@@ -302,13 +327,6 @@ export async function updateBookingStatus(
                 : eq(bookings.id, bookingId)
 
         await db.update(bookings).set({ status }).where(whereClause)
-
-        if (equipmentIds.length > 0) {
-            await db
-                .update(equipment)
-                .set({ is_available: true })
-                .where(inArray(equipment.id, equipmentIds))
-        }
 
         if (status === 'active') {
             const bk = await getBookingForNotif(bookingId)
@@ -397,6 +415,7 @@ export async function getBookingDetails(bookingId: string) {
     if (isPending && now > tenMinutesAfterStart) {
         await freeBookingEquipment(bookingId)
         await db.update(bookings).set({ status: 'cancelled' }).where(eq(bookings.id, bookingId))
+        await cancelPendingPlayRequests(bookingId)
         currentStatus = 'cancelled'
 
         const rawList = Array.isArray(bk.players_list) ? bk.players_list : []
@@ -497,13 +516,7 @@ export async function rejectWithReason(
     const equipmentIds: string[] = bkData?.equipment_ids || []
 
     await db.update(bookings).set({ status: 'cancelled' }).where(eq(bookings.id, bookingId))
-
-    if (equipmentIds.length > 0) {
-        await db
-            .update(equipment)
-            .set({ is_available: true })
-            .where(inArray(equipment.id, equipmentIds))
-    }
+    await cancelPendingPlayRequests(bookingId)
 
     const players = await db
         .select({ id: profiles.id, role: profiles.role })
@@ -533,11 +546,30 @@ export async function rejectWithReason(
         if (reason === 'students_late') {
             const banResults = await Promise.all(
                 studentIds.map(async (id) => {
-                    const rows = await db.execute<{ check_and_apply_late_ban: string | null }>(
-                        sql`SELECT check_and_apply_late_ban(${id}::uuid) as banned_until`
-                    )
-                    const banned_until = (rows as any)[0]?.banned_until as string | null
-                    return { id, banned_until }
+                    const [{ lateCount }] = await db
+                        .select({ lateCount: count() })
+                        .from(studentViolations)
+                        .where(
+                            and(
+                                eq(studentViolations.student_id, id),
+                                eq(studentViolations.violation_type, 'students_late')
+                            )
+                        )
+
+                    if (lateCount >= 3) {
+                        const bannedUntil = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+                        await db
+                            .update(profiles)
+                            .set({ banned_until: bannedUntil })
+                            .where(
+                                and(
+                                    eq(profiles.id, id),
+                                    or(isNull(profiles.banned_until), lte(profiles.banned_until, bannedUntil))
+                                )
+                            )
+                        return { id, banned_until: bannedUntil.toISOString() }
+                    }
+                    return { id, banned_until: null as string | null }
                 })
             )
             const bannedResults = banResults.filter((r) => r.banned_until != null)
@@ -600,6 +632,7 @@ export async function emergencyEndSession(bookingId: string, reason: string) {
     await freeBookingEquipment(bookingId)
 
     await db.update(bookings).set({ status: 'completed' }).where(eq(bookings.id, bookingId))
+    await cancelPendingPlayRequests(bookingId)
 
     await db.insert(feedbackComplaints).values({
         student_id: user.id,
@@ -802,6 +835,8 @@ export async function endSession(
 
     if (!markedRows || markedRows.length === 0) return { already_handled: true }
 
+    await cancelPendingPlayRequests(bookingId)
+
     // Update equipment conditions + free them
     for (const { id, condition } of equipmentConditions) {
         const [equip] = await db
@@ -813,7 +848,6 @@ export async function endSession(
             .update(equipment)
             .set({
                 condition,
-                is_available: true,
                 total_usage_count: (equip?.total_usage_count || 0) + 1,
             })
             .where(eq(equipment.id, id))
@@ -881,6 +915,7 @@ export async function expireBooking(bookingId: string, playerIds: string[]) {
 
     await freeBookingEquipment(bookingId)
     await db.update(bookings).set({ status: 'cancelled' }).where(eq(bookings.id, bookingId))
+    await cancelPendingPlayRequests(bookingId)
 
     if (playerIds.length > 0) {
         const players = await db

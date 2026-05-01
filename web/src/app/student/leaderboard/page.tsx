@@ -2,7 +2,7 @@ import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { db } from '@/db'
 import { profiles } from '@/db/schema'
-import { eq, desc, sql } from 'drizzle-orm'
+import { eq, desc, sql, and, or, isNull, inArray } from 'drizzle-orm'
 import { Card, CardContent } from '@/components/ui/card'
 import { Trophy, Star, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -13,27 +13,70 @@ export default async function LeaderboardPage() {
     if (!session?.user?.id) redirect('/login')
     const userId = session.user.id
 
-    // Trigger monthly reset (idempotent — no-op if already reset this month)
-    const resetRows = await db.execute(sql`SELECT reset_monthly_points() as result`)
-    const resetResult = (resetRows[0] as any)?.result as
-        | { reset_count: number; top5_ids: string[] }
-        | undefined
+    // Monthly reset — idempotent, only runs once per month
+    const startOfMonth = new Date()
+    startOfMonth.setDate(1)
+    startOfMonth.setHours(0, 0, 0, 0)
+    const startOfMonthStr = startOfMonth.toISOString().split('T')[0] // YYYY-MM-DD
 
-    if (
-        resetResult &&
-        resetResult.reset_count > 0 &&
-        Array.isArray(resetResult.top5_ids) &&
-        resetResult.top5_ids.length > 0
-    ) {
-        await sendNotifications(
-            resetResult.top5_ids.map((id: string) => ({
-                recipientId: id,
-                type: 'priority_booking_awarded',
-                title: 'Monthly Leaderboard Reward!',
-                body: 'You finished in the top 5 this month! You have earned a priority booking — book a 90-minute session anytime this month.',
-                data: { reward: 'priority_booking' },
-            }))
+    const needsResetRows = await db
+        .select({ id: profiles.id })
+        .from(profiles)
+        .where(
+            and(
+                eq(profiles.role, 'student'),
+                or(
+                    isNull(profiles.last_points_reset),
+                    sql`${profiles.last_points_reset} < ${startOfMonthStr}::date`
+                )
+            )
         )
+        .limit(1)
+
+    if (needsResetRows.length > 0) {
+        // Capture top 5 before reset
+        const top5 = await db
+            .select({ id: profiles.id })
+            .from(profiles)
+            .where(eq(profiles.role, 'student'))
+            .orderBy(desc(profiles.points))
+            .limit(5)
+        const top5Ids = top5.map((s) => s.id)
+
+        // Award priority booking to top 5
+        if (top5Ids.length > 0) {
+            await db
+                .update(profiles)
+                .set({ priority_booking_remaining: 1 })
+                .where(inArray(profiles.id, top5Ids))
+        }
+
+        // Reset all student points
+        const today = new Date().toISOString().split('T')[0]
+        await db
+            .update(profiles)
+            .set({ points: 0, last_points_reset: today })
+            .where(
+                and(
+                    eq(profiles.role, 'student'),
+                    or(
+                        isNull(profiles.last_points_reset),
+                        sql`${profiles.last_points_reset} < ${startOfMonthStr}::date`
+                    )
+                )
+            )
+
+        if (top5Ids.length > 0) {
+            await sendNotifications(
+                top5Ids.map((id) => ({
+                    recipientId: id,
+                    type: 'priority_booking_awarded',
+                    title: 'Monthly Leaderboard Reward!',
+                    body: 'You finished in the top 5 this month! You have earned a priority booking — book a 90-minute session anytime this month.',
+                    data: { reward: 'priority_booking' },
+                }))
+            )
+        }
     }
 
     const topStudents = await db
@@ -108,7 +151,7 @@ export default async function LeaderboardPage() {
                                     </h3>
                                     <p className="text-xs text-yellow-600 flex items-center gap-1">
                                         <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                                        Eligible for 3 consecutive bookings
+                                        Priority 90-min booking reward
                                     </p>
                                 </div>
 

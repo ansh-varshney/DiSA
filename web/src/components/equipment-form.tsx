@@ -373,7 +373,7 @@ export function EquipmentForm({ mode, equipment, sport, children }: EquipmentFor
                                         name="notes"
                                         rows={4}
                                         defaultValue={equipment?.notes || ''}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40] resize-none text-gray-900 font-medium"
                                         placeholder="Add any additional notes or information..."
                                     />
                                 </div>

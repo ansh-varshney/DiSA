@@ -41,9 +41,8 @@ type Player = { id: string; full_name: string | null; student_id: string | null 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const generateTimeSlots = () => {
     const slots: string[] = []
-    for (let hour = 6; hour <= 22; hour++) {
+    for (let hour = 0; hour < 24; hour++) {
         for (let minute = 0; minute < 60; minute += 30) {
-            if (hour === 22 && minute > 0) break
             slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`)
         }
     }

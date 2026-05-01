@@ -51,13 +51,13 @@ async function verifyAdmin() {
 
 export async function getEquipmentList(sport?: string) {
     await verifyAdmin()
-    const whereClause =
-        sport && sport !== 'all' ? eq(equipment.sport, sport) : undefined
+    const conditions = [ne(equipment.condition, 'retired')]
+    if (sport && sport !== 'all') conditions.push(eq(equipment.sport, sport))
 
     return await db
         .select()
         .from(equipment)
-        .where(whereClause)
+        .where(and(...conditions))
         .orderBy(desc(equipment.created_at))
 }
 
@@ -191,13 +191,13 @@ export async function deleteEquipment(id: string) {
 //============================================
 
 export async function getCourtsList(sport?: string) {
-    const whereClause =
-        sport && sport !== 'all' ? eq(courts.sport, sport) : undefined
+    const conditions = [eq(courts.is_active, true)]
+    if (sport && sport !== 'all') conditions.push(eq(courts.sport, sport))
 
     return await db
         .select()
         .from(courts)
-        .where(whereClause)
+        .where(and(...conditions))
         .orderBy(desc(courts.created_at))
 }
 
@@ -1131,7 +1131,8 @@ export async function getDefaulterStudents() {
 export async function removeStudentFromDefaulters(studentId: string) {
     await verifyAdmin()
 
-    await db.execute(sql`SELECT clear_student_defaulter(${studentId}::uuid)`)
+    await db.delete(studentViolations).where(eq(studentViolations.student_id, studentId))
+    await db.update(profiles).set({ banned_until: null }).where(eq(profiles.id, studentId))
 
     await sendNotification({
         recipientId: studentId,
@@ -1149,7 +1150,10 @@ export async function removeStudentFromDefaulters(studentId: string) {
 export async function adjustStudentPoints(studentId: string, delta: number) {
     await verifyAdmin()
 
-    await db.execute(sql`SELECT update_student_points(${studentId}::uuid, ${delta}::integer)`)
+    await db
+        .update(profiles)
+        .set({ points: sql`COALESCE(${profiles.points}, 0) + ${delta}` })
+        .where(and(eq(profiles.id, studentId), eq(profiles.role, 'student')))
 
     const sign = delta >= 0 ? '+' : ''
     await sendNotification({
