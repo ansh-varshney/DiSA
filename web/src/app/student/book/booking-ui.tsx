@@ -399,9 +399,17 @@ export default function BookingUI({
                                                             </span>
                                                         ) : booking ? (
                                                             <div>
-                                                                <div className="font-semibold text-blue-700 text-[11px]">
-                                                                    Booked
+                                                                <div className="font-semibold text-blue-700 text-[11px] truncate">
+                                                                    {booking.profiles?.full_name
+                                                                        ? booking.profiles.full_name.split(' ')[0]
+                                                                        : 'Booked'}
                                                                 </div>
+                                                                {booking.num_players && (
+                                                                    <div className="text-[10px] text-blue-500 flex items-center gap-0.5">
+                                                                        <Users className="w-3 h-3" />
+                                                                        {booking.num_players}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         ) : null}
                                                     </div>

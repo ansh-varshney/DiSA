@@ -345,7 +345,12 @@ export async function acceptPlayRequest(playRequestId: string) {
 
   await db
     .update(bookings)
-    .set({ players_list: updatedList, num_players: (bkRow.num_players || 1) + 1 })
+    .set({
+      players_list: updatedList,
+      // Only increment num_players if the player was NOT already in the list.
+      // When invited at booking creation, the player is already counted in num_players.
+      num_players: inList ? (bkRow.num_players || 1) : (bkRow.num_players || 1) + 1,
+    })
     .where(eq(bookings.id, pr.booking_id))
 
   await db
