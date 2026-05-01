@@ -3,10 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { X, Bell, CheckCircle, AlertTriangle, Info, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import {
-    markNotificationRead,
-    type AppNotification,
-} from '@/actions/notifications'
+import { markNotificationRead, type AppNotification } from '@/actions/notifications'
 import { acceptPlayRequest, rejectPlayRequest } from '@/actions/notifications'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -77,7 +74,11 @@ function Toast({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: string
                 prId = json.play_request_id
             }
         }
-        if (!prId) { setResponding(false); setError('Could not find play request'); return }
+        if (!prId) {
+            setResponding(false)
+            setError('Could not find play request')
+            return
+        }
         await acceptPlayRequest(prId)
         onDismiss(n.id)
     }
@@ -93,7 +94,11 @@ function Toast({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: string
                 prId = json.play_request_id
             }
         }
-        if (!prId) { setResponding(false); setError('Could not find play request'); return }
+        if (!prId) {
+            setResponding(false)
+            setError('Could not find play request')
+            return
+        }
         await rejectPlayRequest(prId)
         onDismiss(n.id)
     }
@@ -208,7 +213,7 @@ export function NotificationPopup({ initial = [] }: NotificationPopupProps) {
 
                 if (playRequestIds.length > 0) {
                     fetch(`/api/notifications/status?ids=${playRequestIds.join(',')}`)
-                        .then((r) => r.ok ? r.json() : [])
+                        .then((r) => (r.ok ? r.json() : []))
                         .then((statuses: { id: string; is_read: boolean }[]) => {
                             for (const { id, is_read } of statuses) {
                                 if (is_read) dismiss(id)

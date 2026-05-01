@@ -12,7 +12,9 @@ export default async function StudentHome() {
     const session = await auth()
     const userId = session?.user?.id
 
-    let profile: { full_name: string | null; avatar_url: string | null; points: number | null } | undefined
+    let profile:
+        | { full_name: string | null; avatar_url: string | null; points: number | null }
+        | undefined
     let upcomingBookings: Array<{
         id: string
         status: string | null
@@ -50,11 +52,7 @@ export default async function StudentHome() {
             .where(
                 and(
                     eq(bookings.user_id, userId),
-                    inArray(bookings.status, [
-                        'pending_confirmation',
-                        'confirmed',
-                        'active',
-                    ]),
+                    inArray(bookings.status, ['pending_confirmation', 'confirmed', 'active']),
                     gte(bookings.end_time, new Date())
                 )
             )

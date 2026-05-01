@@ -54,7 +54,10 @@ describe('requireAdmin', () => {
     })
 
     it('uses the authenticated user id — not a hardcoded value', async () => {
-        vi.mocked(getCurrentUser).mockResolvedValueOnce({ id: 'admin-99', email: 'admin@iiitd.ac.in' })
+        vi.mocked(getCurrentUser).mockResolvedValueOnce({
+            id: 'admin-99',
+            email: 'admin@iiitd.ac.in',
+        })
         mockDrizzleDb.enqueue([{ role: 'admin' }])
         const result = await requireAdmin()
         expect(result.id).toBe('admin-99')

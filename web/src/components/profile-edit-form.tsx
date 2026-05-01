@@ -7,7 +7,12 @@ import { updateStudentProfile } from '@/actions/profile'
 import { BRANCHES, YEARS, GENDERS } from '@/lib/profile-options'
 
 interface Props {
-    current: { branch: string | null; year: string | null; gender: string | null; phone_number: string | null }
+    current: {
+        branch: string | null
+        year: string | null
+        gender: string | null
+        phone_number: string | null
+    }
 }
 
 export function ProfileEditForm({ current }: Props) {

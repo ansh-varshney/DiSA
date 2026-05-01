@@ -36,11 +36,7 @@ export default async function ProfilePage() {
     if (!session?.user?.id) redirect('/login')
     const userId = session.user.id
 
-    const [profile] = await db
-        .select()
-        .from(profiles)
-        .where(eq(profiles.id, userId))
-        .limit(1)
+    const [profile] = await db.select().from(profiles).where(eq(profiles.id, userId)).limit(1)
 
     const twoMonthsAgo = new Date()
     twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2)

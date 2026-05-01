@@ -56,7 +56,9 @@ function enqueueAdminRole() {
 describe('createEquipment — image upload', () => {
     beforeEach(() => {
         mockDrizzleDb.reset()
-        vi.mocked(uploadFile).mockResolvedValue('/uploads/equipment-images/badminton/eq-1/123-photo.jpg')
+        vi.mocked(uploadFile).mockResolvedValue(
+            '/uploads/equipment-images/badminton/eq-1/123-photo.jpg'
+        )
     })
 
     it('uploads images and updates equipment pictures when imageFiles are provided', async () => {
@@ -313,17 +315,19 @@ describe('cancelReservation — players_list notifications', () => {
         const { sendNotifications } = await import('@/actions/notifications')
 
         enqueueAdminRole()
-        mockDrizzleDb.enqueue([{
-            user_id: 'booker-1',
-            players_list: [
-                { id: 'player-1', status: 'confirmed' },
-                { id: 'player-2', status: 'pending_confirmation' }, // not confirmed — should NOT be included
-            ],
-            start_time: new Date(Date.now() + 3_600_000),
-            is_priority: false,
-            is_maintenance: false,
-            courts: { name: 'Badminton A' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'booker-1',
+                players_list: [
+                    { id: 'player-1', status: 'confirmed' },
+                    { id: 'player-2', status: 'pending_confirmation' }, // not confirmed — should NOT be included
+                ],
+                start_time: new Date(Date.now() + 3_600_000),
+                is_priority: false,
+                is_maintenance: false,
+                courts: { name: 'Badminton A' },
+            },
+        ])
         mockDrizzleDb.enqueueEmpty() // update status=cancelled
 
         await cancelReservation('b-1')
@@ -342,14 +346,16 @@ describe('cancelReservation — players_list notifications', () => {
         vi.mocked(sendNotifications).mockClear()
 
         enqueueAdminRole()
-        mockDrizzleDb.enqueue([{
-            user_id: 'booker-1',
-            players_list: [],
-            start_time: new Date(Date.now() + 3_600_000),
-            is_priority: true, // priority — skip notifications
-            is_maintenance: false,
-            courts: { name: 'Badminton A' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'booker-1',
+                players_list: [],
+                start_time: new Date(Date.now() + 3_600_000),
+                is_priority: true, // priority — skip notifications
+                is_maintenance: false,
+                courts: { name: 'Badminton A' },
+            },
+        ])
         mockDrizzleDb.enqueueEmpty()
 
         await cancelReservation('b-priority')
@@ -362,14 +368,16 @@ describe('cancelReservation — players_list notifications', () => {
         vi.mocked(sendNotifications).mockClear()
 
         enqueueAdminRole()
-        mockDrizzleDb.enqueue([{
-            user_id: 'booker-1',
-            players_list: ['string-player-id'], // string format — no status, treated as confirmed
-            start_time: new Date(Date.now() + 3_600_000),
-            is_priority: false,
-            is_maintenance: false,
-            courts: { name: 'Squash A' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'booker-1',
+                players_list: ['string-player-id'], // string format — no status, treated as confirmed
+                start_time: new Date(Date.now() + 3_600_000),
+                is_priority: false,
+                is_maintenance: false,
+                courts: { name: 'Squash A' },
+            },
+        ])
         mockDrizzleDb.enqueueEmpty()
 
         await cancelReservation('b-2')
@@ -419,7 +427,12 @@ describe('getStudentViolationHistory', () => {
     it('returns multiple violations ordered by newest first', async () => {
         const rows = [
             { id: 'v-2', student_id: 's-1', violation_type: 'no_show', created_at: new Date() },
-            { id: 'v-1', student_id: 's-1', violation_type: 'late_arrival', created_at: new Date(Date.now() - 86_400_000) },
+            {
+                id: 'v-1',
+                student_id: 's-1',
+                violation_type: 'late_arrival',
+                created_at: new Date(Date.now() - 86_400_000),
+            },
         ]
         mockDrizzleDb.enqueue(rows)
 

@@ -145,12 +145,14 @@ describe('studentStartPlay', () => {
     })
 
     it('returns error when booking belongs to a different user', async () => {
-        mockDrizzleDb.enqueue([{
-            user_id: 'other-student',
-            status: 'confirmed',
-            start_time: new Date(),
-            courts: null,
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'other-student',
+                status: 'confirmed',
+                start_time: new Date(),
+                courts: null,
+            },
+        ])
 
         const result = await studentStartPlay('b-1')
 
@@ -158,12 +160,14 @@ describe('studentStartPlay', () => {
     })
 
     it('returns error when booking status is not confirmed', async () => {
-        mockDrizzleDb.enqueue([{
-            user_id: 'student-1',
-            status: 'active', // already active
-            start_time: new Date(),
-            courts: null,
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'student-1',
+                status: 'active', // already active
+                start_time: new Date(),
+                courts: null,
+            },
+        ])
 
         const result = await studentStartPlay('b-1')
 
@@ -171,12 +175,14 @@ describe('studentStartPlay', () => {
     })
 
     it('returns error when booking is cancelled', async () => {
-        mockDrizzleDb.enqueue([{
-            user_id: 'student-1',
-            status: 'cancelled',
-            start_time: new Date(),
-            courts: null,
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'student-1',
+                status: 'cancelled',
+                start_time: new Date(),
+                courts: null,
+            },
+        ])
 
         const result = await studentStartPlay('b-1')
 
@@ -184,12 +190,14 @@ describe('studentStartPlay', () => {
     })
 
     it('transitions booking to waiting_manager and notifies managers on success', async () => {
-        mockDrizzleDb.enqueue([{
-            user_id: 'student-1',
-            status: 'confirmed',
-            start_time: new Date(),
-            courts: { name: 'Badminton Court A', sport: 'badminton' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'student-1',
+                status: 'confirmed',
+                start_time: new Date(),
+                courts: { name: 'Badminton Court A', sport: 'badminton' },
+            },
+        ])
         mockDrizzleDb.enqueueEmpty() // update booking
 
         const result = await studentStartPlay('b-1')

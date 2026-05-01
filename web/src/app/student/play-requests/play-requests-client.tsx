@@ -87,13 +87,11 @@ export function PlayRequestsClient({ requests }: { requests: PlayRequest[] }) {
     const TERMINAL_BOOKING_STATUSES = ['cancelled', 'rejected', 'completed', 'expired']
     const pending = list.filter(
         (r) =>
-            r.status === 'pending' &&
-            !TERMINAL_BOOKING_STATUSES.includes(r.bookings?.status ?? '')
+            r.status === 'pending' && !TERMINAL_BOOKING_STATUSES.includes(r.bookings?.status ?? '')
     )
     const past = list.filter(
         (r) =>
-            r.status !== 'pending' ||
-            TERMINAL_BOOKING_STATUSES.includes(r.bookings?.status ?? '')
+            r.status !== 'pending' || TERMINAL_BOOKING_STATUSES.includes(r.bookings?.status ?? '')
     )
 
     if (list.length === 0) {

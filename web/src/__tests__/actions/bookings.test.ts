@@ -102,8 +102,20 @@ describe('getAvailableEquipment', () => {
 
     it('marks equipment as in_use when reserved in overlapping booking', async () => {
         mockDrizzleDb.enqueue([
-            { id: 'eq-1', name: 'Racket A', sport: 'badminton', condition: 'good', is_available: true },
-            { id: 'eq-2', name: 'Racket B', sport: 'badminton', condition: 'good', is_available: true },
+            {
+                id: 'eq-1',
+                name: 'Racket A',
+                sport: 'badminton',
+                condition: 'good',
+                is_available: true,
+            },
+            {
+                id: 'eq-2',
+                name: 'Racket B',
+                sport: 'badminton',
+                condition: 'good',
+                is_available: true,
+            },
         ])
         mockDrizzleDb.enqueue([{ equipment_ids: ['eq-1'] }])
 
@@ -165,8 +177,8 @@ describe('createBooking', () => {
     it('rejects when student already has a booking in the same slot', async () => {
         mockDrizzleDb.enqueue([PROFILE_OK])
         mockDrizzleDb.enqueue(VIOLATIONS_ZERO)
-        mockDrizzleDb.enqueue(NO_CONFLICTS)              // no court overlap
-        mockDrizzleDb.enqueue([{ id: 'own-booking' }])  // student conflict
+        mockDrizzleDb.enqueue(NO_CONFLICTS) // no court overlap
+        mockDrizzleDb.enqueue([{ id: 'own-booking' }]) // student conflict
         const result = await createBooking(null, makeFormData())
         expect(result.error).toBe('You already have a booking during this time')
     })
@@ -207,17 +219,18 @@ describe('createBooking', () => {
 
     it('sends play request notifications to each invited player', async () => {
         const players = [{ id: 'student-2', full_name: 'Bob' }]
-        mockDrizzleDb.enqueue([PROFILE_OK])                   // 1: profile ban
-        mockDrizzleDb.enqueue(VIOLATIONS_ZERO)                 // 2: violations
-        mockDrizzleDb.enqueue(NO_CONFLICTS)                    // 3: court overlap
-        mockDrizzleDb.enqueue(NO_CONFLICTS)                    // 4: student conflict
-        mockDrizzleDb.enqueue([                               // 5: player enrichment
+        mockDrizzleDb.enqueue([PROFILE_OK]) // 1: profile ban
+        mockDrizzleDb.enqueue(VIOLATIONS_ZERO) // 2: violations
+        mockDrizzleDb.enqueue(NO_CONFLICTS) // 3: court overlap
+        mockDrizzleDb.enqueue(NO_CONFLICTS) // 4: student conflict
+        mockDrizzleDb.enqueue([
+            // 5: player enrichment
             { id: 'student-2', full_name: 'Bob', branch: 'ECE', gender: 'male', year: '3' },
         ])
-        mockDrizzleDb.enqueue([COURT_BADMINTON])              // 6: courts
-        mockDrizzleDb.enqueue([{ id: 'booking-new' }])        // 7: insert booking
-        mockDrizzleDb.enqueue([{ full_name: 'Alice' }])       // 8: booker profile
-        mockDrizzleDb.enqueueEmpty()                           // 9: insert playRequests
+        mockDrizzleDb.enqueue([COURT_BADMINTON]) // 6: courts
+        mockDrizzleDb.enqueue([{ id: 'booking-new' }]) // 7: insert booking
+        mockDrizzleDb.enqueue([{ full_name: 'Alice' }]) // 8: booker profile
+        mockDrizzleDb.enqueueEmpty() // 9: insert playRequests
 
         const fd = makeFormData({ numPlayers: '2', playersList: JSON.stringify(players) })
         await createBooking(null, fd)
@@ -236,10 +249,13 @@ describe('createBooking', () => {
         mockDrizzleDb.enqueue(NO_CONFLICTS)
         mockDrizzleDb.enqueue([COURT_BADMINTON])
         mockDrizzleDb.enqueue([{ id: 'eq-1' }]) // lock equipment returning → 1 locked
-        mockDrizzleDb.enqueue([])               // insert booking returning → empty → fail
-        mockDrizzleDb.enqueueEmpty()             // free equipment (no returning)
+        mockDrizzleDb.enqueue([]) // insert booking returning → empty → fail
+        mockDrizzleDb.enqueueEmpty() // free equipment (no returning)
 
-        const result = await createBooking(null, makeFormData({ equipmentIds: JSON.stringify(['eq-1']) }))
+        const result = await createBooking(
+            null,
+            makeFormData({ equipmentIds: JSON.stringify(['eq-1']) })
+        )
         expect(result.error).toBe('Failed to create booking')
     })
 
@@ -250,7 +266,7 @@ describe('createBooking', () => {
         mockDrizzleDb.enqueue(NO_CONFLICTS)
         mockDrizzleDb.enqueue([COURT_BADMINTON])
         mockDrizzleDb.enqueue([{ id: 'booking-90' }]) // insert booking
-        mockDrizzleDb.enqueueEmpty()                    // update profiles (priority_booking_remaining=0)
+        mockDrizzleDb.enqueueEmpty() // update profiles (priority_booking_remaining=0)
 
         const result = await createBooking(null, makeFormData({ duration: '90' }))
         expect(result).toEqual({ success: true })
@@ -319,31 +335,38 @@ describe('cancelBooking', () => {
 
     it('notifies confirmed players (N8) when booking is cancelled', async () => {
         const farStart = new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString()
-        mockDrizzleDb.enqueue([{
-            ...BOOKING_ROW,
-            start_time: farStart,
-            players_list: [{ id: 'student-2', status: 'confirmed' }],
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                ...BOOKING_ROW,
+                start_time: farStart,
+                players_list: [{ id: 'student-2', status: 'confirmed' }],
+            },
+        ])
         mockDrizzleDb.enqueueEmpty() // update bookings
 
         await cancelBooking('b-1')
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
             expect.arrayContaining([
-                expect.objectContaining({ recipientId: 'student-2', type: 'booking_cancelled_by_booker' }),
+                expect.objectContaining({
+                    recipientId: 'student-2',
+                    type: 'booking_cancelled_by_booker',
+                }),
             ])
         )
     })
 
     it('does NOT send N8 to pending-status players — only confirmed players notified', async () => {
         const farStart = new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString()
-        mockDrizzleDb.enqueue([{
-            ...BOOKING_ROW,
-            start_time: farStart,
-            players_list: [
-                { id: 'student-confirmed', status: 'confirmed' },
-                { id: 'student-pending', status: 'pending' },
-            ],
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                ...BOOKING_ROW,
+                start_time: farStart,
+                players_list: [
+                    { id: 'student-confirmed', status: 'confirmed' },
+                    { id: 'student-pending', status: 'pending' },
+                ],
+            },
+        ])
         mockDrizzleDb.enqueueEmpty()
 
         await cancelBooking('b-1')
@@ -378,17 +401,19 @@ describe('withdrawFromBooking', () => {
 
     it('sends N9 notification to the booker on successful withdrawal', async () => {
         // Current user is 'student-1' (the withdrawer); booker is 'student-booker'
-        mockDrizzleDb.enqueue([{
-            user_id: 'student-booker',
-            status: 'confirmed',
-            num_players: 3,
-            players_list: [{ id: 'student-1', status: 'confirmed' }],
-            equipment_ids: [],
-            start_time: futureTime(2),
-            courts: { sport: 'badminton', name: 'Ct A' },
-        }])
-        mockDrizzleDb.enqueueEmpty()                        // update bookings
-        mockDrizzleDb.enqueue([{ full_name: 'Alice' }])    // withdrawer profile
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'student-booker',
+                status: 'confirmed',
+                num_players: 3,
+                players_list: [{ id: 'student-1', status: 'confirmed' }],
+                equipment_ids: [],
+                start_time: futureTime(2),
+                courts: { sport: 'badminton', name: 'Ct A' },
+            },
+        ])
+        mockDrizzleDb.enqueueEmpty() // update bookings
+        mockDrizzleDb.enqueue([{ full_name: 'Alice' }]) // withdrawer profile
 
         await withdrawFromBooking('b-1')
         expect(vi.mocked(sendNotification)).toHaveBeenCalledWith(
@@ -399,22 +424,27 @@ describe('withdrawFromBooking', () => {
     it('auto-cancels booking when withdrawal drops players below minimum', async () => {
         // num_players=2, withdrawing leaves 1, min=2 → auto-cancel
         vi.mocked(getPlayerLimits).mockReturnValue({ min: 2, max: 6 })
-        mockDrizzleDb.enqueue([{
-            user_id: 'student-booker',
-            status: 'confirmed',
-            num_players: 2,
-            players_list: [{ id: 'student-1', status: 'confirmed' }],
-            equipment_ids: [],
-            start_time: futureTime(2),
-            courts: { sport: 'badminton', name: 'Ct A' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'student-booker',
+                status: 'confirmed',
+                num_players: 2,
+                players_list: [{ id: 'student-1', status: 'confirmed' }],
+                equipment_ids: [],
+                start_time: futureTime(2),
+                courts: { sport: 'badminton', name: 'Ct A' },
+            },
+        ])
         mockDrizzleDb.enqueueEmpty() // update bookings (cancel)
 
         const result = await withdrawFromBooking('b-1')
         expect(result).toMatchObject({ success: true, cancelled: true })
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
             expect.arrayContaining([
-                expect.objectContaining({ recipientId: 'student-booker', type: 'booking_auto_cancelled' }),
+                expect.objectContaining({
+                    recipientId: 'student-booker',
+                    type: 'booking_auto_cancelled',
+                }),
             ])
         )
     })

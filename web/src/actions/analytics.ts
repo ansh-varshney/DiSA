@@ -13,21 +13,16 @@ import { requireAdmin } from '@/lib/auth-guards'
 export async function getFinancialsData(vendor?: string) {
     await requireAdmin()
     // Get all unique vendors first (unfiltered)
-    const allEquipmentRows = await db
-        .select({ vendor_name: equipment.vendor_name })
-        .from(equipment)
+    const allEquipmentRows = await db.select({ vendor_name: equipment.vendor_name }).from(equipment)
 
     const vendors: string[] = [
         ...new Set(
-            allEquipmentRows
-                .map((e) => e.vendor_name)
-                .filter((v): v is string => Boolean(v))
+            allEquipmentRows.map((e) => e.vendor_name).filter((v): v is string => Boolean(v))
         ),
     ]
 
     // Fetch equipment, optionally filtered by vendor
-    const whereClause =
-        vendor && vendor !== 'all' ? eq(equipment.vendor_name, vendor) : undefined
+    const whereClause = vendor && vendor !== 'all' ? eq(equipment.vendor_name, vendor) : undefined
 
     const equipmentRows = await db
         .select({
@@ -88,9 +83,7 @@ export async function getFinancialsData(vendor?: string) {
 
     const lifespanBySport: Record<string, number> = {}
     for (const sport of Object.keys(lifespanSumBySport)) {
-        lifespanBySport[sport] = Math.round(
-            lifespanSumBySport[sport] / lifespanCountBySport[sport]
-        )
+        lifespanBySport[sport] = Math.round(lifespanSumBySport[sport] / lifespanCountBySport[sport])
     }
 
     const totalCost = Object.values(costBySport).reduce((a, b) => a + b, 0)
@@ -110,11 +103,7 @@ export async function getFinancialsData(vendor?: string) {
 // Team Performance Dashboard
 //============================================
 
-export async function getTeamPerformanceData(
-    sport?: string,
-    startDate?: string,
-    endDate?: string
-) {
+export async function getTeamPerformanceData(sport?: string, startDate?: string, endDate?: string) {
     await requireAdmin()
     if (!sport || sport === 'all') {
         return {
@@ -127,10 +116,7 @@ export async function getTeamPerformanceData(
         }
     }
 
-    const courtRows = await db
-        .select({ id: courts.id })
-        .from(courts)
-        .where(eq(courts.sport, sport))
+    const courtRows = await db.select({ id: courts.id }).from(courts).where(eq(courts.sport, sport))
 
     if (!courtRows || courtRows.length === 0) {
         return {
@@ -171,8 +157,18 @@ export async function getTeamPerformanceData(
             const parseMonth = (str: string) => {
                 const [mon, yr] = str.split(' ')
                 const months = [
-                    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+                    'Jan',
+                    'Feb',
+                    'Mar',
+                    'Apr',
+                    'May',
+                    'Jun',
+                    'Jul',
+                    'Aug',
+                    'Sep',
+                    'Oct',
+                    'Nov',
+                    'Dec',
                 ]
                 return parseInt('20' + yr) * 12 + months.indexOf(mon)
             }
@@ -243,13 +239,9 @@ export async function getParticipationStats(
     endDate?: string
 ) {
     await requireAdmin()
-    const bookingConditions = [
-        eq(bookings.status, 'completed'),
-        eq(bookings.is_maintenance, false),
-    ]
+    const bookingConditions = [eq(bookings.status, 'completed'), eq(bookings.is_maintenance, false)]
     if (startDate) bookingConditions.push(gte(bookings.start_time, new Date(startDate)))
-    if (endDate)
-        bookingConditions.push(lte(bookings.start_time, new Date(endDate + 'T23:59:59')))
+    if (endDate) bookingConditions.push(lte(bookings.start_time, new Date(endDate + 'T23:59:59')))
 
     const bookingRows = await db
         .select({ id: bookings.id, user_id: bookings.user_id, court_id: bookings.court_id })
@@ -261,7 +253,12 @@ export async function getParticipationStats(
 
     const userIds = [...new Set(bookingRows.map((b) => b.user_id))]
     const profileRows = await db
-        .select({ id: profiles.id, branch: profiles.branch, gender: profiles.gender, year: profiles.year })
+        .select({
+            id: profiles.id,
+            branch: profiles.branch,
+            gender: profiles.gender,
+            year: profiles.year,
+        })
         .from(profiles)
         .where(inArray(profiles.id, userIds))
 
@@ -308,13 +305,9 @@ export async function getBranchProfileData(
     endDate?: string
 ) {
     await requireAdmin()
-    const bookingConditions = [
-        eq(bookings.status, 'completed'),
-        eq(bookings.is_maintenance, false),
-    ]
+    const bookingConditions = [eq(bookings.status, 'completed'), eq(bookings.is_maintenance, false)]
     if (startDate) bookingConditions.push(gte(bookings.start_time, new Date(startDate)))
-    if (endDate)
-        bookingConditions.push(lte(bookings.start_time, new Date(endDate + 'T23:59:59')))
+    if (endDate) bookingConditions.push(lte(bookings.start_time, new Date(endDate + 'T23:59:59')))
 
     const bookingRows = await db
         .select({ id: bookings.id, user_id: bookings.user_id, court_id: bookings.court_id })
@@ -325,7 +318,12 @@ export async function getBranchProfileData(
 
     const userIds = [...new Set(bookingRows.map((b) => b.user_id))]
     const profileRows = await db
-        .select({ id: profiles.id, branch: profiles.branch, gender: profiles.gender, year: profiles.year })
+        .select({
+            id: profiles.id,
+            branch: profiles.branch,
+            gender: profiles.gender,
+            year: profiles.year,
+        })
         .from(profiles)
         .where(inArray(profiles.id, userIds))
 
@@ -404,13 +402,9 @@ export async function getAdminLeaderboard(startDate?: string, endDate?: string) 
         return data.map((s, i) => ({ ...s, rank: i + 1, sessions: undefined }))
     }
 
-    const bookingConditions = [
-        eq(bookings.status, 'completed'),
-        eq(bookings.is_maintenance, false),
-    ]
+    const bookingConditions = [eq(bookings.status, 'completed'), eq(bookings.is_maintenance, false)]
     if (startDate) bookingConditions.push(gte(bookings.start_time, new Date(startDate)))
-    if (endDate)
-        bookingConditions.push(lte(bookings.start_time, new Date(endDate + 'T23:59:59')))
+    if (endDate) bookingConditions.push(lte(bookings.start_time, new Date(endDate + 'T23:59:59')))
 
     const bookingRows = await db
         .select({ user_id: bookings.user_id })

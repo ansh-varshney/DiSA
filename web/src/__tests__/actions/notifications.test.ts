@@ -303,7 +303,18 @@ describe('getMyPlayRequests', () => {
 
     it('returns play requests for the authenticated user', async () => {
         // DB call 1: select from play_requests with joins
-        mockDrizzleDb.enqueue([{ ...PLAY_REQUEST, bookings: { id: 'booking-1', start_time: BOOKING.start_time, end_time: null, status: 'confirmed' }, requester: { full_name: 'Bob', student_id: 'S2024' } }])
+        mockDrizzleDb.enqueue([
+            {
+                ...PLAY_REQUEST,
+                bookings: {
+                    id: 'booking-1',
+                    start_time: BOOKING.start_time,
+                    end_time: null,
+                    status: 'confirmed',
+                },
+                requester: { full_name: 'Bob', student_id: 'S2024' },
+            },
+        ])
         // DB call 2: select court info for booking-1
         mockDrizzleDb.enqueue([{ id: 'booking-1', name: 'Badminton Court A', sport: 'badminton' }])
         const result = await getMyPlayRequests()
@@ -334,7 +345,9 @@ describe('acceptPlayRequest', () => {
 
     it('returns error when request already responded', async () => {
         mockDrizzleDb.enqueue([{ ...PLAY_REQUEST, status: 'accepted' }]) // pr already accepted
-        expect(await acceptPlayRequest('pr-1')).toEqual({ error: 'Already responded to this request' })
+        expect(await acceptPlayRequest('pr-1')).toEqual({
+            error: 'Already responded to this request',
+        })
     })
 
     it('returns error when underlying booking is cancelled', async () => {
@@ -354,9 +367,17 @@ describe('acceptPlayRequest', () => {
         // DB call 1: select playRequest
         mockDrizzleDb.enqueue([pr])
         // DB call 2: select booking with courts join
-        mockDrizzleDb.enqueue([{ ...BOOKING, status: 'confirmed', players_list: [{ id: 'student-1', status: 'pending' }] }])
+        mockDrizzleDb.enqueue([
+            {
+                ...BOOKING,
+                status: 'confirmed',
+                players_list: [{ id: 'student-1', status: 'pending' }],
+            },
+        ])
         // DB call 3: select profile
-        mockDrizzleDb.enqueue([{ id: 'student-1', full_name: 'Alice', branch: 'CSE', gender: 'female', year: '2' }])
+        mockDrizzleDb.enqueue([
+            { id: 'student-1', full_name: 'Alice', branch: 'CSE', gender: 'female', year: '2' },
+        ])
         // DB call 4: update bookings (players_list + num_players)
         mockDrizzleDb.enqueueEmpty()
         // DB call 5: update playRequests (status=accepted)
@@ -373,7 +394,9 @@ describe('acceptPlayRequest', () => {
         const pr = { ...PLAY_REQUEST, status: 'pending', notification_id: null }
         mockDrizzleDb.enqueue([pr])
         mockDrizzleDb.enqueue([{ ...BOOKING, num_players: 2, players_list: [] }])
-        mockDrizzleDb.enqueue([{ id: 'student-1', full_name: 'Alice', branch: 'CSE', gender: 'female', year: '2' }])
+        mockDrizzleDb.enqueue([
+            { id: 'student-1', full_name: 'Alice', branch: 'CSE', gender: 'female', year: '2' },
+        ])
         mockDrizzleDb.enqueueEmpty() // update bookings
         mockDrizzleDb.enqueueEmpty() // update playRequests
         // no notification_id → no notification update
@@ -402,7 +425,9 @@ describe('rejectPlayRequest', () => {
 
     it('returns error when request already responded', async () => {
         mockDrizzleDb.enqueue([{ ...PLAY_REQUEST, status: 'rejected' }])
-        expect(await rejectPlayRequest('pr-1')).toEqual({ error: 'Already responded to this request' })
+        expect(await rejectPlayRequest('pr-1')).toEqual({
+            error: 'Already responded to this request',
+        })
     })
 
     it('does NOT cancel booking when enough players remain', async () => {
@@ -414,7 +439,9 @@ describe('rejectPlayRequest', () => {
         ]
         mockDrizzleDb.enqueue([{ ...PLAY_REQUEST, status: 'pending' }])
         // booking with 4 players → after reject: 3 ≥ min(2) → not cancelled
-        mockDrizzleDb.enqueue([{ ...BOOKING, num_players: 4, equipment_ids: [], players_list: players }])
+        mockDrizzleDb.enqueue([
+            { ...BOOKING, num_players: 4, equipment_ids: [], players_list: players },
+        ])
         mockDrizzleDb.enqueue([{ full_name: 'Alice' }]) // profile
         mockDrizzleDb.enqueueEmpty() // update bookings (players_list + num_players)
         mockDrizzleDb.enqueue([{ id: 'n-1' }]) // sendNotification returning
@@ -428,12 +455,14 @@ describe('rejectPlayRequest', () => {
         vi.mocked(getPlayerLimits).mockReturnValue({ min: 2, max: 6 })
         mockDrizzleDb.enqueue([{ ...PLAY_REQUEST, status: 'pending' }])
         // 1 player, after reject → 0 < min(2) → cancel
-        mockDrizzleDb.enqueue([{
-            ...BOOKING,
-            num_players: 1,
-            equipment_ids: ['eq-1'],
-            players_list: [{ id: 'student-1', status: 'confirmed' }],
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                ...BOOKING,
+                num_players: 1,
+                equipment_ids: ['eq-1'],
+                players_list: [{ id: 'student-1', status: 'confirmed' }],
+            },
+        ])
         mockDrizzleDb.enqueue([{ full_name: 'Alice' }]) // profile
         mockDrizzleDb.enqueueEmpty() // update equipment (free)
         mockDrizzleDb.enqueueEmpty() // update bookings (cancel)
@@ -448,12 +477,14 @@ describe('rejectPlayRequest', () => {
     it('includes players_list and num_players in cancellation update', async () => {
         vi.mocked(getPlayerLimits).mockReturnValue({ min: 2, max: 6 })
         mockDrizzleDb.enqueue([{ ...PLAY_REQUEST, status: 'pending' }])
-        mockDrizzleDb.enqueue([{
-            ...BOOKING,
-            num_players: 1,
-            equipment_ids: [],
-            players_list: [{ id: 'student-1', status: 'confirmed' }],
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                ...BOOKING,
+                num_players: 1,
+                equipment_ids: [],
+                players_list: [{ id: 'student-1', status: 'confirmed' }],
+            },
+        ])
         mockDrizzleDb.enqueue([{ full_name: 'Alice' }])
         // No equipment update (empty equipment_ids)
         mockDrizzleDb.enqueueEmpty() // update bookings (cancel)

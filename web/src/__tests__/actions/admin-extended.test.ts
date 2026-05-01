@@ -74,7 +74,10 @@ beforeEach(() => {
 describe('getEquipmentList', () => {
     it('returns all equipment without sport filter', async () => {
         enqueueAdminRole()
-        const equip = [{ id: 'e-1', name: 'Racket', sport: 'badminton' }, { id: 'e-2', name: 'Ball', sport: 'tennis' }]
+        const equip = [
+            { id: 'e-1', name: 'Racket', sport: 'badminton' },
+            { id: 'e-2', name: 'Ball', sport: 'tennis' },
+        ]
         mockDrizzleDb.enqueue(equip)
         expect(await getEquipmentList()).toEqual(equip)
     })
@@ -107,7 +110,7 @@ describe('createEquipment', () => {
         const created = { id: 'eq-new', name: 'Test Racket', sport: 'badminton' }
         enqueueAdminRole()
         mockDrizzleDb.enqueue([{ equipCount: 0 }]) // count query
-        mockDrizzleDb.enqueue([created])            // insert.returning()
+        mockDrizzleDb.enqueue([created]) // insert.returning()
 
         const result = await createEquipment(makeEquipFormData())
         expect(result).toMatchObject({ id: 'eq-new' })
@@ -124,7 +127,9 @@ describe('createEquipment', () => {
         enqueueAdminRole()
         mockDrizzleDb.enqueue([{ equipCount: 0 }])
         mockDrizzleDb.enqueue([]) // empty returning → !newEquipment
-        await expect(createEquipment(makeEquipFormData())).rejects.toThrow('Failed to create equipment')
+        await expect(createEquipment(makeEquipFormData())).rejects.toThrow(
+            'Failed to create equipment'
+        )
     })
 })
 
@@ -135,7 +140,7 @@ describe('updateEquipment', () => {
         const updated = { id: 'e-1', name: 'Updated Racket', sport: 'badminton' }
         enqueueAdminRole()
         mockDrizzleDb.enqueue([{ pictures: [], sport: 'badminton' }]) // existing select
-        mockDrizzleDb.enqueue([updated])                               // update.returning()
+        mockDrizzleDb.enqueue([updated]) // update.returning()
 
         const fd = makeEquipFormData({ name: 'Updated Racket', existingImages: '[]' })
         expect(await updateEquipment('e-1', fd)).toEqual(updated)
@@ -157,7 +162,7 @@ describe('deleteEquipment', () => {
     it('soft-deletes equipment (marks retired) and returns success', async () => {
         enqueueAdminRole()
         mockDrizzleDb.enqueue([{ pictures: [] }]) // select existing
-        mockDrizzleDb.enqueueEmpty()               // update set condition='retired'
+        mockDrizzleDb.enqueueEmpty() // update set condition='retired'
 
         expect(await deleteEquipment('e-1')).toEqual({ success: true })
     })
@@ -188,7 +193,9 @@ describe('getCourtsList', () => {
 
 describe('getAnnouncements', () => {
     it('returns announcements array', async () => {
-        const rows = [{ id: 'a-1', title: 'Test', content: 'Hello', created_at: new Date().toISOString() }]
+        const rows = [
+            { id: 'a-1', title: 'Test', content: 'Hello', created_at: new Date().toISOString() },
+        ]
         mockDrizzleDb.enqueue(rows)
         expect(await getAnnouncements()).toEqual(rows)
     })
@@ -213,7 +220,9 @@ describe('updateAnnouncement', () => {
     it('throws when update returns empty', async () => {
         enqueueAdminRole()
         mockDrizzleDb.enqueue([])
-        await expect(updateAnnouncement('a-1', 'T', 'B')).rejects.toThrow('Failed to update announcement')
+        await expect(updateAnnouncement('a-1', 'T', 'B')).rejects.toThrow(
+            'Failed to update announcement'
+        )
     })
 })
 
@@ -268,14 +277,17 @@ describe('getReservationsByDate', () => {
 describe('cancelReservation', () => {
     it('cancels booking and returns success', async () => {
         enqueueAdminRole()
-        mockDrizzleDb.enqueue([{  // select booking
-            user_id: 'student-1',
-            players_list: [],
-            start_time: new Date().toISOString(),
-            is_priority: false,
-            is_maintenance: false,
-            courts: { name: 'Ct A' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                // select booking
+                user_id: 'student-1',
+                players_list: [],
+                start_time: new Date().toISOString(),
+                is_priority: false,
+                is_maintenance: false,
+                courts: { name: 'Ct A' },
+            },
+        ])
         mockDrizzleDb.enqueueEmpty() // update bookings (cancel)
         // !is_priority && !is_maintenance → sendNotifications (mocked)
 
@@ -284,14 +296,16 @@ describe('cancelReservation', () => {
 
     it('skips notifications for priority/maintenance bookings', async () => {
         enqueueAdminRole()
-        mockDrizzleDb.enqueue([{
-            user_id: 'student-1',
-            players_list: [],
-            start_time: new Date().toISOString(),
-            is_priority: true,
-            is_maintenance: false,
-            courts: { name: 'Ct A' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'student-1',
+                players_list: [],
+                start_time: new Date().toISOString(),
+                is_priority: true,
+                is_maintenance: false,
+                courts: { name: 'Ct A' },
+            },
+        ])
         mockDrizzleDb.enqueueEmpty()
 
         await cancelReservation('b-1')
@@ -320,14 +334,17 @@ describe('forceCancelBooking', () => {
     it('updates booking status to cancelled and returns data', async () => {
         const updated = { id: 'b-1', status: 'cancelled' }
         enqueueAdminRole()
-        mockDrizzleDb.enqueue([{  // select booking
-            user_id: 'student-1',
-            players_list: [],
-            start_time: new Date().toISOString(),
-            is_priority: false,
-            is_maintenance: false,
-            courts: { name: 'Ct A' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                // select booking
+                user_id: 'student-1',
+                players_list: [],
+                start_time: new Date().toISOString(),
+                is_priority: false,
+                is_maintenance: false,
+                courts: { name: 'Ct A' },
+            },
+        ])
         mockDrizzleDb.enqueue([updated]) // update.returning()
 
         expect(await forceCancelBooking('b-1')).toEqual(updated)
@@ -336,14 +353,16 @@ describe('forceCancelBooking', () => {
 
     it('throws when update returns empty', async () => {
         enqueueAdminRole()
-        mockDrizzleDb.enqueue([{
-            user_id: 'student-1',
-            players_list: [],
-            start_time: new Date().toISOString(),
-            is_priority: false,
-            is_maintenance: false,
-            courts: { name: 'Ct A' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'student-1',
+                players_list: [],
+                start_time: new Date().toISOString(),
+                is_priority: false,
+                is_maintenance: false,
+                courts: { name: 'Ct A' },
+            },
+        ])
         mockDrizzleDb.enqueue([]) // empty → throws
 
         await expect(forceCancelBooking('b-1')).rejects.toThrow('Failed to cancel booking')
@@ -366,20 +385,23 @@ describe('getBookingLogs', () => {
 
     it('returns enriched bookings with court and equipment data', async () => {
         mockDrizzleDb.enqueue([{ id: 'c-1', name: 'Badminton A', sport: 'badminton' }]) // courts
-        mockDrizzleDb.enqueue([{                                                          // bookings
-            id: 'b-1',
-            status: 'completed',
-            court_id: 'c-1',
-            start_time: '2025-01-15T10:00:00Z',
-            end_time: '2025-01-15T11:00:00Z',
-            num_players: 2,
-            equipment_ids: ['e-1'],
-            players_list: ['p-1'],
-            is_priority: false,
-            is_maintenance: false,
-            created_at: '2025-01-15T09:00:00Z',
-            profiles: { full_name: 'Alice', student_id: 'MT001', email: 'alice@test.com' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                // bookings
+                id: 'b-1',
+                status: 'completed',
+                court_id: 'c-1',
+                start_time: '2025-01-15T10:00:00Z',
+                end_time: '2025-01-15T11:00:00Z',
+                num_players: 2,
+                equipment_ids: ['e-1'],
+                players_list: ['p-1'],
+                is_priority: false,
+                is_maintenance: false,
+                created_at: '2025-01-15T09:00:00Z',
+                profiles: { full_name: 'Alice', student_id: 'MT001', email: 'alice@test.com' },
+            },
+        ])
         mockDrizzleDb.enqueue([{ id: 'e-1', name: 'Racket', condition: 'good' }]) // equipment
 
         const result = await getBookingLogs('badminton', '2025-01-15')
@@ -391,20 +413,22 @@ describe('getBookingLogs', () => {
 
     it('skips equipment query when no equipment_ids in bookings', async () => {
         mockDrizzleDb.enqueue([{ id: 'c-1', name: 'Badminton A', sport: 'badminton' }])
-        mockDrizzleDb.enqueue([{
-            id: 'b-1',
-            status: 'completed',
-            court_id: 'c-1',
-            start_time: '2025-01-15T10:00:00Z',
-            end_time: '2025-01-15T11:00:00Z',
-            num_players: 2,
-            equipment_ids: [],
-            players_list: [],
-            is_priority: false,
-            is_maintenance: false,
-            created_at: '2025-01-15T09:00:00Z',
-            profiles: { full_name: 'Alice', student_id: 'MT001', email: 'alice@test.com' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                id: 'b-1',
+                status: 'completed',
+                court_id: 'c-1',
+                start_time: '2025-01-15T10:00:00Z',
+                end_time: '2025-01-15T11:00:00Z',
+                num_players: 2,
+                equipment_ids: [],
+                players_list: [],
+                is_priority: false,
+                is_maintenance: false,
+                created_at: '2025-01-15T09:00:00Z',
+                profiles: { full_name: 'Alice', student_id: 'MT001', email: 'alice@test.com' },
+            },
+        ])
         // no equipment query since equipment_ids is empty
 
         const result = await getBookingLogs('badminton', '2025-01-15')
@@ -465,7 +489,9 @@ describe('updateComplaintStatus', () => {
     it('throws when update returns empty', async () => {
         enqueueAdminRole()
         mockDrizzleDb.enqueue([])
-        await expect(updateComplaintStatus('f-1', 'resolved')).rejects.toThrow('Failed to update complaint status')
+        await expect(updateComplaintStatus('f-1', 'resolved')).rejects.toThrow(
+            'Failed to update complaint status'
+        )
     })
 })
 
@@ -513,7 +539,9 @@ describe('createCoordinator', () => {
     it('throws when insert returns empty', async () => {
         enqueueAdminRole()
         mockDrizzleDb.enqueue([])
-        await expect(createCoordinator(makeCoordFormData())).rejects.toThrow('Failed to create coordinator')
+        await expect(createCoordinator(makeCoordFormData())).rejects.toThrow(
+            'Failed to create coordinator'
+        )
     })
 })
 
@@ -595,7 +623,7 @@ describe('deleteCourt', () => {
         const updated = { id: 'c-1', is_active: false }
         enqueueAdminRole()
         mockDrizzleDb.enqueue([{ pictures: [] }]) // select court
-        mockDrizzleDb.enqueue([updated])           // update.returning()
+        mockDrizzleDb.enqueue([updated]) // update.returning()
 
         expect(await deleteCourt('c-1')).toEqual(updated)
     })
@@ -617,22 +645,27 @@ describe('reserveForMaintenance', () => {
     it('creates maintenance booking when no conflicts', async () => {
         const created = { id: 'b-maint', is_maintenance: true }
         enqueueAdminRole()
-        mockDrizzleDb.enqueue([])       // no conflicting bookings
+        mockDrizzleDb.enqueue([]) // no conflicting bookings
         mockDrizzleDb.enqueue([created]) // insert.returning()
 
-        expect(await reserveForMaintenance('court-1', futureDate, '09:00', '10:00')).toEqual(created)
+        expect(await reserveForMaintenance('court-1', futureDate, '09:00', '10:00')).toEqual(
+            created
+        )
     })
 
     it('cancels conflicting bookings and notifies students', async () => {
         const created = { id: 'b-maint', is_maintenance: true }
         enqueueAdminRole()
-        mockDrizzleDb.enqueue([{        // 1 conflicting booking
-            id: 'b-conflict',
-            user_id: 'student-1',
-            players_list: [],
-            courts: { name: 'Ct A' },
-        }])
-        mockDrizzleDb.enqueueEmpty()    // update conflicting booking (cancel)
+        mockDrizzleDb.enqueue([
+            {
+                // 1 conflicting booking
+                id: 'b-conflict',
+                user_id: 'student-1',
+                players_list: [],
+                courts: { name: 'Ct A' },
+            },
+        ])
+        mockDrizzleDb.enqueueEmpty() // update conflicting booking (cancel)
         mockDrizzleDb.enqueue([created]) // insert maintenance booking.returning()
 
         const result = await reserveForMaintenance('court-1', futureDate, '09:00', '10:00')

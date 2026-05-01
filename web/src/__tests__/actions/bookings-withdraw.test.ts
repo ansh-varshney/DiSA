@@ -52,15 +52,17 @@ describe('withdrawFromBooking — status validation', () => {
     })
 
     it('returns error when user is the booker (should use cancel instead)', async () => {
-        mockDrizzleDb.enqueue([{
-            user_id: 'student-1', // same as getCurrentUser mock
-            status: 'confirmed',
-            players_list: [],
-            num_players: 2,
-            equipment_ids: [],
-            start_time: new Date(),
-            courts: { sport: 'badminton', name: 'Badminton A' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'student-1', // same as getCurrentUser mock
+                status: 'confirmed',
+                players_list: [],
+                num_players: 2,
+                equipment_ids: [],
+                start_time: new Date(),
+                courts: { sport: 'badminton', name: 'Badminton A' },
+            },
+        ])
 
         const result = await withdrawFromBooking('b-1')
 
@@ -68,15 +70,17 @@ describe('withdrawFromBooking — status validation', () => {
     })
 
     it('returns error when booking status is active (not withdrawable)', async () => {
-        mockDrizzleDb.enqueue([{
-            user_id: 'another-user',
-            status: 'active', // not pending/confirmed
-            players_list: [],
-            num_players: 2,
-            equipment_ids: [],
-            start_time: new Date(),
-            courts: { sport: 'badminton', name: 'Badminton A' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'another-user',
+                status: 'active', // not pending/confirmed
+                players_list: [],
+                num_players: 2,
+                equipment_ids: [],
+                start_time: new Date(),
+                courts: { sport: 'badminton', name: 'Badminton A' },
+            },
+        ])
 
         const result = await withdrawFromBooking('b-1')
 
@@ -84,15 +88,17 @@ describe('withdrawFromBooking — status validation', () => {
     })
 
     it('returns error when booking status is completed', async () => {
-        mockDrizzleDb.enqueue([{
-            user_id: 'another-user',
-            status: 'completed',
-            players_list: [],
-            num_players: 2,
-            equipment_ids: [],
-            start_time: new Date(),
-            courts: { sport: 'badminton', name: 'Badminton A' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'another-user',
+                status: 'completed',
+                players_list: [],
+                num_players: 2,
+                equipment_ids: [],
+                start_time: new Date(),
+                courts: { sport: 'badminton', name: 'Badminton A' },
+            },
+        ])
 
         const result = await withdrawFromBooking('b-1')
 
@@ -110,15 +116,17 @@ describe('withdrawFromBooking — below minimum player count', () => {
 
     it('cancels booking and frees equipment when count drops below min', async () => {
         // The booking has 2 players (min=2). After withdrawal → 1 player < min → cancel
-        mockDrizzleDb.enqueue([{
-            user_id: 'booker-1',
-            status: 'confirmed',
-            players_list: [{ id: 'student-1', status: 'confirmed' }], // student-1 is withdrawing
-            num_players: 2,
-            equipment_ids: ['eq-1'],
-            start_time: new Date(Date.now() + 3_600_000),
-            courts: { sport: 'badminton', name: 'Badminton A' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'booker-1',
+                status: 'confirmed',
+                players_list: [{ id: 'student-1', status: 'confirmed' }], // student-1 is withdrawing
+                num_players: 2,
+                equipment_ids: ['eq-1'],
+                start_time: new Date(Date.now() + 3_600_000),
+                courts: { sport: 'badminton', name: 'Badminton A' },
+            },
+        ])
         mockDrizzleDb.enqueueEmpty() // free equipment (update is_available=true)
         mockDrizzleDb.enqueueEmpty() // cancel booking (update status=cancelled)
 
@@ -132,19 +140,21 @@ describe('withdrawFromBooking — below minimum player count', () => {
     it('sends cancellation notifications to booker and remaining confirmed players', async () => {
         // 3 players total, but withdrawal → 2 players (still meets min=2) — this tests the other path
         // For BELOW-MIN: 2 players, student-1 withdraws → 1 player → cancel
-        mockDrizzleDb.enqueue([{
-            user_id: 'booker-1',
-            status: 'confirmed',
-            // updatedPlayersList after removal is [] (empty), but booker still needs notif
-            players_list: [
-                { id: 'student-1', status: 'confirmed' }, // withdrawing
-                { id: 'player-2', status: 'confirmed' },   // remaining — should get cancel notif
-            ],
-            num_players: 2,
-            equipment_ids: [],
-            start_time: new Date(Date.now() + 3_600_000),
-            courts: { sport: 'badminton', name: 'Badminton A' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'booker-1',
+                status: 'confirmed',
+                // updatedPlayersList after removal is [] (empty), but booker still needs notif
+                players_list: [
+                    { id: 'student-1', status: 'confirmed' }, // withdrawing
+                    { id: 'player-2', status: 'confirmed' }, // remaining — should get cancel notif
+                ],
+                num_players: 2,
+                equipment_ids: [],
+                start_time: new Date(Date.now() + 3_600_000),
+                courts: { sport: 'badminton', name: 'Badminton A' },
+            },
+        ])
         mockDrizzleDb.enqueueEmpty() // cancel booking
 
         await withdrawFromBooking('b-1')
@@ -161,18 +171,20 @@ describe('withdrawFromBooking — below minimum player count', () => {
     })
 
     it('does not notify players with non-confirmed status when cancelling', async () => {
-        mockDrizzleDb.enqueue([{
-            user_id: 'booker-1',
-            status: 'confirmed',
-            players_list: [
-                { id: 'student-1', status: 'confirmed' }, // withdrawing
-                { id: 'player-pending', status: 'pending_confirmation' }, // should NOT be notified
-            ],
-            num_players: 2,
-            equipment_ids: [],
-            start_time: new Date(Date.now() + 3_600_000),
-            courts: { sport: 'tennis', name: 'Tennis A' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'booker-1',
+                status: 'confirmed',
+                players_list: [
+                    { id: 'student-1', status: 'confirmed' }, // withdrawing
+                    { id: 'player-pending', status: 'pending_confirmation' }, // should NOT be notified
+                ],
+                num_players: 2,
+                equipment_ids: [],
+                start_time: new Date(Date.now() + 3_600_000),
+                courts: { sport: 'tennis', name: 'Tennis A' },
+            },
+        ])
         mockDrizzleDb.enqueueEmpty()
 
         await withdrawFromBooking('b-1')
@@ -184,19 +196,21 @@ describe('withdrawFromBooking — below minimum player count', () => {
 
     it('succeeds withdrawal without cancellation when player count stays above min', async () => {
         // 4 players, withdraw 1 → 3 players (still >= min of 2)
-        mockDrizzleDb.enqueue([{
-            user_id: 'booker-1',
-            status: 'confirmed',
-            players_list: [
-                { id: 'student-1', status: 'confirmed' }, // withdrawing
-                { id: 'player-2', status: 'confirmed' },
-                { id: 'player-3', status: 'confirmed' },
-            ],
-            num_players: 4,
-            equipment_ids: [],
-            start_time: new Date(Date.now() + 3_600_000),
-            courts: { sport: 'badminton', name: 'Badminton A' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'booker-1',
+                status: 'confirmed',
+                players_list: [
+                    { id: 'student-1', status: 'confirmed' }, // withdrawing
+                    { id: 'player-2', status: 'confirmed' },
+                    { id: 'player-3', status: 'confirmed' },
+                ],
+                num_players: 4,
+                equipment_ids: [],
+                start_time: new Date(Date.now() + 3_600_000),
+                courts: { sport: 'badminton', name: 'Badminton A' },
+            },
+        ])
         mockDrizzleDb.enqueueEmpty() // update players_list
 
         const result = await withdrawFromBooking('b-1')

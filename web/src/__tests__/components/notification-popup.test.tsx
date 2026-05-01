@@ -12,11 +12,7 @@ vi.mock('@/actions/notifications', () => ({
     rejectPlayRequest: vi.fn().mockResolvedValue({ success: true, bookingCancelled: false }),
 }))
 
-import {
-    markNotificationRead,
-    acceptPlayRequest,
-    rejectPlayRequest,
-} from '@/actions/notifications'
+import { markNotificationRead, acceptPlayRequest, rejectPlayRequest } from '@/actions/notifications'
 
 // Stub global fetch — polling calls /api/notifications
 const mockFetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) })

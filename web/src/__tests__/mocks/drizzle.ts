@@ -44,10 +44,21 @@ function makeChain() {
     }
 
     const builders = [
-        'from', 'where', 'orderBy', 'limit', 'offset', 'groupBy', 'having',
-        'leftJoin', 'innerJoin', 'rightJoin', 'fullJoin',
-        'values', 'set',
-        'onConflictDoNothing', 'onConflictDoUpdate',
+        'from',
+        'where',
+        'orderBy',
+        'limit',
+        'offset',
+        'groupBy',
+        'having',
+        'leftJoin',
+        'innerJoin',
+        'rightJoin',
+        'fullJoin',
+        'values',
+        'set',
+        'onConflictDoNothing',
+        'onConflictDoUpdate',
     ]
     for (const m of builders) {
         obj[m] = vi.fn(() => obj)

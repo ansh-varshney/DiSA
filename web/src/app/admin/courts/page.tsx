@@ -129,8 +129,9 @@ export default async function CourtsManagement({
                                                 <TableCell>
                                                     <Badge
                                                         variant={
-                                                            conditionVariants[court.condition ?? 'good'] ||
-                                                            'default'
+                                                            conditionVariants[
+                                                                court.condition ?? 'good'
+                                                            ] || 'default'
                                                         }
                                                     >
                                                         {(court.condition ?? '').replace('_', ' ')}

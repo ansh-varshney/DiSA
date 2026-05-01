@@ -1,10 +1,33 @@
 'use server'
 
 import { db } from '@/db'
-import { bookings, profiles, courts, equipment, feedbackComplaints, playRequests, studentViolations, notifications } from '@/db/schema'
+import {
+    bookings,
+    profiles,
+    courts,
+    equipment,
+    feedbackComplaints,
+    playRequests,
+    studentViolations,
+    notifications,
+} from '@/db/schema'
 import { getCurrentUser } from '@/lib/session'
 import {
-    eq, ne, and, or, gt, lt, gte, lte, desc, asc, inArray, notInArray, isNull, ilike, sql,
+    eq,
+    ne,
+    and,
+    or,
+    gt,
+    lt,
+    gte,
+    lte,
+    desc,
+    asc,
+    inArray,
+    notInArray,
+    isNull,
+    ilike,
+    sql,
 } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { addMinutes } from 'date-fns'
@@ -49,11 +72,7 @@ export async function getBookingsForDateRange(courtId: string, startDate: Date, 
     return rows
 }
 
-export async function getAvailableEquipment(
-    sport: string,
-    startTime?: string,
-    endTime?: string
-) {
+export async function getAvailableEquipment(sport: string, startTime?: string, endTime?: string) {
     const allEquipment = await db
         .select({
             id: equipment.id,
@@ -129,7 +148,10 @@ export async function createBooking(prevState: any, formData: FormData) {
 
     // Check ban and priority status
     const [profileData] = await db
-        .select({ banned_until: profiles.banned_until, priority_booking_remaining: profiles.priority_booking_remaining })
+        .select({
+            banned_until: profiles.banned_until,
+            priority_booking_remaining: profiles.priority_booking_remaining,
+        })
         .from(profiles)
         .where(eq(profiles.id, user.id))
 
@@ -214,7 +236,13 @@ export async function createBooking(prevState: any, formData: FormData) {
     if (rawPlayersList.length > 0) {
         const playerIds = rawPlayersList.map((p) => p.id).filter(Boolean)
         const playerProfiles = await db
-            .select({ id: profiles.id, full_name: profiles.full_name, branch: profiles.branch, gender: profiles.gender, year: profiles.year })
+            .select({
+                id: profiles.id,
+                full_name: profiles.full_name,
+                branch: profiles.branch,
+                gender: profiles.gender,
+                year: profiles.year,
+            })
             .from(profiles)
             .where(inArray(profiles.id, playerIds))
 
@@ -399,7 +427,10 @@ async function cancelPendingPlayRequests(bookingId: string): Promise<void> {
 
     const notifIds = pending.map((r) => r.notification_id).filter((id): id is string => id !== null)
     if (notifIds.length > 0) {
-        await db.update(notifications).set({ is_read: true }).where(inArray(notifications.id, notifIds))
+        await db
+            .update(notifications)
+            .set({ is_read: true })
+            .where(inArray(notifications.id, notifIds))
     }
 
     revalidatePath('/student/play-requests')
@@ -658,10 +689,7 @@ export async function getStudentBookings(userId: string) {
     })
 
     const current = data.filter(
-        (b) =>
-            b.status === 'active' &&
-            new Date(b.start_time) <= now &&
-            new Date(b.end_time) >= now
+        (b) => b.status === 'active' && new Date(b.start_time) <= now && new Date(b.end_time) >= now
     )
 
     const upcoming = data.filter(
@@ -702,10 +730,7 @@ export async function studentStartPlay(bookingId: string) {
         return { error: 'Booking cannot be started in its current state' }
     }
 
-    await db
-        .update(bookings)
-        .set({ status: 'waiting_manager' })
-        .where(eq(bookings.id, bookingId))
+    await db.update(bookings).set({ status: 'waiting_manager' }).where(eq(bookings.id, bookingId))
 
     const courtInfo = booking.courts
     const startDisplay = new Date(booking.start_time).toLocaleString('en-IN', {

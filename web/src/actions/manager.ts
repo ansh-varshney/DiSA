@@ -14,7 +14,21 @@ import {
 import { getCurrentUser } from '@/lib/session'
 import { sendNotification, sendNotifications, notifyAdmins } from '@/actions/notifications'
 import {
-    eq, ne, and, or, gte, lte, gt, inArray, notInArray, isNotNull, isNull, asc, desc, sql, count,
+    eq,
+    ne,
+    and,
+    or,
+    gte,
+    lte,
+    gt,
+    inArray,
+    notInArray,
+    isNotNull,
+    isNull,
+    asc,
+    desc,
+    sql,
+    count,
 } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 
@@ -24,28 +38,16 @@ async function cancelPendingPlayRequests(bookingId: string): Promise<void> {
     const pending = await db
         .select({ id: playRequests.id, notification_id: playRequests.notification_id })
         .from(playRequests)
-        .where(
-            and(
-                eq(playRequests.booking_id, bookingId),
-                eq(playRequests.status, 'pending')
-            )
-        )
+        .where(and(eq(playRequests.booking_id, bookingId), eq(playRequests.status, 'pending')))
 
     if (pending.length === 0) return
 
     await db
         .update(playRequests)
         .set({ status: 'expired', responded_at: new Date() })
-        .where(
-            and(
-                eq(playRequests.booking_id, bookingId),
-                eq(playRequests.status, 'pending')
-            )
-        )
+        .where(and(eq(playRequests.booking_id, bookingId), eq(playRequests.status, 'pending')))
 
-    const notifIds = pending
-        .map((r) => r.notification_id)
-        .filter((id): id is string => id !== null)
+    const notifIds = pending.map((r) => r.notification_id).filter((id): id is string => id !== null)
 
     if (notifIds.length > 0) {
         await db
@@ -60,8 +62,7 @@ async function cancelPendingPlayRequests(bookingId: string): Promise<void> {
 // ─── Role guard ───────────────────────────────────────────────────────────────
 
 async function requireManagerRole(): Promise<
-    | { user: { id: string }; error: null }
-    | { user: null; error: string }
+    { user: { id: string }; error: null } | { user: null; error: string }
 > {
     const user = await getCurrentUser()
     if (!user) return { user: null, error: 'Unauthorized' }
@@ -138,7 +139,8 @@ async function applyPoints(studentIds: string[], delta: number): Promise<void> {
     if (studentIds.length === 0 || delta === 0) return
     await Promise.all(
         studentIds.map((id) =>
-            db.update(profiles)
+            db
+                .update(profiles)
                 .set({ points: sql`COALESCE(${profiles.points}, 0) + ${delta}` })
                 .where(and(eq(profiles.id, id), eq(profiles.role, 'student')))
         )
@@ -192,10 +194,7 @@ export async function getCurrentBookings() {
                 ]),
                 lte(bookings.start_time, next24h),
                 or(
-                    and(
-                        eq(bookings.status, 'active'),
-                        gte(bookings.end_time, oneHourAgo)
-                    ),
+                    and(eq(bookings.status, 'active'), gte(bookings.end_time, oneHourAgo)),
                     gte(bookings.end_time, now)
                 )
             )
@@ -204,9 +203,7 @@ export async function getCurrentBookings() {
 
     if (!bookingRows || bookingRows.length === 0) return []
 
-    const allEquipmentIds = Array.from(
-        new Set(bookingRows.flatMap((b) => b.equipment_ids || []))
-    )
+    const allEquipmentIds = Array.from(new Set(bookingRows.flatMap((b) => b.equipment_ids || [])))
 
     const equipmentMap = new Map<string, string>()
     if (allEquipmentIds.length > 0) {
@@ -219,9 +216,7 @@ export async function getCurrentBookings() {
 
     return bookingRows.map((b) => ({
         ...b,
-        equipment_names: (b.equipment_ids || [])
-            .map((id) => equipmentMap.get(id))
-            .filter(Boolean),
+        equipment_names: (b.equipment_ids || []).map((id) => equipmentMap.get(id)).filter(Boolean),
     }))
 }
 
@@ -233,8 +228,7 @@ export async function getUnderMaintenanceCourts() {
 
     const disabledCourts = courtRows.filter(
         (court) =>
-            !court.is_active ||
-            (court.maintenance_notes && court.maintenance_notes.trim() !== '')
+            !court.is_active || (court.maintenance_notes && court.maintenance_notes.trim() !== '')
     )
 
     const now = new Date()
@@ -421,9 +415,7 @@ export async function getBookingDetails(bookingId: string) {
         const rawList = Array.isArray(bk.players_list) ? bk.players_list : []
         const allPlayerIds = [
             bk.user_id,
-            ...rawList
-                .map((p: any) => (typeof p === 'string' ? p : p?.id))
-                .filter(Boolean),
+            ...rawList.map((p: any) => (typeof p === 'string' ? p : p?.id)).filter(Boolean),
         ] as string[]
 
         if (allPlayerIds.length > 0) {
@@ -480,9 +472,7 @@ export async function getBookingDetails(bookingId: string) {
     const playerIds = rawPlayersList
         .map((entry: any) => (typeof entry === 'string' ? entry : entry?.id))
         .filter(Boolean)
-    const additionalPlayerIds = playerIds.filter(
-        (id: string) => id !== bk.profiles?.id
-    )
+    const additionalPlayerIds = playerIds.filter((id: string) => id !== bk.profiles?.id)
 
     if (additionalPlayerIds.length > 0) {
         const extraPlayers = await db
@@ -523,9 +513,7 @@ export async function rejectWithReason(
         .from(profiles)
         .where(inArray(profiles.id, playerIds))
 
-    const studentIds: string[] = players
-        .filter((p) => p.role === 'student')
-        .map((p) => p.id)
+    const studentIds: string[] = players.filter((p) => p.role === 'student').map((p) => p.id)
 
     if (studentIds.length > 0) {
         await db.insert(studentViolations).values(
@@ -564,7 +552,10 @@ export async function rejectWithReason(
                             .where(
                                 and(
                                     eq(profiles.id, id),
-                                    or(isNull(profiles.banned_until), lte(profiles.banned_until, bannedUntil))
+                                    or(
+                                        isNull(profiles.banned_until),
+                                        lte(profiles.banned_until, bannedUntil)
+                                    )
                                 )
                             )
                         return { id, banned_until: bannedUntil.toISOString() }
@@ -706,7 +697,12 @@ export async function reportLostEquipment(
     // Remove lost equipment from future bookings
     const now = new Date().toISOString()
     const futureBookings = await db
-        .select({ id: bookings.id, user_id: bookings.user_id, equipment_ids: bookings.equipment_ids, start_time: bookings.start_time })
+        .select({
+            id: bookings.id,
+            user_id: bookings.user_id,
+            equipment_ids: bookings.equipment_ids,
+            start_time: bookings.start_time,
+        })
         .from(bookings)
         .where(
             and(
@@ -875,7 +871,13 @@ export async function endSession(
             const court = bk.courts
             const hasDamaged = equipmentConditions.some((e) => e.condition === 'damaged')
             const hasMinorDmg = equipmentConditions.some((e) => e.condition === 'minor_damage')
-            const equipDelta = hasDamaged ? -8 : hasMinorDmg ? -1 : equipmentConditions.length > 0 ? 2 : 0
+            const equipDelta = hasDamaged
+                ? -8
+                : hasMinorDmg
+                  ? -1
+                  : equipmentConditions.length > 0
+                    ? 2
+                    : 0
             const totalDelta = 8 + equipDelta
             const pointsMsg = totalDelta >= 0 ? `+${totalDelta} pts` : `${totalDelta} pts`
             await sendNotifications(
@@ -906,10 +908,7 @@ export async function expireBooking(bookingId: string, playerIds: string[]) {
         .from(bookings)
         .where(eq(bookings.id, bookingId))
 
-    if (
-        !bk ||
-        ['cancelled', 'rejected', 'completed', 'active'].includes(bk.status ?? '')
-    ) {
+    if (!bk || ['cancelled', 'rejected', 'completed', 'active'].includes(bk.status ?? '')) {
         return { already_handled: true }
     }
 
@@ -922,9 +921,7 @@ export async function expireBooking(bookingId: string, playerIds: string[]) {
             .select({ id: profiles.id, role: profiles.role })
             .from(profiles)
             .where(inArray(profiles.id, playerIds))
-        const studentIds: string[] = players
-            .filter((p) => p.role === 'student')
-            .map((p) => p.id)
+        const studentIds: string[] = players.filter((p) => p.role === 'student').map((p) => p.id)
 
         if (studentIds.length > 0) {
             await db.insert(studentViolations).values(

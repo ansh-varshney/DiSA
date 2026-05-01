@@ -17,12 +17,7 @@ export async function GET(request: NextRequest) {
     const rows = await db
         .select({ id: notifications.id, is_read: notifications.is_read })
         .from(notifications)
-        .where(
-            and(
-                eq(notifications.recipient_id, session.user.id),
-                inArray(notifications.id, ids)
-            )
-        )
+        .where(and(eq(notifications.recipient_id, session.user.id), inArray(notifications.id, ids)))
 
     return NextResponse.json(rows)
 }

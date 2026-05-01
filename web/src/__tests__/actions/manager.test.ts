@@ -101,9 +101,7 @@ describe('updateBookingStatus', () => {
 
         await updateBookingStatus('b-1', 'active')
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
-            expect.arrayContaining([
-                expect.objectContaining({ type: 'booking_session_active' }),
-            ])
+            expect.arrayContaining([expect.objectContaining({ type: 'booking_session_active' })])
         )
     })
 })
@@ -121,14 +119,14 @@ describe('rejectWithReason', () => {
     })
 
     it('returns success and issues violations to student players', async () => {
-        enqueueManagerRole()                            // requireManagerRole role check
+        enqueueManagerRole() // requireManagerRole role check
         mockDrizzleDb.enqueue([{ equipment_ids: [] }]) // select equipment_ids
-        mockDrizzleDb.enqueueEmpty()                   // update bookings (cancel)
+        mockDrizzleDb.enqueueEmpty() // update bookings (cancel)
         mockDrizzleDb.enqueue([{ id: 's-1', role: 'student' }]) // select profiles to filter students
-        mockDrizzleDb.enqueueEmpty()                   // insert studentViolations
+        mockDrizzleDb.enqueueEmpty() // insert studentViolations
         // REJECTION_POINTS['improper_gear'] = -4, so applyPoints calls execute
-        mockDrizzleDb.enqueueEmpty()                   // execute update_student_points
-        enqueueBookingForNotif()                       // getBookingForNotif
+        mockDrizzleDb.enqueueEmpty() // execute update_student_points
+        enqueueBookingForNotif() // getBookingForNotif
 
         const result = await rejectWithReason('b-1', 'improper_gear', null, ['s-1'])
         expect(result).toEqual({ success: true })
@@ -136,10 +134,10 @@ describe('rejectWithReason', () => {
 
     it('deducts correct points per rejection reason', async () => {
         const cases: [string, boolean][] = [
-            ['students_late', true],      // -6, has execute
+            ['students_late', true], // -6, has execute
             ['inappropriate_behaviour', true], // -8, has execute
-            ['improper_gear', true],      // -4, has execute
-            ['other', false],             // 0, no execute
+            ['improper_gear', true], // -4, has execute
+            ['other', false], // 0, no execute
         ]
 
         for (const [reason, hasPoints] of cases) {
@@ -212,7 +210,11 @@ describe('rejectWithReason', () => {
         // booking_rejected notification should NOT be sent to non-students
         // (studentIds is empty)
         const calls = vi.mocked(sendNotifications).mock.calls
-        expect(calls.every((args) => (args[0] as any[]).every((n: any) => n.type !== 'booking_rejected'))).toBe(true)
+        expect(
+            calls.every((args) =>
+                (args[0] as any[]).every((n: any) => n.type !== 'booking_rejected')
+            )
+        ).toBe(true)
     })
 
     it('sends booking_rejected notification for all rejection reasons', async () => {
@@ -227,7 +229,11 @@ describe('rejectWithReason', () => {
             mockDrizzleDb.enqueue([{ id: 's-1', role: 'student' }])
             mockDrizzleDb.enqueueEmpty() // violations
 
-            const hasPoints = ['students_late', 'inappropriate_behaviour', 'improper_gear'].includes(reason)
+            const hasPoints = [
+                'students_late',
+                'inappropriate_behaviour',
+                'improper_gear',
+            ].includes(reason)
             if (hasPoints) mockDrizzleDb.enqueueEmpty()
             if (reason === 'students_late') mockDrizzleDb.enqueue([{ banned_until: null }])
 
@@ -317,7 +323,11 @@ describe('endSession', () => {
         mockDrizzleDb.enqueueEmpty()
         enqueueBookingStudentIds('s1', [], ['s1'])
         mockDrizzleDb.enqueueEmpty() // execute points
-        enqueueBookingForNotif({ ...BOOKING_NOTIF, user_id: 's1', courts: { name: 'Badminton Court A', sport: 'badminton' } })
+        enqueueBookingForNotif({
+            ...BOOKING_NOTIF,
+            user_id: 's1',
+            courts: { name: 'Badminton Court A', sport: 'badminton' },
+        })
 
         await endSession('b-1', [{ id: 'eq-1', condition: 'good' }])
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
@@ -525,7 +535,20 @@ describe('getBookingDetails — lazy expiry', () => {
             num_players: 1,
             notes: null,
             created_at: new Date(),
-            profiles: { id: 's-1', full_name: 'Alice', email: null, phone_number: null, student_id: null, role: 'student', branch: null, gender: null, year: null, points: 0, banned_until: null, avatar_url: null },
+            profiles: {
+                id: 's-1',
+                full_name: 'Alice',
+                email: null,
+                phone_number: null,
+                student_id: null,
+                role: 'student',
+                branch: null,
+                gender: null,
+                year: null,
+                points: 0,
+                banned_until: null,
+                avatar_url: null,
+            },
             courts: { id: 'c-1', name: 'Ct A', sport: 'badminton' },
             ...overrides,
         }
@@ -553,13 +576,13 @@ describe('getBookingDetails — lazy expiry', () => {
 
     it('auto-cancels expired pending_confirmation booking and returns status: cancelled', async () => {
         const bk = makeBooking({ status: 'pending_confirmation', start_time: EXPIRED_START })
-        mockDrizzleDb.enqueue([bk])                         // initial fetch
-        mockDrizzleDb.enqueue([{ equipment_ids: [] }])      // freeBookingEquipment
-        mockDrizzleDb.enqueueEmpty()                        // update bookings (cancel)
+        mockDrizzleDb.enqueue([bk]) // initial fetch
+        mockDrizzleDb.enqueue([{ equipment_ids: [] }]) // freeBookingEquipment
+        mockDrizzleDb.enqueueEmpty() // update bookings (cancel)
         mockDrizzleDb.enqueue([{ id: 's-1', role: 'student' }]) // profiles for player ids
-        mockDrizzleDb.enqueueEmpty()                        // insert violations
-        mockDrizzleDb.enqueueEmpty()                        // execute update_student_points (-8)
-        enqueueBookingForNotif()                            // getBookingForNotif
+        mockDrizzleDb.enqueueEmpty() // insert violations
+        mockDrizzleDb.enqueueEmpty() // execute update_student_points (-8)
+        enqueueBookingForNotif() // getBookingForNotif
 
         const result = await getBookingDetails('b-1')
         expect(result?.status).toBe('cancelled')

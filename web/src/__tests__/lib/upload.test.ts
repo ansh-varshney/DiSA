@@ -117,7 +117,9 @@ describe('deleteEquipmentImages', () => {
 
     it('handles Supabase-style URLs by delegating to deleteFile (which ignores non-/uploads/ paths)', async () => {
         // deleteFile in storage.ts silently ignores URLs that don't start with /uploads/
-        await deleteEquipmentImages(['https://old.supabase.co/storage/v1/object/public/equipment-images/photo.jpg'])
+        await deleteEquipmentImages([
+            'https://old.supabase.co/storage/v1/object/public/equipment-images/photo.jpg',
+        ])
         expect(deleteFile).toHaveBeenCalledTimes(1)
     })
 })

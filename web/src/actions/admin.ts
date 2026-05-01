@@ -20,7 +20,20 @@ import {
     broadcastToAllStudents,
 } from '@/actions/notifications'
 import {
-    eq, ne, and, or, gte, lte, lt, asc, desc, inArray, notInArray, isNull, sql, count,
+    eq,
+    ne,
+    and,
+    or,
+    gte,
+    lte,
+    lt,
+    asc,
+    desc,
+    inArray,
+    notInArray,
+    isNull,
+    sql,
+    count,
 } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { revalidatePath } from 'next/cache'
@@ -123,25 +136,18 @@ export async function updateEquipment(id: string, formData: FormData) {
         .from(equipment)
         .where(eq(equipment.id, id))
 
-    const existingImages: string[] = JSON.parse(
-        (formData.get('existingImages') as string) || '[]'
-    )
+    const existingImages: string[] = JSON.parse((formData.get('existingImages') as string) || '[]')
     const newImageFiles = formData.getAll('images') as File[]
     const uploadedUrls: string[] = [...existingImages]
 
     // Upload new images
     for (const file of newImageFiles) {
-        const url = await uploadFile(
-            file,
-            `equipment-images/${existing?.sport || 'unknown'}/${id}`
-        )
+        const url = await uploadFile(file, `equipment-images/${existing?.sport || 'unknown'}/${id}`)
         if (url) uploadedUrls.push(url)
     }
 
     // Delete removed images
-    const removedImages = (existing?.pictures || []).filter(
-        (url) => !existingImages.includes(url)
-    )
+    const removedImages = (existing?.pictures || []).filter((url) => !existingImages.includes(url))
     for (const url of removedImages) {
         await deleteFile(url)
     }
@@ -151,7 +157,7 @@ export async function updateEquipment(id: string, formData: FormData) {
         .set({
             name: formData.get('name') as string,
             sport: formData.get('sport') as string,
-            condition: (formData.get('condition') as string) as any,
+            condition: formData.get('condition') as string as any,
             vendor_name: (formData.get('vendor_name') as string) || null,
             cost: formData.get('cost') ? (formData.get('cost') as string) : null,
             purchase_date: (formData.get('purchase_date') as string) || null,
@@ -232,8 +238,7 @@ export async function createCourt(formData: FormData) {
         })
         .returning()
 
-    if (!newCourt)
-        throw new Error('Failed to create court')
+    if (!newCourt) throw new Error('Failed to create court')
 
     // Upload images
     if (imageFiles.length > 0) {
@@ -262,23 +267,16 @@ export async function updateCourt(id: string, formData: FormData) {
         .from(courts)
         .where(eq(courts.id, id))
 
-    const existingImages: string[] = JSON.parse(
-        (formData.get('existingImages') as string) || '[]'
-    )
+    const existingImages: string[] = JSON.parse((formData.get('existingImages') as string) || '[]')
     const newImageFiles = formData.getAll('images') as File[]
     const uploadedUrls: string[] = [...existingImages]
 
     for (const file of newImageFiles) {
-        const url = await uploadFile(
-            file,
-            `court-images/${existing?.sport || 'unknown'}/${id}`
-        )
+        const url = await uploadFile(file, `court-images/${existing?.sport || 'unknown'}/${id}`)
         if (url) uploadedUrls.push(url)
     }
 
-    const removedImages = (existing?.pictures || []).filter(
-        (url) => !existingImages.includes(url)
-    )
+    const removedImages = (existing?.pictures || []).filter((url) => !existingImages.includes(url))
     for (const url of removedImages) {
         await deleteFile(url)
     }
@@ -287,7 +285,7 @@ export async function updateCourt(id: string, formData: FormData) {
         .update(courts)
         .set({
             name: formData.get('name') as string,
-            condition: (formData.get('condition') as string) as any,
+            condition: formData.get('condition') as string as any,
             last_maintenance_date: (formData.get('last_maintenance_date') as string) || null,
             next_check_date: (formData.get('next_check_date') as string) || null,
             pictures: uploadedUrls,
@@ -738,10 +736,7 @@ export async function getEquipmentBySport(sport: string) {
         })
         .from(equipment)
         .where(
-            and(
-                eq(equipment.sport, sport),
-                notInArray(equipment.condition, ['lost', 'retired'])
-            )
+            and(eq(equipment.sport, sport), notInArray(equipment.condition, ['lost', 'retired']))
         )
         .orderBy(asc(equipment.name))
 }
@@ -858,9 +853,7 @@ export async function getBookingLogs(sport: string, date: string) {
 
     if (!bookingRows || bookingRows.length === 0) return []
 
-    const allEquipmentIds = [
-        ...new Set(bookingRows.flatMap((b) => b.equipment_ids || [])),
-    ]
+    const allEquipmentIds = [...new Set(bookingRows.flatMap((b) => b.equipment_ids || []))]
 
     let equipmentMap: Record<string, { id: string; name: string; condition: string }> = {}
     if (allEquipmentIds.length > 0) {
@@ -870,7 +863,10 @@ export async function getBookingLogs(sport: string, date: string) {
             .where(inArray(equipment.id, allEquipmentIds))
 
         equipmentMap = Object.fromEntries(
-            equipmentData.map((e) => [e.id, { id: e.id, name: e.name, condition: e.condition as string }])
+            equipmentData.map((e) => [
+                e.id,
+                { id: e.id, name: e.name, condition: e.condition as string },
+            ])
         )
     }
 
@@ -889,8 +885,10 @@ export async function getFeedback(statusFilter?: string, categoryFilter?: string
     const studentProfileAlias = alias(profiles, 'student_profile')
 
     const conditions = []
-    if (statusFilter && statusFilter !== 'all') conditions.push(eq(feedbackComplaints.status, statusFilter as any))
-    if (categoryFilter && categoryFilter !== 'all') conditions.push(eq(feedbackComplaints.category, categoryFilter))
+    if (statusFilter && statusFilter !== 'all')
+        conditions.push(eq(feedbackComplaints.status, statusFilter as any))
+    if (categoryFilter && categoryFilter !== 'all')
+        conditions.push(eq(feedbackComplaints.category, categoryFilter))
 
     return await db
         .select({
@@ -947,8 +945,7 @@ export async function updateComplaintStatus(id: string, status: string) {
 //============================================
 
 export async function getCoordinators(sport?: string) {
-    const whereClause =
-        sport && sport !== 'all' ? eq(coordinators.sport, sport) : undefined
+    const whereClause = sport && sport !== 'all' ? eq(coordinators.sport, sport) : undefined
 
     return await db
         .select()
@@ -1011,10 +1008,7 @@ export async function deleteCoordinator(id: string) {
 // Violations
 //============================================
 
-export async function getViolations(filters?: {
-    severity?: string
-    violationType?: string
-}) {
+export async function getViolations(filters?: { severity?: string; violationType?: string }) {
     const studentAlias = alias(profiles, 'student_alias')
     const reporterAlias = alias(profiles, 'reporter_alias')
 
@@ -1202,11 +1196,19 @@ export async function getDashboardStats() {
 
     const [equipmentCount, courtsCount, reservationsCount, complaintsCount] = await Promise.all([
         db.select({ count: sql<number>`cast(count(*) as integer)` }).from(equipment),
-        db.select({ count: sql<number>`cast(count(*) as integer)` }).from(courts).where(eq(courts.is_active, true)),
+        db
+            .select({ count: sql<number>`cast(count(*) as integer)` })
+            .from(courts)
+            .where(eq(courts.is_active, true)),
         db
             .select({ count: sql<number>`cast(count(*) as integer)` })
             .from(bookings)
-            .where(and(gte(bookings.start_time, new Date(today)), lt(bookings.start_time, new Date(tomorrow)))),
+            .where(
+                and(
+                    gte(bookings.start_time, new Date(today)),
+                    lt(bookings.start_time, new Date(tomorrow))
+                )
+            ),
         db
             .select({ count: sql<number>`cast(count(*) as integer)` })
             .from(feedbackComplaints)

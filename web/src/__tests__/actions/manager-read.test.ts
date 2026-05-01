@@ -259,9 +259,7 @@ describe('updateEquipmentConditions', () => {
     it('returns success for a single item', async () => {
         mockDrizzleDb.enqueueEmpty()
 
-        const result = await updateEquipmentConditions([
-            { id: 'eq-1', condition: 'minor_damage' },
-        ])
+        const result = await updateEquipmentConditions([{ id: 'eq-1', condition: 'minor_damage' }])
 
         expect(result).toEqual({ success: true })
         expect(mockDrizzleDb.update).toHaveBeenCalledTimes(1)

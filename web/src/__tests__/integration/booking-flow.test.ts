@@ -47,10 +47,17 @@ describe('Flow A: Booking approval → session active → session end', () => {
 
     it('manager marks booking active → N5 sent → end session → N10 + points awarded', async () => {
         // Step 1: updateBookingStatus('b-1', 'active') — no requireManagerRole
-        mockDrizzleDb.enqueueEmpty()                                        // update bookings
-        mockDrizzleDb.enqueue([{ id: 'b-1', start_time: START_TIME, user_id: 's1', courts: { name: 'Ct', sport: 'badminton' } }])  // getBookingForNotif
-        mockDrizzleDb.enqueue([{ user_id: 's1', players_list: [] }])       // getBookingStudentIds: booking
-        mockDrizzleDb.enqueue([{ id: 's1' }])                              // getBookingStudentIds: profiles
+        mockDrizzleDb.enqueueEmpty() // update bookings
+        mockDrizzleDb.enqueue([
+            {
+                id: 'b-1',
+                start_time: START_TIME,
+                user_id: 's1',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
+        ]) // getBookingForNotif
+        mockDrizzleDb.enqueue([{ user_id: 's1', players_list: [] }]) // getBookingStudentIds: booking
+        mockDrizzleDb.enqueue([{ id: 's1' }]) // getBookingStudentIds: profiles
 
         await updateBookingStatus('b-1', 'active')
 
@@ -63,14 +70,21 @@ describe('Flow A: Booking approval → session active → session end', () => {
         vi.mocked(sendNotification).mockResolvedValue('notif-new')
         vi.mocked(sendNotifications).mockResolvedValue(undefined)
 
-        mockDrizzleDb.enqueue([{ role: 'manager' }])                       // requireManagerRole
-        mockDrizzleDb.enqueue([{ id: 'b-1' }])                            // update.returning() idempotency guard
-        mockDrizzleDb.enqueue([{ total_usage_count: 0 }])                  // select equipment
-        mockDrizzleDb.enqueueEmpty()                                        // update equipment
-        mockDrizzleDb.enqueue([{ user_id: 's1', players_list: [] }])       // getBookingStudentIds: booking
-        mockDrizzleDb.enqueue([{ id: 's1' }])                              // getBookingStudentIds: profiles
-        mockDrizzleDb.enqueueEmpty()                                        // applyPoints execute (delta=10)
-        mockDrizzleDb.enqueue([{ id: 'b-1', start_time: START_TIME, user_id: 's1', courts: { name: 'Ct', sport: 'badminton' } }])  // getBookingForNotif
+        mockDrizzleDb.enqueue([{ role: 'manager' }]) // requireManagerRole
+        mockDrizzleDb.enqueue([{ id: 'b-1' }]) // update.returning() idempotency guard
+        mockDrizzleDb.enqueue([{ total_usage_count: 0 }]) // select equipment
+        mockDrizzleDb.enqueueEmpty() // update equipment
+        mockDrizzleDb.enqueue([{ user_id: 's1', players_list: [] }]) // getBookingStudentIds: booking
+        mockDrizzleDb.enqueue([{ id: 's1' }]) // getBookingStudentIds: profiles
+        mockDrizzleDb.enqueueEmpty() // applyPoints execute (delta=10)
+        mockDrizzleDb.enqueue([
+            {
+                id: 'b-1',
+                start_time: START_TIME,
+                user_id: 's1',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
+        ]) // getBookingForNotif
 
         await endSession('b-1', [{ id: 'eq-1', condition: 'good' }])
 
@@ -96,14 +110,23 @@ describe('Flow B: Play request accepted → session ends → both players awarde
     })
 
     it('endSession awards points to both booker and confirmed invited player', async () => {
-        mockDrizzleDb.enqueue([{ role: 'manager' }])                       // requireManagerRole
-        mockDrizzleDb.enqueue([{ id: 'b-2' }])                            // update.returning()
-        mockDrizzleDb.enqueue([{ equipment_ids: [] }])                     // freeBookingEquipment: select
-        mockDrizzleDb.enqueue([{ user_id: 'booker-1', players_list: [{ id: 'invitee-1', status: 'confirmed' }] }])  // getBookingStudentIds: booking
-        mockDrizzleDb.enqueue([{ id: 'booker-1' }, { id: 'invitee-1' }])  // getBookingStudentIds: profiles
-        mockDrizzleDb.enqueueEmpty()                                        // applyPoints execute for booker-1
-        mockDrizzleDb.enqueueEmpty()                                        // applyPoints execute for invitee-1
-        mockDrizzleDb.enqueue([{ id: 'b-2', start_time: START_TIME, user_id: 'booker-1', courts: { name: 'Ct', sport: 'badminton' } }])  // getBookingForNotif
+        mockDrizzleDb.enqueue([{ role: 'manager' }]) // requireManagerRole
+        mockDrizzleDb.enqueue([{ id: 'b-2' }]) // update.returning()
+        mockDrizzleDb.enqueue([{ equipment_ids: [] }]) // freeBookingEquipment: select
+        mockDrizzleDb.enqueue([
+            { user_id: 'booker-1', players_list: [{ id: 'invitee-1', status: 'confirmed' }] },
+        ]) // getBookingStudentIds: booking
+        mockDrizzleDb.enqueue([{ id: 'booker-1' }, { id: 'invitee-1' }]) // getBookingStudentIds: profiles
+        mockDrizzleDb.enqueueEmpty() // applyPoints execute for booker-1
+        mockDrizzleDb.enqueueEmpty() // applyPoints execute for invitee-1
+        mockDrizzleDb.enqueue([
+            {
+                id: 'b-2',
+                start_time: START_TIME,
+                user_id: 'booker-1',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
+        ]) // getBookingForNotif
 
         await endSession('b-2', [])
 
@@ -117,14 +140,23 @@ describe('Flow B: Play request accepted → session ends → both players awarde
     })
 
     it('pending players (not yet confirmed) are NOT awarded points', async () => {
-        mockDrizzleDb.enqueue([{ role: 'manager' }])                       // requireManagerRole
-        mockDrizzleDb.enqueue([{ id: 'b-3' }])                            // update.returning()
-        mockDrizzleDb.enqueue([{ equipment_ids: [] }])                     // freeBookingEquipment: select
+        mockDrizzleDb.enqueue([{ role: 'manager' }]) // requireManagerRole
+        mockDrizzleDb.enqueue([{ id: 'b-3' }]) // update.returning()
+        mockDrizzleDb.enqueue([{ equipment_ids: [] }]) // freeBookingEquipment: select
         // pending player excluded: extraIds filtered by status !== 'confirmed'
-        mockDrizzleDb.enqueue([{ user_id: 'booker-1', players_list: [{ id: 'pending-player', status: 'pending' }] }])  // getBookingStudentIds: booking
-        mockDrizzleDb.enqueue([{ id: 'booker-1' }])                       // getBookingStudentIds: profiles (booker only)
-        mockDrizzleDb.enqueueEmpty()                                        // applyPoints execute for booker only
-        mockDrizzleDb.enqueue([{ id: 'b-3', start_time: START_TIME, user_id: 'booker-1', courts: { name: 'Ct', sport: 'b' } }])  // getBookingForNotif
+        mockDrizzleDb.enqueue([
+            { user_id: 'booker-1', players_list: [{ id: 'pending-player', status: 'pending' }] },
+        ]) // getBookingStudentIds: booking
+        mockDrizzleDb.enqueue([{ id: 'booker-1' }]) // getBookingStudentIds: profiles (booker only)
+        mockDrizzleDb.enqueueEmpty() // applyPoints execute for booker only
+        mockDrizzleDb.enqueue([
+            {
+                id: 'b-3',
+                start_time: START_TIME,
+                user_id: 'booker-1',
+                courts: { name: 'Ct', sport: 'b' },
+            },
+        ]) // getBookingForNotif
 
         await endSession('b-3', [])
 
@@ -141,14 +173,21 @@ describe('Flow D: 3rd late-arrival strike triggers 14-day ban', () => {
     })
 
     it('check_and_apply_late_ban execute called; ban notification sent when result is non-null', async () => {
-        mockDrizzleDb.enqueue([{ role: 'manager' }])                       // requireManagerRole
-        mockDrizzleDb.enqueue([{ equipment_ids: [] }])                     // select booking equipment_ids
-        mockDrizzleDb.enqueueEmpty()                                        // update bookings cancel
-        mockDrizzleDb.enqueue([{ id: 's-late', role: 'student' }])        // select profiles filter
-        mockDrizzleDb.enqueueEmpty()                                        // insert studentViolations
-        mockDrizzleDb.enqueueEmpty()                                        // applyPoints execute (delta=-6)
-        mockDrizzleDb.enqueue([{ banned_until: '2026-05-07T00:00:00.000Z' }])  // check_and_apply_late_ban execute
-        mockDrizzleDb.enqueue([{ id: 'b-late', start_time: START_TIME, user_id: 's-late', courts: { name: 'Ct', sport: 'badminton' } }])  // getBookingForNotif
+        mockDrizzleDb.enqueue([{ role: 'manager' }]) // requireManagerRole
+        mockDrizzleDb.enqueue([{ equipment_ids: [] }]) // select booking equipment_ids
+        mockDrizzleDb.enqueueEmpty() // update bookings cancel
+        mockDrizzleDb.enqueue([{ id: 's-late', role: 'student' }]) // select profiles filter
+        mockDrizzleDb.enqueueEmpty() // insert studentViolations
+        mockDrizzleDb.enqueueEmpty() // applyPoints execute (delta=-6)
+        mockDrizzleDb.enqueue([{ banned_until: '2026-05-07T00:00:00.000Z' }]) // check_and_apply_late_ban execute
+        mockDrizzleDb.enqueue([
+            {
+                id: 'b-late',
+                start_time: START_TIME,
+                user_id: 's-late',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
+        ]) // getBookingForNotif
 
         await rejectWithReason('b-late', 'students_late', null, ['s-late'])
 
@@ -183,16 +222,18 @@ describe('Flow E: Priority reservation cancels student bookings', () => {
         const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000)
         const futureDateStr = futureDate.toISOString().split('T')[0]
 
-        mockDrizzleDb.enqueue([{ role: 'admin' }])                         // verifyAdmin
-        mockDrizzleDb.enqueue([{
-            id: 'student-booking-1',
-            user_id: 'student-A',
-            players_list: [{ id: 'student-B', status: 'confirmed' }],
-            start_time: futureDate.toISOString(),
-            courts: { name: 'Badminton Court A', sport: 'badminton' },
-        }])                                                                  // select conflicting bookings
-        mockDrizzleDb.enqueueEmpty()                                         // update cancel conflicting
-        mockDrizzleDb.enqueue([{ id: 'priority-new', court_id: 'court-1' }])  // insert.returning()
+        mockDrizzleDb.enqueue([{ role: 'admin' }]) // verifyAdmin
+        mockDrizzleDb.enqueue([
+            {
+                id: 'student-booking-1',
+                user_id: 'student-A',
+                players_list: [{ id: 'student-B', status: 'confirmed' }],
+                start_time: futureDate.toISOString(),
+                courts: { name: 'Badminton Court A', sport: 'badminton' },
+            },
+        ]) // select conflicting bookings
+        mockDrizzleDb.enqueueEmpty() // update cancel conflicting
+        mockDrizzleDb.enqueue([{ id: 'priority-new', court_id: 'court-1' }]) // insert.returning()
 
         await priorityReserveSlot('court-1', futureDateStr, '10:00', '11:00')
 
@@ -215,14 +256,21 @@ describe('Flow F: Booking timeout (10-minute no-show)', () => {
     })
 
     it('issues violations and sends booking_expired to all players', async () => {
-        mockDrizzleDb.enqueue([{ role: 'manager' }])                       // requireManagerRole
-        mockDrizzleDb.enqueue([{ status: 'pending_confirmation' }])        // select booking status
-        mockDrizzleDb.enqueue([{ equipment_ids: [] }])                     // freeBookingEquipment: select
-        mockDrizzleDb.enqueueEmpty()                                        // update bookings cancel
-        mockDrizzleDb.enqueue([{ id: 'student-1', role: 'student' }])     // select profiles filter
-        mockDrizzleDb.enqueueEmpty()                                        // insert studentViolations
-        mockDrizzleDb.enqueueEmpty()                                        // applyPoints execute (delta=-8)
-        mockDrizzleDb.enqueue([{ id: 'b-timeout', start_time: START_TIME, user_id: 'student-1', courts: { name: 'Ct', sport: 'badminton' } }])  // getBookingForNotif
+        mockDrizzleDb.enqueue([{ role: 'manager' }]) // requireManagerRole
+        mockDrizzleDb.enqueue([{ status: 'pending_confirmation' }]) // select booking status
+        mockDrizzleDb.enqueue([{ equipment_ids: [] }]) // freeBookingEquipment: select
+        mockDrizzleDb.enqueueEmpty() // update bookings cancel
+        mockDrizzleDb.enqueue([{ id: 'student-1', role: 'student' }]) // select profiles filter
+        mockDrizzleDb.enqueueEmpty() // insert studentViolations
+        mockDrizzleDb.enqueueEmpty() // applyPoints execute (delta=-8)
+        mockDrizzleDb.enqueue([
+            {
+                id: 'b-timeout',
+                start_time: START_TIME,
+                user_id: 'student-1',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
+        ]) // getBookingForNotif
 
         const result = await expireBooking('b-timeout', ['student-1'])
 
@@ -235,8 +283,8 @@ describe('Flow F: Booking timeout (10-minute no-show)', () => {
     })
 
     it('is idempotent: already-active booking returns already_handled', async () => {
-        mockDrizzleDb.enqueue([{ role: 'manager' }])                       // requireManagerRole
-        mockDrizzleDb.enqueue([{ status: 'active' }])                      // select booking status → active
+        mockDrizzleDb.enqueue([{ role: 'manager' }]) // requireManagerRole
+        mockDrizzleDb.enqueue([{ status: 'active' }]) // select booking status → active
 
         const result = await expireBooking('b-active', ['student-1'])
 
@@ -255,14 +303,14 @@ describe('Flow G: Equipment reported lost', () => {
     })
 
     it('full flow: marks equipment lost → −20 pts per student → N14 + N21', async () => {
-        mockDrizzleDb.enqueue([{ role: 'manager' }])                       // requireManagerRole
-        mockDrizzleDb.enqueue([{ id: 'eq-lost', name: 'Shuttle', equipment_id: 'SH001' }])  // select equipment names
-        mockDrizzleDb.enqueueEmpty()                                        // update equipment (lost)
-        mockDrizzleDb.enqueue([])                                           // select future bookings (empty → no impacted)
-        mockDrizzleDb.enqueueEmpty()                                        // insert studentViolations
-        mockDrizzleDb.enqueue([{ id: 's1' }, { id: 's2' }])               // select student profiles
-        mockDrizzleDb.enqueueEmpty()                                        // applyPoints execute for s1
-        mockDrizzleDb.enqueueEmpty()                                        // applyPoints execute for s2
+        mockDrizzleDb.enqueue([{ role: 'manager' }]) // requireManagerRole
+        mockDrizzleDb.enqueue([{ id: 'eq-lost', name: 'Shuttle', equipment_id: 'SH001' }]) // select equipment names
+        mockDrizzleDb.enqueueEmpty() // update equipment (lost)
+        mockDrizzleDb.enqueue([]) // select future bookings (empty → no impacted)
+        mockDrizzleDb.enqueueEmpty() // insert studentViolations
+        mockDrizzleDb.enqueue([{ id: 's1' }, { id: 's2' }]) // select student profiles
+        mockDrizzleDb.enqueueEmpty() // applyPoints execute for s1
+        mockDrizzleDb.enqueueEmpty() // applyPoints execute for s2
 
         await reportLostEquipment('b-1', ['eq-lost'], ['s1', 's2'])
 
@@ -288,8 +336,8 @@ describe('Flow H: Admin manually adjusts student points', () => {
     })
 
     it('sends N18 with correct sign for positive adjustment', async () => {
-        mockDrizzleDb.enqueue([{ role: 'admin' }])                         // verifyAdmin
-        mockDrizzleDb.enqueueEmpty()                                        // db.execute update_student_points
+        mockDrizzleDb.enqueue([{ role: 'admin' }]) // verifyAdmin
+        mockDrizzleDb.enqueueEmpty() // db.execute update_student_points
 
         await adjustStudentPoints('student-1', 25)
 
@@ -302,8 +350,8 @@ describe('Flow H: Admin manually adjusts student points', () => {
     })
 
     it('sends N18 with negative sign for negative adjustment', async () => {
-        mockDrizzleDb.enqueue([{ role: 'admin' }])                         // verifyAdmin
-        mockDrizzleDb.enqueueEmpty()                                        // db.execute update_student_points
+        mockDrizzleDb.enqueue([{ role: 'admin' }]) // verifyAdmin
+        mockDrizzleDb.enqueueEmpty() // db.execute update_student_points
 
         await adjustStudentPoints('student-1', -12)
 
@@ -325,15 +373,17 @@ describe('Flow I: Student cancels own booking', () => {
         // getCurrentUser → { id: 'student-1' } (global mock) — booking.user_id must match
         const farStart = new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString()
 
-        mockDrizzleDb.enqueue([{
-            user_id: 'student-1',
-            status: 'confirmed',
-            equipment_ids: [],
-            start_time: farStart,
-            players_list: [{ id: 'player-2', status: 'confirmed' }],
-            courts: { name: 'Ct', sport: 'badminton' },
-        }])                                                                  // select booking+courts
-        mockDrizzleDb.enqueueEmpty()                                         // update bookings cancel
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'student-1',
+                status: 'confirmed',
+                equipment_ids: [],
+                start_time: farStart,
+                players_list: [{ id: 'player-2', status: 'confirmed' }],
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
+        ]) // select booking+courts
+        mockDrizzleDb.enqueueEmpty() // update bookings cancel
 
         const result = await cancelBooking('b-cancel')
 

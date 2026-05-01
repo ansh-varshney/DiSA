@@ -47,12 +47,7 @@ export async function signInWithPhone(_prevState: unknown, formData: FormData) {
     const [profile] = await db
         .select({ id: profiles.id, role: profiles.role })
         .from(profiles)
-        .where(
-            and(
-                eq(profiles.phone_number, phone),
-                inArray(profiles.role, [...allowedRoles])
-            )
-        )
+        .where(and(eq(profiles.phone_number, phone), inArray(profiles.role, [...allowedRoles])))
         .limit(1)
 
     if (!profile) {

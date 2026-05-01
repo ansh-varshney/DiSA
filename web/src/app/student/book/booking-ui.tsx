@@ -35,7 +35,13 @@ type Booking = {
     profiles?: { full_name: string | null } | null
     num_players?: number | null
 }
-type Equipment = { id: string; name: string; sport: string; condition: string | null; in_use?: boolean }
+type Equipment = {
+    id: string
+    name: string
+    sport: string
+    condition: string | null
+    in_use?: boolean
+}
 type Player = { id: string; full_name: string | null; student_id: string | null }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -400,7 +406,9 @@ export default function BookingUI({
                                                             <div>
                                                                 <div className="font-semibold text-blue-700 text-[11px] truncate">
                                                                     {booking.profiles?.full_name
-                                                                        ? booking.profiles.full_name.split(' ')[0]
+                                                                        ? booking.profiles.full_name.split(
+                                                                              ' '
+                                                                          )[0]
                                                                         : 'Booked'}
                                                                 </div>
                                                                 {booking.num_players && (

@@ -106,7 +106,9 @@ describe('POST /api/upload', () => {
 
     it('returns 400 when validateImageFile returns an error string', async () => {
         vi.mocked(auth).mockResolvedValue(authedSession())
-        vi.mocked(validateImageFile).mockReturnValue('photo.exe: Invalid file type. Only JPEG, PNG, and WebP are allowed.')
+        vi.mocked(validateImageFile).mockReturnValue(
+            'photo.exe: Invalid file type. Only JPEG, PNG, and WebP are allowed.'
+        )
 
         const res = await POST(makeRequest(makeFile('photo.exe', 'application/octet-stream')))
 
@@ -116,7 +118,9 @@ describe('POST /api/upload', () => {
 
     it('returns 400 when file is too large', async () => {
         vi.mocked(auth).mockResolvedValue(authedSession())
-        vi.mocked(validateImageFile).mockReturnValue('big.png: File too large. Maximum size is 5MB.')
+        vi.mocked(validateImageFile).mockReturnValue(
+            'big.png: File too large. Maximum size is 5MB.'
+        )
 
         const res = await POST(makeRequest(makeFile('big.png', 'image/png', 6 * 1024 * 1024)))
 
@@ -157,10 +161,7 @@ describe('POST /api/upload', () => {
 
         await POST(makeRequest(makeFile(), 'courts'))
 
-        expect(vi.mocked(uploadFile)).toHaveBeenCalledWith(
-            expect.any(File),
-            'courts'
-        )
+        expect(vi.mocked(uploadFile)).toHaveBeenCalledWith(expect.any(File), 'courts')
     })
 
     // ── Folder fallback & sanitization ───────────────────────────────────────
@@ -215,7 +216,7 @@ describe('POST /api/upload', () => {
 
         const formData = new FormData()
         formData.append('file', makeFile())
-        formData.append('folder', '!!!@@@###')  // all special chars → stripped to ''
+        formData.append('folder', '!!!@@@###') // all special chars → stripped to ''
         const req = { formData: vi.fn().mockResolvedValue(formData) } as unknown as NextRequest
 
         await POST(req)

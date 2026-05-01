@@ -49,10 +49,9 @@ describe('uploadFile', () => {
     it('creates the target directory with recursive flag', async () => {
         await uploadFile(makeFile(), 'equipment')
 
-        expect(vi.mocked(fs.mkdir)).toHaveBeenCalledWith(
-            expect.stringContaining('equipment'),
-            { recursive: true }
-        )
+        expect(vi.mocked(fs.mkdir)).toHaveBeenCalledWith(expect.stringContaining('equipment'), {
+            recursive: true,
+        })
     })
 
     it('returns a /uploads/<folder>/<filename> URL', async () => {
@@ -122,9 +121,7 @@ describe('deleteFile', () => {
     it('calls unlink with the full filesystem path for a valid /uploads/ URL', async () => {
         await deleteFile('/uploads/equipment/1234-photo.jpg')
 
-        expect(vi.mocked(fs.unlink)).toHaveBeenCalledWith(
-            expect.stringContaining('1234-photo.jpg')
-        )
+        expect(vi.mocked(fs.unlink)).toHaveBeenCalledWith(expect.stringContaining('1234-photo.jpg'))
     })
 
     it('resolves without throwing when the file is already gone (ENOENT)', async () => {

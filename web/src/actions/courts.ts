@@ -16,7 +16,11 @@ export async function getCourts() {
 
 export async function getActiveCourts() {
     try {
-        return await db.select().from(courts).where(eq(courts.is_active, true)).orderBy(asc(courts.name))
+        return await db
+            .select()
+            .from(courts)
+            .where(eq(courts.is_active, true))
+            .orderBy(asc(courts.name))
     } catch {
         return []
     }

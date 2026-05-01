@@ -54,13 +54,20 @@ describe('endSession — points must use db.execute not manual read-modify-write
     it('each call fires its own execute — no shared-state mutation', async () => {
         // First endSession (student-A, good equipment → delta=10)
         mockDrizzleDb.enqueue([{ role: 'manager' }])
-        mockDrizzleDb.enqueue([{ id: 'booking-A' }])                       // returning()
-        mockDrizzleDb.enqueue([{ total_usage_count: 0 }])                  // select equipment
-        mockDrizzleDb.enqueueEmpty()                                        // update equipment
+        mockDrizzleDb.enqueue([{ id: 'booking-A' }]) // returning()
+        mockDrizzleDb.enqueue([{ total_usage_count: 0 }]) // select equipment
+        mockDrizzleDb.enqueueEmpty() // update equipment
         mockDrizzleDb.enqueue([{ user_id: 'student-A', players_list: [] }])
         mockDrizzleDb.enqueue([{ id: 'student-A' }])
-        mockDrizzleDb.enqueueEmpty()                                        // applyPoints execute
-        mockDrizzleDb.enqueue([{ id: 'booking-A', start_time: START_TIME, user_id: 'student-A', courts: { name: 'Ct', sport: 'badminton' } }])
+        mockDrizzleDb.enqueueEmpty() // applyPoints execute
+        mockDrizzleDb.enqueue([
+            {
+                id: 'booking-A',
+                start_time: START_TIME,
+                user_id: 'student-A',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
+        ])
 
         const r1 = await endSession('booking-A', [{ id: 'eq-1', condition: 'good' }])
         expect(r1).toEqual({ success: true })
@@ -71,13 +78,20 @@ describe('endSession — points must use db.execute not manual read-modify-write
 
         // Second endSession (student-B, good equipment → delta=10)
         mockDrizzleDb.enqueue([{ role: 'manager' }])
-        mockDrizzleDb.enqueue([{ id: 'booking-B' }])                       // returning()
+        mockDrizzleDb.enqueue([{ id: 'booking-B' }]) // returning()
         mockDrizzleDb.enqueue([{ total_usage_count: 0 }])
         mockDrizzleDb.enqueueEmpty()
         mockDrizzleDb.enqueue([{ user_id: 'student-B', players_list: [] }])
         mockDrizzleDb.enqueue([{ id: 'student-B' }])
-        mockDrizzleDb.enqueueEmpty()                                        // applyPoints execute
-        mockDrizzleDb.enqueue([{ id: 'booking-B', start_time: START_TIME, user_id: 'student-B', courts: { name: 'Ct', sport: 'badminton' } }])
+        mockDrizzleDb.enqueueEmpty() // applyPoints execute
+        mockDrizzleDb.enqueue([
+            {
+                id: 'booking-B',
+                start_time: START_TIME,
+                user_id: 'student-B',
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
+        ])
 
         const r2 = await endSession('booking-B', [{ id: 'eq-2', condition: 'good' }])
         expect(r2).toEqual({ success: true })
@@ -87,13 +101,20 @@ describe('endSession — points must use db.execute not manual read-modify-write
     it('second endSession for same booking returns already_handled — points not double-awarded', async () => {
         // First call succeeds
         mockDrizzleDb.enqueue([{ role: 'manager' }])
-        mockDrizzleDb.enqueue([{ id: 'b-1' }])                            // returning() → non-empty → guard passes
+        mockDrizzleDb.enqueue([{ id: 'b-1' }]) // returning() → non-empty → guard passes
         mockDrizzleDb.enqueue([{ total_usage_count: 0 }])
         mockDrizzleDb.enqueueEmpty()
         mockDrizzleDb.enqueue([{ user_id: 's1', players_list: [] }])
         mockDrizzleDb.enqueue([{ id: 's1' }])
-        mockDrizzleDb.enqueueEmpty()                                        // applyPoints execute
-        mockDrizzleDb.enqueue([{ id: 'b-1', start_time: START_TIME, user_id: 's1', courts: { name: 'Ct', sport: 'b' } }])
+        mockDrizzleDb.enqueueEmpty() // applyPoints execute
+        mockDrizzleDb.enqueue([
+            {
+                id: 'b-1',
+                start_time: START_TIME,
+                user_id: 's1',
+                courts: { name: 'Ct', sport: 'b' },
+            },
+        ])
 
         const r1 = await endSession('b-1', [{ id: 'eq-1', condition: 'good' }])
         expect(r1).toEqual({ success: true })
@@ -103,7 +124,7 @@ describe('endSession — points must use db.execute not manual read-modify-write
 
         // Second call — returning() empty → markedRows.length === 0 → already_handled
         mockDrizzleDb.enqueue([{ role: 'manager' }])
-        mockDrizzleDb.enqueue([])                                           // returning() empty
+        mockDrizzleDb.enqueue([]) // returning() empty
 
         const r2 = await endSession('b-1', [{ id: 'eq-1', condition: 'good' }])
         expect(r2).toEqual({ already_handled: true })
@@ -133,12 +154,12 @@ describe('createBooking — slot conflict detection', () => {
         }
 
         // First booking: no conflict
-        mockDrizzleDb.enqueue([{ banned_until: null, priority_booking_remaining: 0 }])  // profile
-        mockDrizzleDb.enqueue([{ count: 0 }])                              // violations count
-        mockDrizzleDb.enqueue([])                                           // court overlap (empty)
-        mockDrizzleDb.enqueue([])                                           // student overlap (empty)
-        mockDrizzleDb.enqueue([{ sport: 'badminton', name: 'Court A' }])   // courts
-        mockDrizzleDb.enqueue([{ id: 'booking-new' }])                     // insert.returning()
+        mockDrizzleDb.enqueue([{ banned_until: null, priority_booking_remaining: 0 }]) // profile
+        mockDrizzleDb.enqueue([{ count: 0 }]) // violations count
+        mockDrizzleDb.enqueue([]) // court overlap (empty)
+        mockDrizzleDb.enqueue([]) // student overlap (empty)
+        mockDrizzleDb.enqueue([{ sport: 'badminton', name: 'Court A' }]) // courts
+        mockDrizzleDb.enqueue([{ id: 'booking-new' }]) // insert.returning()
 
         const resultA = await createBooking(null, makeFormData())
         expect(resultA.error).toBeUndefined()
@@ -148,7 +169,7 @@ describe('createBooking — slot conflict detection', () => {
         // Second booking: conflict found
         mockDrizzleDb.enqueue([{ banned_until: null, priority_booking_remaining: 0 }])
         mockDrizzleDb.enqueue([{ count: 0 }])
-        mockDrizzleDb.enqueue([{ id: 'booking-new' }])                     // court overlap returns existing
+        mockDrizzleDb.enqueue([{ id: 'booking-new' }]) // court overlap returns existing
 
         const resultB = await createBooking(null, makeFormData())
         expect(resultB.error).toBe('Time slot is already booked')
@@ -163,14 +184,18 @@ describe('Play request race conditions', () => {
     })
 
     it('acceptPlayRequest returns error if request was already responded to', async () => {
-        mockDrizzleDb.enqueue([{ id: 'pr-1', status: 'expired', booking_id: 'b-1', recipient_id: 'student-1' }])
+        mockDrizzleDb.enqueue([
+            { id: 'pr-1', status: 'expired', booking_id: 'b-1', recipient_id: 'student-1' },
+        ])
 
         const result = await acceptPlayRequest('pr-1')
         expect(result).toEqual({ error: 'Already responded to this request' })
     })
 
     it('rejectPlayRequest returns error if request was already accepted by someone else', async () => {
-        mockDrizzleDb.enqueue([{ id: 'pr-1', status: 'accepted', booking_id: 'b-1', recipient_id: 'student-1' }])
+        mockDrizzleDb.enqueue([
+            { id: 'pr-1', status: 'accepted', booking_id: 'b-1', recipient_id: 'student-1' },
+        ])
 
         const result = await rejectPlayRequest('pr-1')
         expect(result).toEqual({ error: 'Already responded to this request' })
@@ -178,23 +203,27 @@ describe('Play request race conditions', () => {
 
     it('double-rejection: second call sees already-rejected status and returns error', async () => {
         // First reject: pending → booking cancelled (drops below min players)
-        mockDrizzleDb.enqueue([{ id: 'pr-race', status: 'pending', booking_id: 'b-1', notification_id: 'notif-race' }])
-        mockDrizzleDb.enqueue([{
-            id: 'b-1',
-            status: 'confirmed',
-            user_id: 'student-booker',
-            start_time: START_TIME,
-            num_players: 2,
-            equipment_ids: [],
-            players_list: [{ id: 'student-1', status: 'pending' }],
-            court_name: 'Ct A',
-            court_sport: 'badminton',
-        }])
-        mockDrizzleDb.enqueue([{ full_name: 'Bob' }])                      // profile of rejecter
-        mockDrizzleDb.enqueueEmpty()                                        // update bookings cancel
-        mockDrizzleDb.enqueue([{ id: 'n-cancel' }])                        // internal sendNotification.returning()
-        mockDrizzleDb.enqueueEmpty()                                        // update playRequests rejected
-        mockDrizzleDb.enqueueEmpty()                                        // update notifications (mark read)
+        mockDrizzleDb.enqueue([
+            { id: 'pr-race', status: 'pending', booking_id: 'b-1', notification_id: 'notif-race' },
+        ])
+        mockDrizzleDb.enqueue([
+            {
+                id: 'b-1',
+                status: 'confirmed',
+                user_id: 'student-booker',
+                start_time: START_TIME,
+                num_players: 2,
+                equipment_ids: [],
+                players_list: [{ id: 'student-1', status: 'pending' }],
+                court_name: 'Ct A',
+                court_sport: 'badminton',
+            },
+        ])
+        mockDrizzleDb.enqueue([{ full_name: 'Bob' }]) // profile of rejecter
+        mockDrizzleDb.enqueueEmpty() // update bookings cancel
+        mockDrizzleDb.enqueue([{ id: 'n-cancel' }]) // internal sendNotification.returning()
+        mockDrizzleDb.enqueueEmpty() // update playRequests rejected
+        mockDrizzleDb.enqueueEmpty() // update notifications (mark read)
 
         const firstResult = await rejectPlayRequest('pr-race')
         expect((firstResult as any).success).toBe(true)
@@ -202,16 +231,22 @@ describe('Play request race conditions', () => {
         mockDrizzleDb.reset()
 
         // Second reject: sees status already 'rejected'
-        mockDrizzleDb.enqueue([{ id: 'pr-race', status: 'rejected', booking_id: 'b-1', recipient_id: 'student-1' }])
+        mockDrizzleDb.enqueue([
+            { id: 'pr-race', status: 'rejected', booking_id: 'b-1', recipient_id: 'student-1' },
+        ])
 
         const secondResult = await rejectPlayRequest('pr-race')
         expect(secondResult).toEqual({ error: 'Already responded to this request' })
     })
 
     it('acceptPlayRequest handles booking already cancelled (expiry race)', async () => {
-        mockDrizzleDb.enqueue([{ id: 'pr-1', status: 'pending', booking_id: 'b-1', notification_id: null }])
-        mockDrizzleDb.enqueue([{ id: 'b-1', status: 'cancelled', user_id: 'student-2', start_time: START_TIME }])
-        mockDrizzleDb.enqueueEmpty()                                        // update playRequests expired
+        mockDrizzleDb.enqueue([
+            { id: 'pr-1', status: 'pending', booking_id: 'b-1', notification_id: null },
+        ])
+        mockDrizzleDb.enqueue([
+            { id: 'b-1', status: 'cancelled', user_id: 'student-2', start_time: START_TIME },
+        ])
+        mockDrizzleDb.enqueueEmpty() // update playRequests expired
 
         const result = await acceptPlayRequest('pr-1')
         expect(result).toEqual({ error: 'The booking has already been cancelled or completed' })
@@ -219,22 +254,28 @@ describe('Play request race conditions', () => {
 
     it('parallel accept + reject: second call gets "already responded" error', async () => {
         // First: accept (status=pending → accepted)
-        mockDrizzleDb.enqueue([{ id: 'pr-race', status: 'pending', booking_id: 'b-1', notification_id: null }])
-        mockDrizzleDb.enqueue([{
-            id: 'b-1',
-            status: 'confirmed',
-            user_id: 'student-2',
-            start_time: START_TIME,
-            players_list: [],
-            num_players: 1,
-            court_name: 'Ct',
-            court_sport: 'badminton',
-        }])
-        mockDrizzleDb.enqueue([{ id: 'student-1', full_name: 'Alice', branch: 'CSE', gender: 'female', year: '2' }])  // profile
-        mockDrizzleDb.enqueueEmpty()                                        // update bookings
-        mockDrizzleDb.enqueueEmpty()                                        // update playRequests accepted
+        mockDrizzleDb.enqueue([
+            { id: 'pr-race', status: 'pending', booking_id: 'b-1', notification_id: null },
+        ])
+        mockDrizzleDb.enqueue([
+            {
+                id: 'b-1',
+                status: 'confirmed',
+                user_id: 'student-2',
+                start_time: START_TIME,
+                players_list: [],
+                num_players: 1,
+                court_name: 'Ct',
+                court_sport: 'badminton',
+            },
+        ])
+        mockDrizzleDb.enqueue([
+            { id: 'student-1', full_name: 'Alice', branch: 'CSE', gender: 'female', year: '2' },
+        ]) // profile
+        mockDrizzleDb.enqueueEmpty() // update bookings
+        mockDrizzleDb.enqueueEmpty() // update playRequests accepted
         // notification_id is null → no update notifications
-        mockDrizzleDb.enqueue([{ id: 'n-accept' }])                        // internal sendNotification.returning()
+        mockDrizzleDb.enqueue([{ id: 'n-accept' }]) // internal sendNotification.returning()
 
         const acceptResult = await acceptPlayRequest('pr-race')
         expect(acceptResult).toEqual({ success: true })
@@ -272,11 +313,11 @@ describe('createBooking — equipment reservation collision', () => {
         // Request A: equipment lock succeeds → booking created
         mockDrizzleDb.enqueue([{ banned_until: null, priority_booking_remaining: 0 }])
         mockDrizzleDb.enqueue([{ count: 0 }])
-        mockDrizzleDb.enqueue([])                                           // court overlap
-        mockDrizzleDb.enqueue([])                                           // student overlap
+        mockDrizzleDb.enqueue([]) // court overlap
+        mockDrizzleDb.enqueue([]) // student overlap
         mockDrizzleDb.enqueue([{ sport: 'badminton', name: 'Court A' }])
-        mockDrizzleDb.enqueue([{ id: 'eq-1' }])                            // equipment lock returning() → 1 row = success
-        mockDrizzleDb.enqueue([{ id: 'new-booking' }])                     // insert.returning()
+        mockDrizzleDb.enqueue([{ id: 'eq-1' }]) // equipment lock returning() → 1 row = success
+        mockDrizzleDb.enqueue([{ id: 'new-booking' }]) // insert.returning()
 
         const resultA = await createBooking(null, makeFormData(['eq-1']))
         expect(resultA.error).toBeUndefined()
@@ -286,10 +327,10 @@ describe('createBooking — equipment reservation collision', () => {
         // Request B: equipment lock returns 0 rows → already taken
         mockDrizzleDb.enqueue([{ banned_until: null, priority_booking_remaining: 0 }])
         mockDrizzleDb.enqueue([{ count: 0 }])
-        mockDrizzleDb.enqueue([])                                           // court overlap
-        mockDrizzleDb.enqueue([])                                           // student overlap
+        mockDrizzleDb.enqueue([]) // court overlap
+        mockDrizzleDb.enqueue([]) // student overlap
         mockDrizzleDb.enqueue([{ sport: 'badminton', name: 'Court A' }])
-        mockDrizzleDb.enqueue([])                                           // equipment lock returning() → 0 rows = fail
+        mockDrizzleDb.enqueue([]) // equipment lock returning() → 0 rows = fail
 
         const resultB = await createBooking(null, makeFormData(['eq-1']))
         expect(resultB.error).toMatch(/no longer available/i)
@@ -305,8 +346,8 @@ describe('Broadcast notification ordering', () => {
 
     it('sendNotifications is called in one batch even for large student lists', async () => {
         const manyStudents = Array.from({ length: 500 }, (_, i) => ({ id: `s-${i}` }))
-        mockDrizzleDb.enqueue(manyStudents)                                  // select profiles (students)
-        mockDrizzleDb.enqueueEmpty()                                         // insert notifications (internal sendNotifications)
+        mockDrizzleDb.enqueue(manyStudents) // select profiles (students)
+        mockDrizzleDb.enqueueEmpty() // insert notifications (internal sendNotifications)
 
         await broadcastToAllStudents({ type: 'announcement', title: 'T', body: 'B' })
 

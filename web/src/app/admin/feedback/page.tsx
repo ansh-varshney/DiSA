@@ -145,7 +145,10 @@ export default async function FeedbackManagement({
                                             </TableCell>
                                             <TableCell>
                                                 <Badge
-                                                    variant={statusVariants[item.status ?? 'open'] || 'info'}
+                                                    variant={
+                                                        statusVariants[item.status ?? 'open'] ||
+                                                        'info'
+                                                    }
                                                 >
                                                     {(item.status ?? '').replace('_', ' ')}
                                                 </Badge>

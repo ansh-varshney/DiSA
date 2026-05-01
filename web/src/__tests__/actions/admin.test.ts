@@ -17,7 +17,11 @@ vi.mock('@/actions/notifications', () => ({
     notifyAdmins: vi.fn().mockResolvedValue(undefined),
 }))
 
-import { sendNotification, sendNotifications, broadcastToAllStudents } from '@/actions/notifications'
+import {
+    sendNotification,
+    sendNotifications,
+    broadcastToAllStudents,
+} from '@/actions/notifications'
 
 import {
     getDefaulterStudents,
@@ -55,16 +59,32 @@ describe('getDefaulterStudents', () => {
         const now = new Date()
         mockDrizzleDb.enqueue([
             {
-                id: 'v1', student_id: 'student-1', violation_type: 'students_late', severity: 'minor',
-                reason: 'came late', reported_by: null, created_at: now,
-                profile_full_name: 'Alice', profile_student_id: 'MT23001', profile_email: 'alice@iiitd.ac.in',
-                profile_phone_number: '9876543210', profile_banned_until: null,
+                id: 'v1',
+                student_id: 'student-1',
+                violation_type: 'students_late',
+                severity: 'minor',
+                reason: 'came late',
+                reported_by: null,
+                created_at: now,
+                profile_full_name: 'Alice',
+                profile_student_id: 'MT23001',
+                profile_email: 'alice@iiitd.ac.in',
+                profile_phone_number: '9876543210',
+                profile_banned_until: null,
             },
             {
-                id: 'v2', student_id: 'student-1', violation_type: 'improper_gear', severity: 'minor',
-                reason: 'no shoes', reported_by: null, created_at: now,
-                profile_full_name: 'Alice', profile_student_id: 'MT23001', profile_email: 'alice@iiitd.ac.in',
-                profile_phone_number: '9876543210', profile_banned_until: null,
+                id: 'v2',
+                student_id: 'student-1',
+                violation_type: 'improper_gear',
+                severity: 'minor',
+                reason: 'no shoes',
+                reported_by: null,
+                created_at: now,
+                profile_full_name: 'Alice',
+                profile_student_id: 'MT23001',
+                profile_email: 'alice@iiitd.ac.in',
+                profile_phone_number: '9876543210',
+                profile_banned_until: null,
             },
         ])
 
@@ -78,10 +98,18 @@ describe('getDefaulterStudents', () => {
         const now = new Date()
         const bannedUntil = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
         const makeRow = (type: string) => ({
-            id: Math.random().toString(), student_id: 'student-1', violation_type: type,
-            severity: 'minor', reason: 'came late', reported_by: null, created_at: now,
-            profile_full_name: 'Bob', profile_student_id: 'MT23002', profile_email: 'bob@iiitd.ac.in',
-            profile_phone_number: null, profile_banned_until: bannedUntil,
+            id: Math.random().toString(),
+            student_id: 'student-1',
+            violation_type: type,
+            severity: 'minor',
+            reason: 'came late',
+            reported_by: null,
+            created_at: now,
+            profile_full_name: 'Bob',
+            profile_student_id: 'MT23002',
+            profile_email: 'bob@iiitd.ac.in',
+            profile_phone_number: null,
+            profile_banned_until: bannedUntil,
         })
 
         mockDrizzleDb.enqueue([
@@ -207,13 +235,15 @@ describe('priorityReserveSlot', () => {
     it('cancels conflicting student bookings and sends priority_reserve_cancelled notifications', async () => {
         enqueueAdminRole()
         // conflicting bookings select
-        mockDrizzleDb.enqueue([{
-            id: 'conflict-1',
-            user_id: 'student-1',
-            players_list: [{ id: 'student-2', status: 'confirmed' }],
-            start_time: new Date(Date.now() + 25 * 60 * 60 * 1000),
-            courts: { name: 'Badminton Court A', sport: 'badminton' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                id: 'conflict-1',
+                user_id: 'student-1',
+                players_list: [{ id: 'student-2', status: 'confirmed' }],
+                start_time: new Date(Date.now() + 25 * 60 * 60 * 1000),
+                courts: { name: 'Badminton Court A', sport: 'badminton' },
+            },
+        ])
         mockDrizzleDb.enqueueEmpty() // update booking (cancel conflict-1)
         // sendNotifications is mocked — no DB call
         // insert priority booking
@@ -223,8 +253,14 @@ describe('priorityReserveSlot', () => {
 
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
             expect.arrayContaining([
-                expect.objectContaining({ type: 'priority_reserve_cancelled', recipientId: 'student-1' }),
-                expect.objectContaining({ type: 'priority_reserve_cancelled', recipientId: 'student-2' }),
+                expect.objectContaining({
+                    type: 'priority_reserve_cancelled',
+                    recipientId: 'student-1',
+                }),
+                expect.objectContaining({
+                    type: 'priority_reserve_cancelled',
+                    recipientId: 'student-2',
+                }),
             ])
         )
     })
@@ -251,16 +287,18 @@ describe('priorityReserveSlot', () => {
 
     it('does NOT notify pending-status players in conflicting booking', async () => {
         enqueueAdminRole()
-        mockDrizzleDb.enqueue([{
-            id: 'conflict-2',
-            user_id: 'student-1',
-            players_list: [
-                { id: 'student-2', status: 'confirmed' },
-                { id: 'student-3', status: 'pending' },
-            ],
-            start_time: new Date(Date.now() + 25 * 60 * 60 * 1000),
-            courts: { name: 'Ct', sport: 'badminton' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                id: 'conflict-2',
+                user_id: 'student-1',
+                players_list: [
+                    { id: 'student-2', status: 'confirmed' },
+                    { id: 'student-3', status: 'pending' },
+                ],
+                start_time: new Date(Date.now() + 25 * 60 * 60 * 1000),
+                courts: { name: 'Ct', sport: 'badminton' },
+            },
+        ])
         mockDrizzleDb.enqueueEmpty() // cancel conflict
         mockDrizzleDb.enqueue([{ id: 'priority-3' }])
 
@@ -304,14 +342,16 @@ describe('forceCancelBooking', () => {
 
     it('cancels booking and sends force_cancelled notification to all players', async () => {
         enqueueAdminRole()
-        mockDrizzleDb.enqueue([{
-            user_id: 'student-1',
-            players_list: [{ id: 'student-2', status: 'confirmed' }],
-            start_time: new Date(Date.now() + 3600000),
-            is_priority: false,
-            is_maintenance: false,
-            courts: { name: 'Badminton Court A' },
-        }]) // select booking
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'student-1',
+                players_list: [{ id: 'student-2', status: 'confirmed' }],
+                start_time: new Date(Date.now() + 3600000),
+                is_priority: false,
+                is_maintenance: false,
+                courts: { name: 'Badminton Court A' },
+            },
+        ]) // select booking
         mockDrizzleDb.enqueue([{ id: 'b-1', status: 'cancelled' }]) // update returning
 
         const result = await forceCancelBooking('b-1')
@@ -326,14 +366,16 @@ describe('forceCancelBooking', () => {
 
     it('does not send notifications for priority bookings', async () => {
         enqueueAdminRole()
-        mockDrizzleDb.enqueue([{
-            user_id: 'admin-1',
-            players_list: [],
-            start_time: new Date(),
-            is_priority: true,
-            is_maintenance: false,
-            courts: { name: 'Ct' },
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 'admin-1',
+                players_list: [],
+                start_time: new Date(),
+                is_priority: true,
+                is_maintenance: false,
+                courts: { name: 'Ct' },
+            },
+        ])
         mockDrizzleDb.enqueue([{ id: 'b-p', status: 'cancelled' }])
 
         await forceCancelBooking('b-p')
@@ -342,10 +384,16 @@ describe('forceCancelBooking', () => {
 
     it('throws when booking update returns empty', async () => {
         enqueueAdminRole()
-        mockDrizzleDb.enqueue([{
-            user_id: 's-1', players_list: [], start_time: new Date(),
-            is_priority: false, is_maintenance: false, courts: null,
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                user_id: 's-1',
+                players_list: [],
+                start_time: new Date(),
+                is_priority: false,
+                is_maintenance: false,
+                courts: null,
+            },
+        ])
         mockDrizzleDb.enqueue([]) // update returning → empty → throws
 
         await expect(forceCancelBooking('nonexistent')).rejects.toThrow('Failed to cancel booking')
@@ -390,7 +438,9 @@ describe('verifyAdmin — role rejection', () => {
     it('rejects student token when calling priorityReserveSlot', async () => {
         enqueueForbiddenRole('student')
         const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        await expect(priorityReserveSlot('court-1', futureDate, '10:00', '11:00')).rejects.toThrow('Forbidden')
+        await expect(priorityReserveSlot('court-1', futureDate, '10:00', '11:00')).rejects.toThrow(
+            'Forbidden'
+        )
     })
 
     it('rejects when getCurrentUser returns null', async () => {

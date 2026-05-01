@@ -283,7 +283,11 @@ export function EquipmentForm({ mode, equipment, sport, children }: EquipmentFor
                                             required
                                             step="0.01"
                                             min="0"
-                                            defaultValue={equipment?.cost != null ? String(equipment.cost) : undefined}
+                                            defaultValue={
+                                                equipment?.cost != null
+                                                    ? String(equipment.cost)
+                                                    : undefined
+                                            }
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40] text-gray-900 font-medium"
                                             placeholder="0.00"
                                         />

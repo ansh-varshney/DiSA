@@ -6,15 +6,15 @@ Next.js 16 application for the DiSA sports court management system. See the [roo
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 16 (App Router, React Server Components) |
-| Language | TypeScript |
-| Styling | Tailwind CSS v4 + shadcn/ui |
-| Database | PostgreSQL via Drizzle ORM + `postgres` driver |
-| Auth | Auth.js v5 (NextAuth) — Google OAuth + Credentials stub |
-| Storage | Local disk (`public/uploads/`) served statically |
-| Testing | Vitest + React Testing Library |
+| Layer     | Technology                                              |
+| --------- | ------------------------------------------------------- |
+| Framework | Next.js 16 (App Router, React Server Components)        |
+| Language  | TypeScript                                              |
+| Styling   | Tailwind CSS v4 + shadcn/ui                             |
+| Database  | PostgreSQL via Drizzle ORM + `postgres` driver          |
+| Auth      | Auth.js v5 (NextAuth) — Google OAuth + Credentials stub |
+| Storage   | Local disk (`public/uploads/`) served statically        |
+| Testing   | Vitest + React Testing Library                          |
 
 ---
 
@@ -70,11 +70,11 @@ web/
 
 ## User Roles
 
-| Role | Login | Portal |
-|---|---|---|
-| **Student** | Google OAuth (`@iiitd.ac.in`) | `/student` |
-| **Manager** | Credentials (manual DB entry) | `/manager` |
-| **Admin / Superuser** | Credentials (manual DB entry) | `/admin` |
+| Role                  | Login                         | Portal     |
+| --------------------- | ----------------------------- | ---------- |
+| **Student**           | Google OAuth (`@iiitd.ac.in`) | `/student` |
+| **Manager**           | Credentials (manual DB entry) | `/manager` |
+| **Admin / Superuser** | Credentials (manual DB entry) | `/admin`   |
 
 Role is stored in `profiles.role`. Middleware redirects users to their correct portal on every request.
 
@@ -148,19 +148,20 @@ npm run test:ui       # Vitest UI
 
 Test files live in `src/__tests__/`:
 
-| Directory | Contents |
-|---|---|
-| `actions/` | Unit tests for all server actions |
-| `components/` | Component tests (notification popup, play requests) |
-| `integration/` | Booking flow end-to-end |
-| `concurrency/` | Concurrent operation stress tests |
-| `lib/` | Utility tests (upload validation, sport config) |
+| Directory      | Contents                                            |
+| -------------- | --------------------------------------------------- |
+| `actions/`     | Unit tests for all server actions                   |
+| `components/`  | Component tests (notification popup, play requests) |
+| `integration/` | Booking flow end-to-end                             |
+| `concurrency/` | Concurrent operation stress tests                   |
+| `lib/`         | Utility tests (upload validation, sport config)     |
 
 ---
 
 ## Key Features
 
 ### Student Portal
+
 - Book courts (30/60/90-min slots, 06:00–22:00)
 - Invite players via play requests (accept/decline toast)
 - My Reservations — upcoming, active session with emergency alert, past
@@ -169,6 +170,7 @@ Test files live in `src/__tests__/`:
 - Notification feed polled every 8 seconds
 
 ### Manager Portal
+
 - Approval dashboard (next 24 h window)
 - Approve → `active`; Reject with reason → violation + point deduction
 - Equipment condition tracking per item during session end
@@ -176,6 +178,7 @@ Test files live in `src/__tests__/`:
 - 10-minute lazy expiry for unapproved bookings
 
 ### Admin Portal
+
 - Equipment & court CRUD with image upload
 - Reservations calendar with force-cancel and maintenance blocks
 - Defaulter students — view violations, clear (wipes violations + lifts ban)
@@ -188,20 +191,20 @@ Test files live in `src/__tests__/`:
 
 ## Points & Ban System
 
-| Event | Δ Points |
-|---|---|
-| Session completed (all good) | +10 |
-| Session completed (no equipment) | +8 |
-| Session completed (minor damage) | +7 |
-| Session completed (equipment damaged) | 0 |
-| Late cancellation (< 3 hrs) | −3 |
-| Booking timeout | −8 |
-| Rejection: students late | −6 |
-| Rejection: improper gear | −4 |
-| Rejection: inappropriate behaviour | −8 |
-| Post-session: late end | −4 |
-| Post-session: vandalism | −15 |
-| Equipment lost | −20 |
+| Event                                 | Δ Points |
+| ------------------------------------- | -------- |
+| Session completed (all good)          | +10      |
+| Session completed (no equipment)      | +8       |
+| Session completed (minor damage)      | +7       |
+| Session completed (equipment damaged) | 0        |
+| Late cancellation (< 3 hrs)           | −3       |
+| Booking timeout                       | −8       |
+| Rejection: students late              | −6       |
+| Rejection: improper gear              | −4       |
+| Rejection: inappropriate behaviour    | −8       |
+| Post-session: late end                | −4       |
+| Post-session: vandalism               | −15      |
+| Equipment lost                        | −20      |
 
 **Monthly reset**: triggered on first leaderboard visit of the month. Top 5 get `priority_booking_remaining = 1`.  
 **14-day ban**: after 3 `students_late` violations.  

@@ -27,8 +27,24 @@ describe('getFinancialsData', () => {
 
     it('returns all vendors and aggregated totals', async () => {
         const equipment = [
-            { name: 'Racket', sport: 'badminton', cost: '500', condition: 'good', vendor_name: 'Yonex', total_usage_count: 10, expected_lifespan_days: null },
-            { name: 'Net', sport: 'badminton', cost: '300', condition: 'good', vendor_name: 'Victor', total_usage_count: 5, expected_lifespan_days: null },
+            {
+                name: 'Racket',
+                sport: 'badminton',
+                cost: '500',
+                condition: 'good',
+                vendor_name: 'Yonex',
+                total_usage_count: 10,
+                expected_lifespan_days: null,
+            },
+            {
+                name: 'Net',
+                sport: 'badminton',
+                cost: '300',
+                condition: 'good',
+                vendor_name: 'Victor',
+                total_usage_count: 5,
+                expected_lifespan_days: null,
+            },
         ]
         mockDrizzleDb.enqueue(equipment.map((e) => ({ vendor_name: e.vendor_name }))) // all vendors select
         mockDrizzleDb.enqueue(equipment) // equipment select (filtered)
@@ -43,9 +59,33 @@ describe('getFinancialsData', () => {
 
     it('calculates avgLifespanSessions from damaged/lost items only', async () => {
         const equipment = [
-            { name: 'R1', sport: 'tennis', cost: '100', condition: 'damaged', vendor_name: null, total_usage_count: 20, expected_lifespan_days: null },
-            { name: 'R2', sport: 'tennis', cost: '100', condition: 'lost', vendor_name: null, total_usage_count: 40, expected_lifespan_days: null },
-            { name: 'R3', sport: 'tennis', cost: '100', condition: 'good', vendor_name: null, total_usage_count: 5, expected_lifespan_days: null },
+            {
+                name: 'R1',
+                sport: 'tennis',
+                cost: '100',
+                condition: 'damaged',
+                vendor_name: null,
+                total_usage_count: 20,
+                expected_lifespan_days: null,
+            },
+            {
+                name: 'R2',
+                sport: 'tennis',
+                cost: '100',
+                condition: 'lost',
+                vendor_name: null,
+                total_usage_count: 40,
+                expected_lifespan_days: null,
+            },
+            {
+                name: 'R3',
+                sport: 'tennis',
+                cost: '100',
+                condition: 'good',
+                vendor_name: null,
+                total_usage_count: 5,
+                expected_lifespan_days: null,
+            },
         ]
         mockDrizzleDb.enqueue(equipment.map((e) => ({ vendor_name: e.vendor_name })))
         mockDrizzleDb.enqueue(equipment)
@@ -56,7 +96,15 @@ describe('getFinancialsData', () => {
 
     it('returns null avgLifespanSessions when no damaged/lost items', async () => {
         const equipment = [
-            { name: 'R1', sport: 'tennis', cost: '100', condition: 'good', vendor_name: null, total_usage_count: 10, expected_lifespan_days: null },
+            {
+                name: 'R1',
+                sport: 'tennis',
+                cost: '100',
+                condition: 'good',
+                vendor_name: null,
+                total_usage_count: 10,
+                expected_lifespan_days: null,
+            },
         ]
         mockDrizzleDb.enqueue(equipment.map((e) => ({ vendor_name: e.vendor_name })))
         mockDrizzleDb.enqueue(equipment)
@@ -76,7 +124,15 @@ describe('getFinancialsData', () => {
     it('filters by vendor when vendor param provided', async () => {
         const allVendors = [{ vendor_name: 'Yonex' }, { vendor_name: 'Wilson' }]
         const filtered = [
-            { name: 'R1', sport: 'badminton', cost: '100', condition: 'good', vendor_name: 'Yonex', total_usage_count: 0, expected_lifespan_days: null },
+            {
+                name: 'R1',
+                sport: 'badminton',
+                cost: '100',
+                condition: 'good',
+                vendor_name: 'Yonex',
+                total_usage_count: 0,
+                expected_lifespan_days: null,
+            },
         ]
         mockDrizzleDb.enqueue(allVendors)
         mockDrizzleDb.enqueue(filtered)
@@ -315,9 +371,18 @@ describe('getAdminLeaderboard', () => {
 
     it('returns ranked profiles ordered by points when no date range', async () => {
         // execute reset_monthly_points → no reset (reset_count=0)
-        mockDrizzleDb.execute = vi.fn().mockResolvedValue([{ result: { reset_count: 0, top5_ids: [] } }])
+        mockDrizzleDb.execute = vi
+            .fn()
+            .mockResolvedValue([{ result: { reset_count: 0, top5_ids: [] } }])
         mockDrizzleDb.enqueue([
-            { id: 'u1', full_name: 'Alice', branch: 'CSE', year: '2', gender: 'Female', points: 100 },
+            {
+                id: 'u1',
+                full_name: 'Alice',
+                branch: 'CSE',
+                year: '2',
+                gender: 'Female',
+                points: 100,
+            },
             { id: 'u2', full_name: 'Bob', branch: 'ECE', year: '3', gender: 'Male', points: 80 },
         ])
 
@@ -329,9 +394,11 @@ describe('getAdminLeaderboard', () => {
 
     it('sends notifications when monthly reset resets scores', async () => {
         const { sendNotifications } = await import('@/actions/notifications')
-        mockDrizzleDb.execute = vi.fn().mockResolvedValue([
-            { result: { reset_count: 5, top5_ids: ['u1', 'u2', 'u3', 'u4', 'u5'] } },
-        ])
+        mockDrizzleDb.execute = vi
+            .fn()
+            .mockResolvedValue([
+                { result: { reset_count: 5, top5_ids: ['u1', 'u2', 'u3', 'u4', 'u5'] } },
+            ])
         // sendNotifications for top5 (mocked via module mock)
         mockDrizzleDb.enqueue([
             { id: 'u1', full_name: 'Alice', branch: 'CSE', year: '2', gender: 'Female', points: 0 },
@@ -339,16 +406,21 @@ describe('getAdminLeaderboard', () => {
 
         await getAdminLeaderboard()
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
-            expect.arrayContaining([
-                expect.objectContaining({ type: 'priority_booking_awarded' }),
-            ])
+            expect.arrayContaining([expect.objectContaining({ type: 'priority_booking_awarded' })])
         )
     })
 
     it('returns ranked by sessions when date range provided', async () => {
         mockDrizzleDb.enqueue([{ user_id: 'u1' }, { user_id: 'u1' }, { user_id: 'u2' }])
         mockDrizzleDb.enqueue([
-            { id: 'u1', full_name: 'Alice', branch: 'CSE', year: '2', gender: 'Female', points: 100 },
+            {
+                id: 'u1',
+                full_name: 'Alice',
+                branch: 'CSE',
+                year: '2',
+                gender: 'Female',
+                points: 100,
+            },
             { id: 'u2', full_name: 'Bob', branch: 'ECE', year: '3', gender: 'Male', points: 80 },
         ])
 

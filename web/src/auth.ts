@@ -64,7 +64,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         : (['manager', 'admin', 'superuser'] as const)
 
                 const [profile] = await db
-                    .select({ id: profiles.id, email: profiles.email, full_name: profiles.full_name })
+                    .select({
+                        id: profiles.id,
+                        email: profiles.email,
+                        full_name: profiles.full_name,
+                    })
                     .from(profiles)
                     .where(
                         and(

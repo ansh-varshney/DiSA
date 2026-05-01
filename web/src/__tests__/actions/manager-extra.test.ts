@@ -106,7 +106,10 @@ describe('getBookingDetails — equipment and players', () => {
             start_time: new Date(Date.now() + 3_600_000),
             end_time: new Date(Date.now() + 7_200_000),
             status: 'confirmed',
-            players_list: [{ id: 's-2', status: 'confirmed' }, { id: 's-3', status: 'confirmed' }],
+            players_list: [
+                { id: 's-2', status: 'confirmed' },
+                { id: 's-3', status: 'confirmed' },
+            ],
             equipment_ids: [],
             is_maintenance: false,
             is_priority: false,
@@ -208,12 +211,14 @@ describe('emergencyEndSession', () => {
         // getBookingStudentIds → select student profiles (filters role=student)
         mockDrizzleDb.enqueue([{ id: 's-1' }])
         // getBookingForNotif → select booking with court
-        mockDrizzleDb.enqueue([{
-            id: 'b-1',
-            user_id: 's-1',
-            courts: { name: 'Badminton A', sport: 'badminton' },
-            players_list: [],
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                id: 'b-1',
+                user_id: 's-1',
+                courts: { name: 'Badminton A', sport: 'badminton' },
+                players_list: [],
+            },
+        ])
 
         const result = await emergencyEndSession('b-1', 'Safety hazard')
 
@@ -248,12 +253,14 @@ describe('reportLostEquipment — future booking cleanup', () => {
         // update equipment is_available=false, condition=lost
         mockDrizzleDb.enqueueEmpty()
         // futureBookings: one booking that uses eq-lost
-        mockDrizzleDb.enqueue([{
-            id: 'b-future',
-            user_id: 's-2',
-            equipment_ids: ['eq-lost', 'eq-other'],
-            start_time: new Date(Date.now() + 86_400_000),
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                id: 'b-future',
+                user_id: 's-2',
+                equipment_ids: ['eq-lost', 'eq-other'],
+                start_time: new Date(Date.now() + 86_400_000),
+            },
+        ])
         // update impacted booking to remove eq-lost from equipment_ids
         mockDrizzleDb.enqueueEmpty()
         // playerIds.length > 0: insert violations
@@ -278,12 +285,14 @@ describe('reportLostEquipment — future booking cleanup', () => {
         // update equipment is_available=false, condition=lost
         mockDrizzleDb.enqueueEmpty()
         // futureBookings: none use the lost equipment (different equipment id)
-        mockDrizzleDb.enqueue([{
-            id: 'b-other',
-            user_id: 's-2',
-            equipment_ids: ['eq-unrelated'],
-            start_time: new Date(Date.now() + 86_400_000),
-        }])
+        mockDrizzleDb.enqueue([
+            {
+                id: 'b-other',
+                user_id: 's-2',
+                equipment_ids: ['eq-unrelated'],
+                start_time: new Date(Date.now() + 86_400_000),
+            },
+        ])
         // playerIds=[] → skip violation insert block entirely
 
         const result = await reportLostEquipment('b-1', ['eq-lost'], [])

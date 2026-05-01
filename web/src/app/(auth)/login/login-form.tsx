@@ -128,8 +128,7 @@ export function LoginForm() {
                         <input type="hidden" name="phone" value={phone} />
                         <input type="hidden" name="role" value={role} />
                         <p className="text-sm text-gray-500 text-center">
-                            OTP sent to{' '}
-                            <span className="font-medium text-gray-900">{phone}</span>
+                            OTP sent to <span className="font-medium text-gray-900">{phone}</span>
                         </p>
                         <Input
                             name="otp"
