@@ -57,7 +57,7 @@ export default async function StudentLeaderboardPage({
                         </p>
                     ) : (
                         <div className="divide-y divide-gray-100">
-                            {students.map((student) => {
+                            {students.map((student: any) => {
                                 const icon = rankIcon(student.rank)
                                 const isTopThree = student.rank <= 3
                                 return (

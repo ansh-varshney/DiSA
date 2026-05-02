@@ -122,7 +122,7 @@ export default async function EquipmentManagement({
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {equipment.map((item) => (
+                                        {equipment.map((item: any) => (
                                             <TableRow key={item.id}>
                                                 <TableCell>
                                                     <div>

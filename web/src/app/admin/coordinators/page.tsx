@@ -57,7 +57,7 @@ export default async function CoordinatorsManagement({
                         </CardContent>
                     </Card>
                 ) : (
-                    coordinators.map((coordinator) => (
+                    coordinators.map((coordinator: any) => (
                         <Card key={coordinator.id} className="hover:shadow-lg transition-shadow">
                             <CardHeader className="pb-3">
                                 <div className="flex justify-between items-start">

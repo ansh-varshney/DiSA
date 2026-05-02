@@ -68,14 +68,14 @@ export async function getAvailableEquipment(sport: string, startTime?: string, e
             .or(`and(start_time.lt.${endTime},end_time.gt.${startTime})`)
 
         if (overlappingBookings) {
-            overlappingBookings.forEach((b) => {
+            overlappingBookings.forEach((b: any) => {
                 ;(b.equipment_ids || []).forEach((id: string) => reservedIds.add(id))
             })
         }
     }
 
     // 3. Return equipment with in_use flag
-    return allEquipment.map((eq) => ({
+    return allEquipment.map((eq: any) => ({
         ...eq,
         in_use: reservedIds.has(eq.id) || !eq.is_available,
     }))
@@ -195,7 +195,7 @@ export async function createBooking(prevState: any, formData: FormData) {
             .in('id', playerIds)
 
         if (playerProfiles) {
-            const profileMap = Object.fromEntries(playerProfiles.map((p) => [p.id, p]))
+            const profileMap = Object.fromEntries(playerProfiles.map((p: any) => [p.id, p]))
             playersList = rawPlayersList.map((p) => ({
                 ...p,
                 branch: profileMap[p.id]?.branch ?? p.branch ?? null,

@@ -114,7 +114,7 @@ export default async function CourtsManagement({
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {courts.map((court) => (
+                                        {courts.map((court: any) => (
                                             <TableRow key={court.id}>
                                                 <TableCell>
                                                     <div>

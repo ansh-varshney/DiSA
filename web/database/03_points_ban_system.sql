@@ -1,5 +1,5 @@
 -- ============================================
--- DiSA Points & Ban System Migration
+-- CampusPlay Points & Ban System Migration
 -- Run this in Supabase SQL Editor AFTER
 -- 01_base_schema.sql and 02_admin_schema_extension.sql
 -- ============================================

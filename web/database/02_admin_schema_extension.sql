@@ -1,5 +1,5 @@
 -- ============================================
--- Admin Schema Extensions for DiSA
+-- Admin Schema Extensions for CampusPlay
 -- ============================================
 -- Run this in your Supabase SQL Editor after the main supa_schema.sql
 -- This extends the database with tables needed for admin workflows

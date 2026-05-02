@@ -1,6 +1,6 @@
 # Database Setup Guide
 
-This directory contains all SQL scripts needed to set up the DiSA Sports Court Management System database.
+This directory contains all SQL scripts needed to set up the CampusPlay Sports Court Management System database.
 
 ## Quick Start (Fresh Installation)
 

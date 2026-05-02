@@ -1,5 +1,5 @@
 -- ============================================
--- DiSA Notification & Play Request System
+-- CampusPlay Notification & Play Request System
 -- Run AFTER 03_points_ban_system.sql
 -- ============================================
 

@@ -137,7 +137,7 @@ export async function getCurrentBookings() {
     if (!bookings || bookings.length === 0) return []
 
     // 2. Extract all unique equipment IDs
-    const allEquipmentIds = Array.from(new Set(bookings.flatMap((b) => b.equipment_ids || [])))
+    const allEquipmentIds = Array.from(new Set(bookings.flatMap((b: any) => b.equipment_ids || [])))
 
     // 3. Fetch equipment details if any exist
     const equipmentMap = new Map()
@@ -148,12 +148,12 @@ export async function getCurrentBookings() {
             .in('id', allEquipmentIds)
 
         if (equipmentList) {
-            equipmentList.forEach((eq) => equipmentMap.set(eq.id, eq.name))
+            equipmentList.forEach((eq: any) => equipmentMap.set(eq.id, eq.name))
         }
     }
 
     // 4. Attach equipment names to bookings
-    return bookings.map((booking) => ({
+    return bookings.map((booking: any) => ({
         ...booking,
         equipment_names: (booking.equipment_ids || [])
             .map((id: string) => equipmentMap.get(id))
@@ -178,7 +178,7 @@ export async function getUnderMaintenanceCourts() {
 
     // Filter out active courts with empty string notes effectively
     const disabledCourts = data.filter(
-        (court) =>
+        (court: any) =>
             !court.is_active || (court.maintenance_notes && court.maintenance_notes.trim() !== '')
     )
 
@@ -437,7 +437,7 @@ export async function getBookingDetails(bookingId: string) {
             .in('id', additionalPlayerIds)
 
         if (extraPlayers) {
-            allPlayers.push(...extraPlayers.map((p) => ({ ...p, is_booker: false })))
+            allPlayers.push(...extraPlayers.map((p: any) => ({ ...p, is_booker: false })))
         }
     }
 

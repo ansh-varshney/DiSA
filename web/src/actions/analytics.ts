@@ -15,10 +15,10 @@ export async function getFinancialsData(vendor?: string) {
     const { data: allEquipment } = await supabase.from('equipment').select('vendor_name')
 
     const vendors: string[] = [
-        ...new Set(
+        ...new Set<string>(
             (allEquipment || [])
                 .map((e: { vendor_name: string | null }) => e.vendor_name)
-                .filter((v): v is string => Boolean(v))
+                .filter((v: string | null): v is string => Boolean(v))
         ),
     ]
 
@@ -51,12 +51,12 @@ export async function getFinancialsData(vendor?: string) {
 
     // Lifespan only for expired items (damaged/lost), using total_usage_count as actual sessions survived
     const expiredItems = equipment.filter(
-        (e) => e.condition === 'damaged' || e.condition === 'lost'
+        (e: any) => e.condition === 'damaged' || e.condition === 'lost'
     )
     const avgLifespanSessions: number | null =
         expiredItems.length > 0
             ? Math.round(
-                  expiredItems.reduce((sum, e) => sum + (e.total_usage_count || 0), 0) /
+                  expiredItems.reduce((sum: number, e: any) => sum + (e.total_usage_count || 0), 0) /
                       expiredItems.length
               )
             : null
@@ -441,9 +441,9 @@ export async function getAdminLeaderboard(startDate?: string, endDate?: string) 
         .in('id', Object.keys(sessionCount))
 
     return (profiles || [])
-        .map((p) => ({ ...p, sessions: sessionCount[p.id] || 0 }))
-        .sort((a, b) => b.sessions - a.sessions || b.points - a.points)
-        .map((s, i) => ({ ...s, rank: i + 1 }))
+        .map((p: any) => ({ ...p, sessions: sessionCount[p.id] || 0 }))
+        .sort((a: any, b: any) => b.sessions - a.sessions || b.points - a.points)
+        .map((s: any, i: number) => ({ ...s, rank: i + 1 }))
 }
 
 // Get unique branches from student profiles (for dropdown)
@@ -455,5 +455,5 @@ export async function getBranches(): Promise<string[]> {
         .eq('role', 'student')
         .not('branch', 'is', null)
 
-    return [...new Set((data || []).map((p: { branch: string }) => p.branch).filter(Boolean))]
+    return [...new Set<string>((data || []).map((p: { branch: string }) => p.branch).filter((b: string | null): b is string => Boolean(b)))]
 }

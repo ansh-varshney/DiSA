@@ -73,7 +73,7 @@ export default async function AnnouncementsManagement() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {announcements.map((announcement) => (
+                                {announcements.map((announcement: any) => (
                                     <TableRow key={announcement.id}>
                                         <TableCell className="font-semibold text-gray-900">
                                             {announcement.title}

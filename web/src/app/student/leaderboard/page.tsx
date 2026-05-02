@@ -49,8 +49,8 @@ export default async function LeaderboardPage() {
         .eq('role', 'student')
         .order('points', { ascending: false })
 
-    const userRank = allStudents?.findIndex((s) => s.id === user.id) ?? -1
-    const userProfile = allStudents?.find((s) => s.id === user.id)
+    const userRank = allStudents?.findIndex((s: any) => s.id === user.id) ?? -1
+    const userProfile = allStudents?.find((s: any) => s.id === user.id)
 
     const medalIcons = ['🥇', '🥈', '🥉']
 

@@ -1,5 +1,5 @@
 -- ============================================
--- DiSA Priority Booking & RPC Updates
+-- CampusPlay Priority Booking & RPC Updates
 -- Run AFTER 03_points_ban_system.sql
 -- ============================================
 

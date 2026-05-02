@@ -1,5 +1,5 @@
 -- ============================================
--- DiSA Sports Court Management System
+-- CampusPlay Sports Court Management System
 -- Base Database Schema
 -- ============================================
 -- This script creates the core database structure including:

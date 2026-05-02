@@ -111,7 +111,7 @@ export default async function FeedbackManagement({
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {feedback.map((item) => {
+                                {feedback.map((item: any) => {
                                     const cat =
                                         CATEGORY_LABELS[item.category || 'general'] ||
                                         CATEGORY_LABELS.general
