@@ -23,5 +23,12 @@
         }
     },
     "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "**/*.mts"],
-    "exclude": ["node_modules", "vitest.setup.ts", "vitest.config.ts", "src/__tests__", ".next/dev", "supabase_premigration"]
+    "exclude": [
+        "node_modules",
+        "vitest.setup.ts",
+        "vitest.config.ts",
+        "src/__tests__",
+        ".next/dev",
+        "supabase_premigration"
+    ]
 }

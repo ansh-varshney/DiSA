@@ -22,7 +22,8 @@
       "Bash(Remove-Item \"c:\\\\Users\\\\Ansh Varshney\\\\Desktop\\\\IIITD\\\\Semester 8\\\\DiSA\\\\.claude\\\\agents\\\\disa-session-assessor.md\" -Force)",
       "Bash(Remove-Item \"c:\\\\Users\\\\Ansh Varshney\\\\Desktop\\\\IIITD\\\\Semester 8\\\\DiSA\\\\.claude\\\\agents\\\\disa-manager-assessor.md\" -Force)",
       "Bash(Remove-Item \"c:\\\\Users\\\\Ansh Varshney\\\\Desktop\\\\IIITD\\\\Semester 8\\\\DiSA\\\\.claude\\\\agents\\\\disa-points-assessor.md\" -Force)",
-      "Bash(Remove-Item \"c:\\\\Users\\\\Ansh Varshney\\\\Desktop\\\\IIITD\\\\Semester 8\\\\DiSA\\\\.claude\\\\agents\\\\disa-notifications-assessor.md\" -Force)"
+      "Bash(Remove-Item \"c:\\\\Users\\\\Ansh Varshney\\\\Desktop\\\\IIITD\\\\Semester 8\\\\DiSA\\\\.claude\\\\agents\\\\disa-notifications-assessor.md\" -Force)",
+      "Bash(npx prettier *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Ansh Varshney\\Desktop\\IIITD\\Semester 8\\DiSA\\.claude\\agents"
