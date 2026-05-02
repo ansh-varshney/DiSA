@@ -60,8 +60,10 @@ export async function getFinancialsData(vendor?: string) {
     const avgLifespanSessions: number | null =
         expiredItems.length > 0
             ? Math.round(
-                  expiredItems.reduce((sum: number, e: any) => sum + (e.total_usage_count || 0), 0) /
-                      expiredItems.length
+                  expiredItems.reduce(
+                      (sum: number, e: any) => sum + (e.total_usage_count || 0),
+                      0
+                  ) / expiredItems.length
               )
             : null
 
@@ -448,5 +450,11 @@ export async function getBranches(): Promise<string[]> {
         .from(profiles)
         .where(and(eq(profiles.role, 'student'), sql`${profiles.branch} is not null`))
 
-    return [...new Set<string>((rows || []).map((p: { branch: string | null }) => p.branch).filter((b: string | null): b is string => Boolean(b)))]
+    return [
+        ...new Set<string>(
+            (rows || [])
+                .map((p: { branch: string | null }) => p.branch)
+                .filter((b: string | null): b is string => Boolean(b))
+        ),
+    ]
 }

@@ -175,7 +175,9 @@ export default function BookingUI({
         const timer = setTimeout(async () => {
             setSearchingPlayers(true)
             const results = await searchStudents(playerSearch)
-            setSearchResults(results.filter((r: any) => !selectedPlayers.some((p) => p.id === r.id)))
+            setSearchResults(
+                results.filter((r: any) => !selectedPlayers.some((p) => p.id === r.id))
+            )
             setSearchingPlayers(false)
         }, 300)
         return () => clearTimeout(timer)
