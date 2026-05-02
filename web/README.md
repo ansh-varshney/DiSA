@@ -143,14 +143,14 @@ Migrations live in `drizzle/`. Schema is defined in `src/db/schema.ts`.
 
 GitHub Actions (`/.github/workflows/ci.yml`) runs on every push / PR to `main`:
 
-| Step | Command | Notes |
-| ---- | ------- | ----- |
-| Format | `npm run format:check` | Prettier |
-| Lint | `npm run lint` | ESLint — rules are `warn`, not `error` |
-| Type-check app | `npm run type-check` | Excludes tests |
-| Type-check tests | `npm run type-check:test` | Covers `src/__tests__/**` |
-| Tests + coverage | `npm run test:coverage` | Thresholds: lines/functions ≥ 70 %, branches ≥ 60 % |
-| Build | `npm run build` | After quality + test jobs pass |
+| Step             | Command                   | Notes                                               |
+| ---------------- | ------------------------- | --------------------------------------------------- |
+| Format           | `npm run format:check`    | Prettier                                            |
+| Lint             | `npm run lint`            | ESLint — rules are `warn`, not `error`              |
+| Type-check app   | `npm run type-check`      | Excludes tests                                      |
+| Type-check tests | `npm run type-check:test` | Covers `src/__tests__/**`                           |
+| Tests + coverage | `npm run test:coverage`   | Thresholds: lines/functions ≥ 70 %, branches ≥ 60 % |
+| Build            | `npm run build`           | After quality + test jobs pass                      |
 
 No real DB or credentials are needed — the test suite mocks the Drizzle connection and Auth.js session entirely.
 

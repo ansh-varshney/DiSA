@@ -26,7 +26,8 @@
       "PowerShell(psql -h localhost -U postgres -c \"\\\\l\" 2>&1)",
       "Bash(npm uninstall *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(npx prettier *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Ansh Varshney\\Desktop\\IIITD\\Semester 8\\DiSA\\web\\src",
