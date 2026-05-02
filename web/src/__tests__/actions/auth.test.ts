@@ -1,45 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { makeMockDb } from '../mocks/supabase'
 
-vi.mock('@/utils/supabase/server')
+// Mock @/auth so next-auth is never imported in the test environment
+vi.mock('@/auth', () => ({
+    signOut: vi.fn().mockResolvedValue(undefined),
+    signIn: vi.fn().mockResolvedValue(undefined),
+    auth: vi.fn().mockResolvedValue(null),
+    handlers: { GET: vi.fn(), POST: vi.fn() },
+}))
 
-import { createClient } from '@/utils/supabase/server'
-import { redirect } from 'next/navigation'
-import { revalidatePath } from 'next/cache'
-
+import { signOut as nextAuthSignOut } from '@/auth'
 import { signOut } from '@/actions/auth'
 
-describe('signOut', () => {
+describe('signOut action', () => {
     beforeEach(() => vi.clearAllMocks())
 
-    it('calls supabase.auth.signOut', async () => {
-        const db = makeMockDb()
-        const signOutMock = vi.fn().mockResolvedValue({ error: null })
-        ;(db.client as any).auth.signOut = signOutMock
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
+    it('delegates to NextAuth signOut with /login redirect', async () => {
         await signOut()
-
-        expect(signOutMock).toHaveBeenCalledOnce()
-    })
-
-    it('calls revalidatePath with layout scope', async () => {
-        const db = makeMockDb()
-        ;(db.client as any).auth.signOut = vi.fn().mockResolvedValue({ error: null })
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
-        await signOut()
-
-        expect(revalidatePath).toHaveBeenCalledWith('/', 'layout')
-    })
-
-    it('calls redirect to /login', async () => {
-        const db = makeMockDb()
-        ;(db.client as any).auth.signOut = vi.fn().mockResolvedValue({ error: null })
-        vi.mocked(createClient).mockResolvedValue(db.client as any)
-
-        await signOut()
-
-        expect(redirect).toHaveBeenCalledWith('/login')
+        expect(nextAuthSignOut).toHaveBeenCalledWith({ redirectTo: '/login' })
     })
 })

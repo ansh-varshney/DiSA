@@ -42,15 +42,15 @@ interface Equipment {
 }
 interface BookingDetails {
     id: string
-    status: string
-    start_time: string
-    end_time: string
-    num_players: number
-    equipment_ids?: string[]
-    is_priority?: boolean
-    is_maintenance?: boolean
-    courts: { name: string; sport: string }
-    profiles: { id: string; full_name: string; role?: string }
+    status: string | null
+    start_time: Date | string
+    end_time: Date | string
+    num_players: number | null
+    equipment_ids?: string[] | null
+    is_priority?: boolean | null
+    is_maintenance?: boolean | null
+    courts: { name: string; sport: string } | null
+    profiles: { id: string; full_name: string | null; role?: string | null } | null
     equipment: Equipment[]
     all_players: Player[]
 }
@@ -121,8 +121,8 @@ function ActiveSessionScreen({
                 <p className="text-xs uppercase tracking-widest text-teal-300 mb-1">
                     Active Session
                 </p>
-                <h1 className="text-xl font-bold">{booking.courts.name}</h1>
-                <p className="text-sm text-teal-200 mt-0.5">{booking.courts.sport}</p>
+                <h1 className="text-xl font-bold">{booking.courts?.name}</h1>
+                <p className="text-sm text-teal-200 mt-0.5">{booking.courts?.sport}</p>
             </div>
 
             {/* Timer Circle */}
@@ -335,8 +335,8 @@ function PostSessionScreen({ booking }: { booking: BookingDetails }) {
                 <p className="text-xs uppercase tracking-widest text-teal-300 mb-1">
                     Session Ended
                 </p>
-                <h1 className="text-xl font-bold">{booking.courts.name}</h1>
-                <p className="text-sm text-teal-200">{booking.courts.sport}</p>
+                <h1 className="text-xl font-bold">{booking.courts?.name}</h1>
+                <p className="text-sm text-teal-200">{booking.courts?.sport}</p>
             </div>
 
             {/* Session Info */}
@@ -613,7 +613,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
 
     const isUpcoming = secondsToStart > 0
     const isExpired =
-        !['active', 'completed', 'cancelled', 'rejected'].includes(booking.status) &&
+        !['active', 'completed', 'cancelled', 'rejected'].includes(booking.status ?? '') &&
         secondsToExpiration < 0
     const canAccept =
         secondsToStart <= 0 &&
@@ -693,7 +693,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
                     <p className="text-xs uppercase tracking-widest text-red-200 mb-1">
                         Auto Cancelled
                     </p>
-                    <h1 className="text-xl font-bold">{booking.courts.name}</h1>
+                    <h1 className="text-xl font-bold">{booking.courts?.name}</h1>
                 </div>
                 <div className="mx-4 mt-8 bg-white rounded-xl border border-red-100 p-6 text-center space-y-3">
                     <AlertTriangle className="w-10 h-10 text-red-500 mx-auto" />
@@ -723,7 +723,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
                     <p className="text-xs uppercase tracking-widest text-gray-300 mb-1">
                         {booking.status === 'cancelled' ? 'Cancelled' : 'Rejected'}
                     </p>
-                    <h1 className="text-xl font-bold">{booking.courts.name}</h1>
+                    <h1 className="text-xl font-bold">{booking.courts?.name}</h1>
                 </div>
                 <div className="mx-4 mt-8 bg-white rounded-xl border p-6 text-center space-y-3">
                     <p className="text-sm text-gray-600">This booking has been {booking.status}.</p>
@@ -748,8 +748,8 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
                 <p className="text-xs uppercase tracking-widest text-teal-300 mb-1">
                     Pending Approval
                 </p>
-                <h1 className="text-xl font-bold">{booking.courts.name}</h1>
-                <p className="text-sm text-teal-200">{booking.courts.sport}</p>
+                <h1 className="text-xl font-bold">{booking.courts?.name}</h1>
+                <p className="text-sm text-teal-200">{booking.courts?.sport}</p>
             </div>
 
             {/* Timer */}
@@ -824,7 +824,7 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
                 </div>
                 {isAdminBooking ? (
                     <div className="px-4 py-3">
-                        <p className="font-semibold text-gray-900">{booking.profiles.full_name}</p>
+                        <p className="font-semibold text-gray-900">{booking.profiles?.full_name}</p>
                         <p className="text-xs text-gray-500">Administrator</p>
                     </div>
                 ) : (
@@ -886,8 +886,8 @@ export function ManagerApprovalScreen({ booking }: { booking: BookingDetails }) 
 
             {/* Reject Modal */}
             {showRejectModal && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
-                    <div className="bg-white w-full rounded-t-2xl p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-md rounded-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto">
                         <h3 className="font-bold text-gray-900">Reject / Cancel Booking</h3>
                         <p className="text-sm text-gray-500">
                             Select a reason. A warning will be issued to all involved students.

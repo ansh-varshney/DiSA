@@ -2,41 +2,37 @@
 
 ---
 
-### WORKFLOW 1 — Student Authentication
+### WORKFLOW 1 — Authentication
 
-**1a. Email Sign-Up (new student)**
-- [ ] Navigate to `/login?role=student`, switch to Email tab, toggle to Sign Up
-- [ ] Fill in Full Name, Branch, Year, Gender, Email, Password → Submit
-- [ ] Account created, redirected to `/complete-profile` (if profile incomplete) or `/student`
-- [ ] Supabase `profiles` table has a new row with `role = student`
+**1a. Google OAuth (student — primary method)**
+- [ ] Navigate to `/login`, click "Continue with Google"
+- [ ] Google OAuth flow → only `@iiitd.ac.in` accounts are allowed through
+- [ ] Non-IIITD account → redirected to `/login?error=AccessDenied`
+- [ ] On first sign-in: `profiles` row upserted automatically with `role = student`
+- [ ] Redirected to `/complete-profile` if `branch`/`year`/`gender` are not set, otherwise to `/student`
 
-**1b. Email Sign-In (existing student)**
-- [ ] Sign in with email + password → lands on `/student`
-- [ ] Wrong password shows error message, does not redirect
+**1b. Credentials login (manager)**
+- [ ] Navigate to `/login`, enter manager email + password (account must be pre-provisioned in DB)
+- [ ] Correct credentials → lands on `/manager`
+- [ ] Wrong password → error shown, no redirect
 
-**1c. Google OAuth (student)**
-- [ ] Click Google button → Google OAuth flow → redirected back → lands on `/student`
-- [ ] Profile row exists in `profiles`
+**1c. Credentials login (admin)**
+- [ ] Navigate to `/login`, enter admin email + password (account must be pre-provisioned in DB)
+- [ ] Correct credentials → lands on `/admin`
 
-**1d. Phone + OTP (student)**
-- [ ] Switch to Phone tab, enter `+91` number → Send OTP → receive SMS
-- [ ] Enter 6-digit OTP → Verify → lands on `/student`
+**1d. Role redirect guard**
+- [ ] Student tries to access `/admin` or `/manager` → redirected to `/student`
+- [ ] Unauthenticated user accessing any protected route → redirected to `/login`
+- [ ] Already-authenticated user visiting `/login` → redirected to their portal
 
-**1e. Manager login**
-- [ ] Navigate to `/login?role=manager` → Email/Password → lands on `/manager`
-
-**1f. Admin login**
-- [ ] Navigate to `/login?role=admin` → Email/Password → lands on `/admin`
-
-**1g. Role redirect guard**
-- [ ] Student tries to access `/admin` → redirected away
-- [ ] Unauthenticated user accessing `/student/book` → redirected to login
+**1e. Sign out**
+- [ ] Click Sign Out in any portal → session cleared → redirected to `/login`
 
 ---
 
 ### WORKFLOW 2 — Profile Completion (First Login)
 
-- [ ] New Google/phone sign-in user redirected to `/complete-profile`
+- [ ] New Google sign-in user redirected to `/complete-profile`
 - [ ] Form has Branch, Year, Gender fields (required)
 - [ ] Submit → profile updated → redirected to `/student`
 - [ ] Revisiting `/complete-profile` after completion → redirected to `/student`
@@ -329,7 +325,6 @@
 - [ ] Create court: name, sport, type, capacity, condition, maintenance notes → save
 - [ ] Court appears in list with auto-generated ID
 - [ ] Edit court → update condition to "needs_maintenance" → save
-- [ ] Toggle court inactive → court no longer appears in student booking UI
 - [ ] Delete court → removed
 
 ---
@@ -381,7 +376,7 @@
 **22a. Real-time popup**
 - [ ] Trigger any action that sends a notification (e.g., booking created)
 - [ ] Bell icon in nav shows unread count badge
-- [ ] Toast popup appears (bottom-right) within 30 seconds
+- [ ] Toast popup appears (top-right) within 8 seconds (polling interval)
 - [ ] Clicking toast marks it read and removes it
 - [ ] Dismiss (X) removes toast
 
@@ -404,43 +399,34 @@
 
 ---
 
-### WORKFLOW 23 — Maintenance Flashcard
+### WORKFLOW 23 — Analytics Dashboards (Admin)
 
-- [ ] Admin creates a maintenance booking for a court today (via reservations page)
-- [ ] Student home page (`/student`) shows a maintenance flashcard for that court
-- [ ] Manager home page shows the maintenance flashcard
-- [ ] After the maintenance slot end time, flashcard disappears
-
----
-
-### WORKFLOW 24 — Analytics Dashboards (Admin)
-
-**24a. Financials**
+**23a. Financials**
 - [ ] Go to `/admin/analytics/financials`
 - [ ] Vendor filter dropdown shows all unique vendors
 - [ ] Metrics: total equipment count, avg lifespan sessions (for damaged/lost), total cost
 - [ ] Cost-by-sport bar chart renders (bars scaled to max)
 - [ ] Filter by specific vendor → data changes
 
-**24b. Student Welfare Hub**
+**23b. Student Welfare Hub**
 - [ ] Go to `/admin/analytics/student-welfare`
 - [ ] Current month successful bookings count shown
 - [ ] Links to Participation Stats, Branch Profile, Student Leaderboard all work
 
-**24c. Participation Stats**
+**23c. Participation Stats**
 - [ ] Select time period + parameter (Branch/Year/Sport)
 - [ ] Bar chart renders with participation counts
 - [ ] Gender split shown (male % / female %)
 
-**24d. Branch Profile Drill-Down**
+**23d. Branch Profile Drill-Down**
 - [ ] Select branch + parameter + time period
 - [ ] Dual bars (male vs female) render for successful sessions
 
-**24e. Student Leaderboard (admin)**
+**23e. Student Leaderboard (admin)**
 - [ ] Duration filter (current month / last 3 months / all time)
 - [ ] Full ranked list of all students
 
-**24f. Team Performance**
+**23f. Team Performance**
 - [ ] Go to `/admin/analytics/team-performance`
 - [ ] Select sport → stats render (practice sessions, tournaments, wins, losses, trophies)
 - [ ] Monthly practice chart renders (last 12 months)
@@ -448,7 +434,7 @@
 
 ---
 
-### WORKFLOW 25 — Student Profile Edit
+### WORKFLOW 24 — Student Profile Edit
 
 - [ ] Go to `/student/profile`
 - [ ] Click Edit Profile → form opens with current values
@@ -459,32 +445,32 @@
 
 ---
 
-### WORKFLOW 26 — Concurrency & Race Conditions
+### WORKFLOW 25 — Concurrency & Race Conditions
 
 > **Setup note**: All sub-tests below require two separate browser sessions (e.g., two incognito windows or two different browsers) logged in as two different students (Student A and Student B), unless stated otherwise.
 
-**26a. Same court slot — simultaneous booking (slot race)**
+**25a. Same court slot — simultaneous booking (slot race)**
 - [ ] Student A and Student B both open `/student/book`, select the same court, same date, same time slot
 - [ ] Both open the booking dialog at the same time and click Confirm within seconds of each other
 - [ ] Exactly **one** booking succeeds (status `confirmed`)
 - [ ] The other student receives the error "Time slot is already booked"
 - [ ] The slot in the calendar grid shows as booked (only one booking in the DB for that court + time)
 
-**26b. Same equipment — simultaneous booking (equipment lock race)**
+**25b. Same equipment — simultaneous booking (equipment conflict detection)**
 - [ ] Student A and Student B both open booking dialogs for different courts but select the **same equipment item** at the same overlapping time slot
 - [ ] Both click Confirm at the same time
 - [ ] Exactly **one** booking succeeds with that equipment assigned
-- [ ] The other student receives the error "One or more equipment items are no longer available. Please refresh and try again."
-- [ ] `equipment.is_available` in the DB is `false` (locked by the winner)
-- [ ] No booking is left in a broken state (partial insert cleaned up)
+- [ ] The other student receives the error "One or more equipment items are no longer available for this time slot. Please refresh and try again."
+- [ ] The winning booking's `equipment_ids` array contains the equipment; the losing request returns an error before any insert
+- [ ] No booking is left in a broken state (conflict is detected via SELECT before insert, no partial state)
 
-**26c. Double-tap "End Session" (idempotency)**
+**25c. Double-tap "End Session" (idempotency)**
 - [ ] Manager has an active session open; clicks "End Session" twice rapidly (or opens the booking in two tabs and clicks in both)
 - [ ] Booking status transitions to `completed` exactly once
 - [ ] Points are awarded to each student exactly once (check `profiles.points` before and after — no double credit)
 - [ ] Equipment `total_usage_count` incremented by exactly 1 per item (not 2)
 
-**26d. Accept play request after booking is already cancelled**
+**25d. Accept play request after booking is already cancelled**
 - [ ] Student A creates a booking and invites Student B
 - [ ] Before Student B responds, Student A cancels the booking
 - [ ] Student B then clicks Accept on the now-stale play request
@@ -492,27 +478,27 @@
 - [ ] Play request status updated to `expired`
 - [ ] No ghost entries created in `players_list`
 
-**26e. Double-reject of the same play request**
+**25e. Double-reject of the same play request**
 - [ ] Student B has a pending play request
 - [ ] Student B opens the play request page in two browser tabs simultaneously and clicks Reject in both within milliseconds
 - [ ] Exactly **one** reject goes through (booking cancelled or player removed)
 - [ ] The second call returns error "Already responded to this request"
 - [ ] Booking is not double-cancelled; equipment is freed exactly once if applicable
 
-**26f. Parallel accept + reject of the same play request**
+**25f. Parallel accept + reject of the same play request**
 - [ ] Student B has the play request open in two tabs — clicks Accept in Tab 1 and Reject in Tab 2 almost simultaneously
 - [ ] Exactly **one** action wins (whichever hit the server first)
 - [ ] The other returns "Already responded to this request"
 - [ ] Booking's `players_list` reflects only the winning outcome (confirmed or removed, not both)
 
-**26g. 10-minute expiry race with manager approval**
+**25g. 10-minute expiry race with manager approval**
 - [ ] A booking is in `waiting_manager` status right at the 10-minute boundary
 - [ ] Manager loads the booking detail (triggering lazy expiry check) at the exact same moment as another manager tries to approve it
 - [ ] If expiry wins: booking is `cancelled`, violation logged, manager approval returns a stale-state error or no-op
 - [ ] If approval wins: booking goes `active`, expiry check on next load finds status `active` and does not cancel it
 - [ ] In neither case is the booking left in an inconsistent state (half-cancelled + active)
 
-**26h. Two students booking the same slot on different sports (valid — no conflict)**
+**25h. Two students booking the same slot on different sports (valid — no conflict)**
 - [ ] Student A books Badminton Court 1 at 10:00
 - [ ] Student B books Tennis Court 1 at 10:00 simultaneously
 - [ ] **Both bookings succeed** — different courts, no conflict
@@ -521,89 +507,89 @@
 
 ---
 
-### WORKFLOW 27 — Points System Verification
+### WORKFLOW 26 — Points System Verification
 
 > **Setup note**: Before each sub-test, note the student's current `points` value from their profile page. After the action, reload the profile and verify the delta is exactly as specified. Use the admin `/admin/defaulters` page to confirm violations are logged.
 
-**27a. Session completed — all equipment good (+10 pts)**
+**26a. Session completed — all equipment good (+10 pts)**
 - [ ] Record student's points before session
 - [ ] Complete a session; manager marks all equipment as **Good**
 - [ ] Student's points = before + 10
 - [ ] Notification body includes "+10 pts"
 
-**27b. Session completed — no equipment selected (+8 pts)**
+**26b. Session completed — no equipment selected (+8 pts)**
 - [ ] Complete a session with no equipment reserved
 - [ ] Student's points = before + 8
 - [ ] Notification body includes "+8 pts"
 
-**27c. Session completed — any equipment minor damage (+7 pts)**
+**26c. Session completed — any equipment minor damage (+7 pts)**
 - [ ] Complete a session; manager marks at least one item as **Minor Damage** (rest Good)
 - [ ] Student's points = before + 7
 - [ ] Notification body includes "+7 pts"
 
-**27d. Session completed — any equipment damaged (+0 pts)**
+**26d. Session completed — any equipment damaged (+0 pts)**
 - [ ] Complete a session; manager marks at least one item as **Damaged**
 - [ ] Student's points = before + 0 (net zero: +8 base −8 penalty)
 - [ ] Notification body includes "+0 pts" or "0 pts"
 
-**27e. Late cancellation penalty (−3 pts)**
+**26e. Late cancellation penalty (−3 pts)**
 - [ ] Student cancels a booking that starts in less than 3 hours
 - [ ] Student's points = before − 3
 - [ ] No violation record created (this is a points deduction only, not a violation)
 
-**27f. Manager rejection — students late (−6 pts)**
+**26f. Manager rejection — students late (−6 pts)**
 - [ ] Manager rejects a booking with reason "Students Late"
 - [ ] Each student in the booking: points = before − 6
 - [ ] `student_violations` row created per student with `violation_type = 'students_late'`
 
-**27g. Manager rejection — improper gear (−4 pts)**
+**26g. Manager rejection — improper gear (−4 pts)**
 - [ ] Manager rejects with reason "Improper Gear"
 - [ ] Each student: points = before − 4
 - [ ] `student_violations` row created with `violation_type = 'improper_gear'`
 
-**27h. Manager rejection — inappropriate behaviour (−8 pts)**
+**26h. Manager rejection — inappropriate behaviour (−8 pts)**
 - [ ] Manager rejects with reason "Inappropriate Behaviour"
 - [ ] Each student: points = before − 8
 - [ ] `student_violations` row created with `violation_type = 'inappropriate_behaviour'`
 
-**27i. Manager rejection — other (0 pts, violation still logged)**
+**26i. Manager rejection — other (0 pts, violation still logged)**
 - [ ] Manager rejects with reason "Other" + custom text
 - [ ] Each student: points = before + 0 (no change)
 - [ ] `student_violations` row still created with `violation_type = 'other'`
 
-**27j. Booking auto-expiry / no-show (−8 pts)**
+**26j. Booking auto-expiry / no-show (−8 pts)**
 - [ ] Booking in `waiting_manager` auto-expires after 10 minutes past start
 - [ ] Each student: points = before − 8
 - [ ] `student_violations` row created with `violation_type = 'booking_timeout'`
 
-**27k. Post-session report — late end (−4 pts)**
+**26k. Post-session report — late end (−4 pts)**
 - [ ] Manager reports a specific student post-session with reason "Late End"
 - [ ] That student's points = before − 4
 - [ ] `student_violations` row created with `violation_type = 'late_end'`
 
-**27l. Post-session report — vandalism (−15 pts)**
+**26l. Post-session report — vandalism (−15 pts)**
 - [ ] Manager reports with reason "Vandalism"
 - [ ] That student's points = before − 15
 - [ ] `student_violations` row created with `violation_type = 'vandalism'`
 
-**27m. Equipment lost (−20 pts per player)**
+**26m. Equipment lost (−20 pts per player)**
 - [ ] Manager reports equipment as lost during an active session
 - [ ] Every confirmed player in the booking: points = before − 20
 - [ ] `student_violations` row (severity: severe) created per player with `violation_type = 'lost_equipment'`
 
-**27n. Points are atomic — no lost updates under rapid actions**
+**26n. Points are atomic — no lost updates under rapid actions**
 - [ ] Start with a student at exactly 0 points
 - [ ] Trigger two point-awarding events back-to-back rapidly (e.g., end session giving +10, then a rejection deducting −6 on a different booking, nearly simultaneously)
 - [ ] Final points = 0 + 10 − 6 = **4** (not 10, not −6, not 0)
 - [ ] No intermediate read-modify-write race: verify by checking profile.points after both events settle
 
-**27o. Suspension threshold (3 violations → cannot book)**
+**26o. Suspension threshold (3 violations → cannot book)**
 - [ ] Student accumulates exactly 2 violations of any type → can still book
 - [ ] Student receives a 3rd violation (any type) → profile shows "Suspended"
 - [ ] Student attempts to create a new booking → error "Your account has been suspended due to 3 or more violations"
 - [ ] Admin clears defaulter → violations deleted → student can book again
 
-**27p. Late-arrival ban threshold (3 × students_late → 14-day ban)**
+**26p. Late-arrival ban threshold (3 × students_late → 14-day ban)**
 - [ ] Student gets `students_late` violation × 1 → no ban, can book
 - [ ] Student gets `students_late` violation × 2 → no ban, can book
 - [ ] Student gets `students_late` violation × 3 → `banned_until = now + 14 days`
@@ -612,14 +598,14 @@
 - [ ] Profile page shows ban status + exact expiry date
 - [ ] Admin clears defaulter → `banned_until = null` → student can book again
 
-**27q. Monthly reset resets all points to 0**
+**26q. Monthly reset resets all points to 0**
 - [ ] Multiple students have non-zero points
 - [ ] Simulate a new calendar month (or manually trigger `reset_monthly_points` RPC)
 - [ ] All students' `points` = 0
 - [ ] `last_points_reset` updated to current date for all students
 - [ ] Running reset again in the same month → no change (idempotent, returns `reset_count: 0`)
 
-**27r. Monthly reset awards priority booking to top 5 only**
+**26r. Monthly reset awards priority booking to top 5 only**
 - [ ] Before reset: identify the top 5 students by points
 - [ ] After reset: those 5 students have `priority_booking_remaining = 1`
 - [ ] All other students have `priority_booking_remaining = 0` (unchanged or 0)

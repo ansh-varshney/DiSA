@@ -1,13 +1,10 @@
-import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import { getStudentBookings } from '@/actions/bookings'
 import { ReservationsList } from '@/components/reservations-list'
+import { getCurrentUser } from '@/lib/session'
 
 export default async function ReservationsPage() {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getCurrentUser()
 
     if (!user) redirect('/login')
 

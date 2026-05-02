@@ -1,41 +1,43 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
-import { createAdminClient } from '@/utils/supabase/admin'
+import { db } from '@/db'
+import { equipment, courts, bookings, profiles } from '@/db/schema'
+import { eq, and, gte, lte, inArray, notInArray, desc, asc, sql, ne } from 'drizzle-orm'
 import { sendNotifications } from '@/actions/notifications'
+import { requireAdmin } from '@/lib/auth-guards'
 
 //============================================
 // Financials Dashboard
 //============================================
 
 export async function getFinancialsData(vendor?: string) {
-    const supabase = await createClient()
-
+    await requireAdmin()
     // Get all unique vendors first (unfiltered)
-    const { data: allEquipment } = await supabase.from('equipment').select('vendor_name')
+    const allEquipmentRows = await db.select({ vendor_name: equipment.vendor_name }).from(equipment)
 
     const vendors: string[] = [
         ...new Set(
-            (allEquipment || [])
-                .map((e: { vendor_name: string | null }) => e.vendor_name)
-                .filter((v): v is string => Boolean(v))
+            allEquipmentRows.map((e) => e.vendor_name).filter((v): v is string => Boolean(v))
         ),
     ]
 
     // Fetch equipment, optionally filtered by vendor
-    let query = supabase
-        .from('equipment')
-        .select(
-            'name, sport, cost, expected_lifespan_days, total_usage_count, condition, vendor_name'
-        )
+    const whereClause = vendor && vendor !== 'all' ? eq(equipment.vendor_name, vendor) : undefined
 
-    if (vendor && vendor !== 'all') {
-        query = query.eq('vendor_name', vendor)
-    }
+    const equipmentRows = await db
+        .select({
+            name: equipment.name,
+            sport: equipment.sport,
+            cost: equipment.cost,
+            expected_lifespan_days: equipment.expected_lifespan_days,
+            total_usage_count: equipment.total_usage_count,
+            condition: equipment.condition,
+            vendor_name: equipment.vendor_name,
+        })
+        .from(equipment)
+        .where(whereClause)
 
-    const { data: equipment, error } = await query
-
-    if (error || !equipment) {
+    if (!equipmentRows || equipmentRows.length === 0) {
         return {
             vendors,
             total: 0,
@@ -47,10 +49,9 @@ export async function getFinancialsData(vendor?: string) {
         }
     }
 
-    const total = equipment.length
+    const total = equipmentRows.length
 
-    // Lifespan only for expired items (damaged/lost), using total_usage_count as actual sessions survived
-    const expiredItems = equipment.filter(
+    const expiredItems = equipmentRows.filter(
         (e) => e.condition === 'damaged' || e.condition === 'lost'
     )
     const avgLifespanSessions: number | null =
@@ -66,9 +67,9 @@ export async function getFinancialsData(vendor?: string) {
     const lifespanSumBySport: Record<string, number> = {}
     const lifespanCountBySport: Record<string, number> = {}
 
-    for (const e of equipment) {
+    for (const e of equipmentRows) {
         const sport = e.sport || 'Unknown'
-        costBySport[sport] = (costBySport[sport] || 0) + (e.cost || 0)
+        costBySport[sport] = (costBySport[sport] || 0) + (parseFloat(e.cost ?? '0') || 0)
         countBySport[sport] = (countBySport[sport] || 0) + 1
     }
 
@@ -103,9 +104,7 @@ export async function getFinancialsData(vendor?: string) {
 //============================================
 
 export async function getTeamPerformanceData(sport?: string, startDate?: string, endDate?: string) {
-    // Use admin client to bypass RLS on bookings
-    const adminSupabase = createAdminClient()
-
+    await requireAdmin()
     if (!sport || sport === 'all') {
         return {
             practiceSessions: 0,
@@ -117,9 +116,9 @@ export async function getTeamPerformanceData(sport?: string, startDate?: string,
         }
     }
 
-    const { data: courts } = await adminSupabase.from('courts').select('id').eq('sport', sport)
+    const courtRows = await db.select({ id: courts.id }).from(courts).where(eq(courts.sport, sport))
 
-    if (!courts || courts.length === 0) {
+    if (!courtRows || courtRows.length === 0) {
         return {
             practiceSessions: 0,
             tournaments: 0,
@@ -130,22 +129,23 @@ export async function getTeamPerformanceData(sport?: string, startDate?: string,
         }
     }
 
-    const courtIds = courts.map((c: { id: string }) => c.id)
+    const courtIds = courtRows.map((c) => c.id)
 
-    let query = adminSupabase
-        .from('bookings')
-        .select('id, start_time')
-        .in('court_id', courtIds)
-        .eq('status', 'completed')
-        .eq('is_maintenance', false)
+    const conditions = [
+        inArray(bookings.court_id, courtIds),
+        eq(bookings.status, 'completed'),
+        eq(bookings.is_maintenance, false),
+    ]
+    if (startDate) conditions.push(gte(bookings.start_time, new Date(startDate)))
+    if (endDate) conditions.push(lte(bookings.start_time, new Date(endDate + 'T23:59:59')))
 
-    if (startDate) query = query.gte('start_time', startDate)
-    if (endDate) query = query.lte('start_time', endDate + 'T23:59:59')
-
-    const { data: bookings } = await query
+    const bookingRows = await db
+        .select({ id: bookings.id, start_time: bookings.start_time })
+        .from(bookings)
+        .where(and(...conditions))
 
     const monthlyMap: Record<string, number> = {}
-    for (const b of bookings || []) {
+    for (const b of bookingRows) {
         const d = new Date(b.start_time)
         const key = d.toLocaleString('default', { month: 'short', year: '2-digit' })
         monthlyMap[key] = (monthlyMap[key] || 0) + 1
@@ -176,7 +176,7 @@ export async function getTeamPerformanceData(sport?: string, startDate?: string,
         })
 
     return {
-        practiceSessions: bookings?.length ?? 0,
+        practiceSessions: bookingRows.length,
         tournaments: 0,
         wins: 0,
         losses: 0,
@@ -189,114 +189,104 @@ export async function getTeamPerformanceData(sport?: string, startDate?: string,
 // Student Welfare Dashboard
 //============================================
 
-// Top stats for the current month (uses admin client to see all bookings)
 export async function getWelfareTopStats() {
-    const adminSupabase = createAdminClient()
-    const supabase = await createClient()
-
+    await requireAdmin()
     const now = new Date()
-    const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString()
+    const start = new Date(now.getFullYear(), now.getMonth(), 1)
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
 
-    const [{ count: successfulBookings }, { count: totalStudents }, { data: activeBookings }] =
-        await Promise.all([
-            adminSupabase
-                .from('bookings')
-                .select('id', { count: 'exact', head: true })
-                .eq('status', 'completed')
-                .gte('start_time', start)
-                .lte('start_time', end),
-            supabase
-                .from('profiles')
-                .select('id', { count: 'exact', head: true })
-                .eq('role', 'student'),
-            adminSupabase
-                .from('bookings')
-                .select('user_id')
-                .eq('status', 'completed')
-                .gte('start_time', start)
-                .lte('start_time', end),
-        ])
+    const [bookingCountRows, studentCountRows, activeBookingRows] = await Promise.all([
+        db
+            .select({ count: sql<number>`cast(count(*) as integer)` })
+            .from(bookings)
+            .where(
+                and(
+                    eq(bookings.status, 'completed'),
+                    gte(bookings.start_time, start),
+                    lte(bookings.start_time, end)
+                )
+            ),
+        db
+            .select({ count: sql<number>`cast(count(*) as integer)` })
+            .from(profiles)
+            .where(eq(profiles.role, 'student')),
+        db
+            .select({ user_id: bookings.user_id })
+            .from(bookings)
+            .where(
+                and(
+                    eq(bookings.status, 'completed'),
+                    gte(bookings.start_time, start),
+                    lte(bookings.start_time, end)
+                )
+            ),
+    ])
 
-    const uniqueActiveStudents = new Set(
-        (activeBookings || []).map((b: { user_id: string }) => b.user_id)
-    ).size
+    const successfulBookings = bookingCountRows[0]?.count ?? 0
+    const totalStudents = studentCountRows[0]?.count ?? 0
+    const uniqueActiveStudents = new Set(activeBookingRows.map((b) => b.user_id)).size
     const participationPct =
         totalStudents && uniqueActiveStudents
             ? Math.round((uniqueActiveStudents / totalStudents) * 100)
             : 0
 
-    return { successfulBookings: successfulBookings ?? 0, participationPct }
+    return { successfulBookings, participationPct }
 }
 
-// Participation stats — grouped by branch, year, or sport
-// Accepts explicit date range strings (YYYY-MM-DD)
 export async function getParticipationStats(
-    parameter: string, // 'branch' | 'year' | 'sport'
+    parameter: string,
     startDate?: string,
     endDate?: string
 ) {
-    const adminSupabase = createAdminClient()
+    await requireAdmin()
+    const bookingConditions = [eq(bookings.status, 'completed'), eq(bookings.is_maintenance, false)]
+    if (startDate) bookingConditions.push(gte(bookings.start_time, new Date(startDate)))
+    if (endDate) bookingConditions.push(lte(bookings.start_time, new Date(endDate + 'T23:59:59')))
 
-    // 1. Fetch completed bookings in range
-    let bookingQuery = adminSupabase
-        .from('bookings')
-        .select('id, user_id, court_id')
-        .eq('status', 'completed')
-        .eq('is_maintenance', false)
+    const bookingRows = await db
+        .select({ id: bookings.id, user_id: bookings.user_id, court_id: bookings.court_id })
+        .from(bookings)
+        .where(and(...bookingConditions))
 
-    if (startDate) bookingQuery = bookingQuery.gte('start_time', startDate)
-    if (endDate) bookingQuery = bookingQuery.lte('start_time', endDate + 'T23:59:59')
-
-    const { data: bookings } = await bookingQuery
-    if (!bookings || bookings.length === 0)
+    if (!bookingRows || bookingRows.length === 0)
         return { barData: [], genderData: { Male: 0, Female: 0 } }
 
-    // 2. Fetch profiles for those users
-    const userIds = [...new Set(bookings.map((b: { user_id: string }) => b.user_id))]
-    const { data: profiles } = await adminSupabase
-        .from('profiles')
-        .select('id, branch, gender, year')
-        .in('id', userIds)
+    const userIds = [...new Set(bookingRows.map((b) => b.user_id))]
+    const profileRows = await db
+        .select({
+            id: profiles.id,
+            branch: profiles.branch,
+            gender: profiles.gender,
+            year: profiles.year,
+        })
+        .from(profiles)
+        .where(inArray(profiles.id, userIds))
 
-    // 3. Fetch courts if grouping by sport
     let courtMap: Record<string, string> = {}
     if (parameter === 'sport') {
-        const courtIds = [...new Set(bookings.map((b: { court_id: string }) => b.court_id))]
-        const { data: courts } = await adminSupabase
-            .from('courts')
-            .select('id, sport')
-            .in('id', courtIds)
-        courtMap = Object.fromEntries(
-            (courts || []).map((c: { id: string; sport: string }) => [c.id, c.sport])
-        )
+        const courtIds = [...new Set(bookingRows.map((b) => b.court_id))]
+        const courtRows = await db
+            .select({ id: courts.id, sport: courts.sport })
+            .from(courts)
+            .where(inArray(courts.id, courtIds))
+        courtMap = Object.fromEntries(courtRows.map((c) => [c.id, c.sport]))
     }
 
-    const profileMap = Object.fromEntries(
-        (profiles || []).map(
-            (p: {
-                id: string
-                branch: string | null
-                gender: string | null
-                year: string | null
-            }) => [p.id, p]
-        )
-    )
+    const profileMap = Object.fromEntries(profileRows.map((p) => [p.id, p]))
 
     const countByParam: Record<string, number> = {}
     const genderCount: Record<string, number> = { Male: 0, Female: 0 }
 
-    for (const b of bookings) {
-        const profile = profileMap[(b as { user_id: string }).user_id]
+    for (const b of bookingRows) {
+        const profile = profileMap[b.user_id]
         let key = 'Unknown'
         if (parameter === 'branch') key = profile?.branch || 'Unknown'
         else if (parameter === 'year') key = profile?.year || 'Unknown'
-        else if (parameter === 'sport')
-            key = courtMap[(b as { court_id: string }).court_id] || 'Unknown'
+        else if (parameter === 'sport') key = courtMap[b.court_id] || 'Unknown'
 
         countByParam[key] = (countByParam[key] || 0) + 1
 
-        const gender: string = profile?.gender || 'Other'
+        const gender = profile?.gender || 'Other'
         if (gender === 'Male') genderCount.Male++
         else if (gender === 'Female') genderCount.Female++
     }
@@ -308,69 +298,58 @@ export async function getParticipationStats(
     return { barData, genderData: { Male: genderCount.Male, Female: genderCount.Female } }
 }
 
-// Branch profile drill-down: dual bars (Male/Female) per sport or year
 export async function getBranchProfileData(
-    branch: string, // branch name or 'Overall'
-    xAxis: string, // 'sport' | 'year'
+    branch: string,
+    xAxis: string,
     startDate?: string,
     endDate?: string
 ) {
-    const adminSupabase = createAdminClient()
+    await requireAdmin()
+    const bookingConditions = [eq(bookings.status, 'completed'), eq(bookings.is_maintenance, false)]
+    if (startDate) bookingConditions.push(gte(bookings.start_time, new Date(startDate)))
+    if (endDate) bookingConditions.push(lte(bookings.start_time, new Date(endDate + 'T23:59:59')))
 
-    let bookingQuery = adminSupabase
-        .from('bookings')
-        .select('id, user_id, court_id')
-        .eq('status', 'completed')
-        .eq('is_maintenance', false)
+    const bookingRows = await db
+        .select({ id: bookings.id, user_id: bookings.user_id, court_id: bookings.court_id })
+        .from(bookings)
+        .where(and(...bookingConditions))
 
-    if (startDate) bookingQuery = bookingQuery.gte('start_time', startDate)
-    if (endDate) bookingQuery = bookingQuery.lte('start_time', endDate + 'T23:59:59')
+    if (!bookingRows || bookingRows.length === 0) return []
 
-    const { data: bookings } = await bookingQuery
-    if (!bookings || bookings.length === 0) return []
+    const userIds = [...new Set(bookingRows.map((b) => b.user_id))]
+    const profileRows = await db
+        .select({
+            id: profiles.id,
+            branch: profiles.branch,
+            gender: profiles.gender,
+            year: profiles.year,
+        })
+        .from(profiles)
+        .where(inArray(profiles.id, userIds))
 
-    const userIds = [...new Set(bookings.map((b: { user_id: string }) => b.user_id))]
-    const { data: profiles } = await adminSupabase
-        .from('profiles')
-        .select('id, branch, gender, year')
-        .in('id', userIds)
-
-    const profileMap = Object.fromEntries(
-        (profiles || []).map(
-            (p: {
-                id: string
-                branch: string | null
-                gender: string | null
-                year: string | null
-            }) => [p.id, p]
-        )
-    )
+    const profileMap = Object.fromEntries(profileRows.map((p) => [p.id, p]))
 
     let courtMap: Record<string, string> = {}
     if (xAxis === 'sport') {
-        const courtIds = [...new Set(bookings.map((b: { court_id: string }) => b.court_id))]
-        const { data: courts } = await adminSupabase
-            .from('courts')
-            .select('id, sport')
-            .in('id', courtIds)
-        courtMap = Object.fromEntries(
-            (courts || []).map((c: { id: string; sport: string }) => [c.id, c.sport])
-        )
+        const courtIds = [...new Set(bookingRows.map((b) => b.court_id))]
+        const courtRows = await db
+            .select({ id: courts.id, sport: courts.sport })
+            .from(courts)
+            .where(inArray(courts.id, courtIds))
+        courtMap = Object.fromEntries(courtRows.map((c) => [c.id, c.sport]))
     }
 
     const map: Record<string, { Male: number; Female: number }> = {}
 
-    for (const b of bookings) {
-        const profile = profileMap[(b as { user_id: string }).user_id]
+    for (const b of bookingRows) {
+        const profile = profileMap[b.user_id]
         if (branch !== 'Overall' && profile?.branch !== branch) continue
 
         const key =
-            xAxis === 'sport'
-                ? courtMap[(b as { court_id: string }).court_id] || 'Unknown'
-                : profile?.year || 'Unknown'
+            xAxis === 'sport' ? courtMap[b.court_id] || 'Unknown' : profile?.year || 'Unknown'
 
         if (!map[key]) map[key] = { Male: 0, Female: 0 }
-        const gender: string = profile?.gender || ''
+        const gender = profile?.gender || ''
         if (gender === 'Male') map[key].Male++
         else if (gender === 'Female') map[key].Female++
     }
@@ -380,17 +359,19 @@ export async function getBranchProfileData(
         .sort((a, b) => b.Male + b.Female - (a.Male + a.Female))
 }
 
-// Admin leaderboard: all students ordered by monthly points, optionally filtered by date range
 export async function getAdminLeaderboard(startDate?: string, endDate?: string) {
-    const adminSupabase = createAdminClient()
-    const supabase = await createClient()
-
+    await requireAdmin()
     if (!startDate && !endDate) {
-        // Auto-reset points if we're in a new calendar month (idempotent RPC).
-        // When a fresh reset runs, notify the top-5 students who earned a priority booking slot.
-        const { data: resetResult } = await adminSupabase.rpc('reset_monthly_points')
+        // Run the monthly reset RPC (idempotent — safe to call every render)
+        const resetRows = await db.execute<{ result: { reset_count: number; top5_ids: string[] } }>(
+            sql`SELECT reset_monthly_points() as result`
+        )
+        const resetResult = (resetRows as any)[0]?.result as
+            | { reset_count: number; top5_ids: string[] }
+            | undefined
+
         if (
-            resetResult?.reset_count > 0 &&
+            (resetResult?.reset_count ?? 0) > 0 &&
             Array.isArray(resetResult?.top5_ids) &&
             resetResult.top5_ids.length > 0
         ) {
@@ -405,55 +386,64 @@ export async function getAdminLeaderboard(startDate?: string, endDate?: string) 
             )
         }
 
-        const { data } = await adminSupabase
-            .from('profiles')
-            .select('id, full_name, branch, year, gender, points')
-            .eq('role', 'student')
-            .order('points', { ascending: false })
+        const data = await db
+            .select({
+                id: profiles.id,
+                full_name: profiles.full_name,
+                branch: profiles.branch,
+                year: profiles.year,
+                gender: profiles.gender,
+                points: profiles.points,
+            })
+            .from(profiles)
+            .where(eq(profiles.role, 'student'))
+            .orderBy(desc(profiles.points))
 
-        return (data || []).map((s: any, i: number) => ({ ...s, rank: i + 1, sessions: undefined }))
+        return data.map((s, i) => ({ ...s, rank: i + 1, sessions: undefined }))
     }
 
-    let bookingQuery = adminSupabase
-        .from('bookings')
-        .select('user_id')
-        .eq('status', 'completed')
-        .eq('is_maintenance', false)
+    const bookingConditions = [eq(bookings.status, 'completed'), eq(bookings.is_maintenance, false)]
+    if (startDate) bookingConditions.push(gte(bookings.start_time, new Date(startDate)))
+    if (endDate) bookingConditions.push(lte(bookings.start_time, new Date(endDate + 'T23:59:59')))
 
-    if (startDate) bookingQuery = bookingQuery.gte('start_time', startDate)
-    if (endDate) bookingQuery = bookingQuery.lte('start_time', endDate + 'T23:59:59')
+    const bookingRows = await db
+        .select({ user_id: bookings.user_id })
+        .from(bookings)
+        .where(and(...bookingConditions))
 
-    const { data: bookings } = await bookingQuery
-    if (!bookings) return []
+    if (!bookingRows) return []
 
-    // Count sessions per student
     const sessionCount: Record<string, number> = {}
-    for (const b of bookings) {
-        const uid = (b as { user_id: string }).user_id
-        sessionCount[uid] = (sessionCount[uid] || 0) + 1
+    for (const b of bookingRows) {
+        sessionCount[b.user_id] = (sessionCount[b.user_id] || 0) + 1
     }
 
     if (Object.keys(sessionCount).length === 0) return []
 
-    const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, branch, year, gender, points')
-        .in('id', Object.keys(sessionCount))
+    const profileRows = await db
+        .select({
+            id: profiles.id,
+            full_name: profiles.full_name,
+            branch: profiles.branch,
+            year: profiles.year,
+            gender: profiles.gender,
+            points: profiles.points,
+        })
+        .from(profiles)
+        .where(inArray(profiles.id, Object.keys(sessionCount)))
 
-    return (profiles || [])
+    return profileRows
         .map((p) => ({ ...p, sessions: sessionCount[p.id] || 0 }))
-        .sort((a, b) => b.sessions - a.sessions || b.points - a.points)
+        .sort((a, b) => b.sessions - a.sessions || (b.points ?? 0) - (a.points ?? 0))
         .map((s, i) => ({ ...s, rank: i + 1 }))
 }
 
-// Get unique branches from student profiles (for dropdown)
 export async function getBranches(): Promise<string[]> {
-    const supabase = await createClient()
-    const { data } = await supabase
-        .from('profiles')
-        .select('branch')
-        .eq('role', 'student')
-        .not('branch', 'is', null)
+    await requireAdmin()
+    const rows = await db
+        .select({ branch: profiles.branch })
+        .from(profiles)
+        .where(and(eq(profiles.role, 'student'), sql`${profiles.branch} is not null`))
 
-    return [...new Set((data || []).map((p: { branch: string }) => p.branch).filter(Boolean))]
+    return [...new Set(rows.map((p) => p.branch).filter(Boolean))] as string[]
 }

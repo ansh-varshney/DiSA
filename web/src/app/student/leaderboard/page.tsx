@@ -1,56 +1,99 @@
-import { createClient } from '@/utils/supabase/server'
-import { createAdminClient } from '@/utils/supabase/admin'
+import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
+import { db } from '@/db'
+import { profiles } from '@/db/schema'
+import { eq, desc, sql, and, or, isNull, inArray } from 'drizzle-orm'
 import { Card, CardContent } from '@/components/ui/card'
-import { Trophy, Medal, Star, TrendingUp } from 'lucide-react'
+import { Trophy, Star, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { sendNotifications } from '@/actions/notifications'
 
 export default async function LeaderboardPage() {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) redirect('/login')
+    const session = await auth()
+    if (!session?.user?.id) redirect('/login')
+    const userId = session.user.id
 
-    // Trigger monthly reset (idempotent — no-op if already reset this month).
-    // When a new month's reset runs, the RPC returns the top-5 student IDs that
-    // were awarded a priority booking slot so we can notify them here.
-    const adminSupabase = createAdminClient()
-    const { data: resetResult } = await adminSupabase.rpc('reset_monthly_points')
-    if (
-        resetResult?.reset_count > 0 &&
-        Array.isArray(resetResult?.top5_ids) &&
-        resetResult.top5_ids.length > 0
-    ) {
-        await sendNotifications(
-            resetResult.top5_ids.map((id: string) => ({
-                recipientId: id,
-                type: 'priority_booking_awarded',
-                title: 'Monthly Leaderboard Reward!',
-                body: 'You finished in the top 5 this month! You have earned a priority booking — book a 90-minute session anytime this month.',
-                data: { reward: 'priority_booking' },
-            }))
+    // Monthly reset — idempotent, only runs once per month
+    const startOfMonth = new Date()
+    startOfMonth.setDate(1)
+    startOfMonth.setHours(0, 0, 0, 0)
+    const startOfMonthStr = startOfMonth.toISOString().split('T')[0] // YYYY-MM-DD
+
+    const needsResetRows = await db
+        .select({ id: profiles.id })
+        .from(profiles)
+        .where(
+            and(
+                eq(profiles.role, 'student'),
+                or(
+                    isNull(profiles.last_points_reset),
+                    sql`${profiles.last_points_reset} < ${startOfMonthStr}::date`
+                )
+            )
         )
+        .limit(1)
+
+    if (needsResetRows.length > 0) {
+        // Capture top 5 before reset
+        const top5 = await db
+            .select({ id: profiles.id })
+            .from(profiles)
+            .where(eq(profiles.role, 'student'))
+            .orderBy(desc(profiles.points))
+            .limit(5)
+        const top5Ids = top5.map((s) => s.id)
+
+        // Award priority booking to top 5
+        if (top5Ids.length > 0) {
+            await db
+                .update(profiles)
+                .set({ priority_booking_remaining: 1 })
+                .where(inArray(profiles.id, top5Ids))
+        }
+
+        // Reset all student points
+        const today = new Date().toISOString().split('T')[0]
+        await db
+            .update(profiles)
+            .set({ points: 0, last_points_reset: today })
+            .where(
+                and(
+                    eq(profiles.role, 'student'),
+                    or(
+                        isNull(profiles.last_points_reset),
+                        sql`${profiles.last_points_reset} < ${startOfMonthStr}::date`
+                    )
+                )
+            )
+
+        if (top5Ids.length > 0) {
+            await sendNotifications(
+                top5Ids.map((id) => ({
+                    recipientId: id,
+                    type: 'priority_booking_awarded',
+                    title: 'Monthly Leaderboard Reward!',
+                    body: 'You finished in the top 5 this month! You have earned a priority booking — book a 90-minute session anytime this month.',
+                    data: { reward: 'priority_booking' },
+                }))
+            )
+        }
     }
 
-    // Get top 5 students by points
-    const { data: topStudents } = await supabase
-        .from('profiles')
-        .select('id, full_name, points')
-        .eq('role', 'student')
-        .order('points', { ascending: false })
+    const topStudents = await db
+        .select({ id: profiles.id, full_name: profiles.full_name, points: profiles.points })
+        .from(profiles)
+        .where(eq(profiles.role, 'student'))
+        .orderBy(desc(profiles.points))
         .limit(5)
 
-    // Get current user's rank
-    const { data: allStudents } = await supabase
-        .from('profiles')
-        .select('id, points')
-        .eq('role', 'student')
-        .order('points', { ascending: false })
+    const allStudents = await db
+        .select({ id: profiles.id, points: profiles.points })
+        .from(profiles)
+        .where(eq(profiles.role, 'student'))
+        .orderBy(desc(profiles.points))
 
-    const userRank = allStudents?.findIndex((s) => s.id === user.id) ?? -1
-    const userProfile = allStudents?.find((s) => s.id === user.id)
+    const userRank = allStudents.findIndex((s) => s.id === userId)
+    const userProfile = allStudents.find((s) => s.id === userId)
 
     const medalIcons = ['🥇', '🥈', '🥉']
 
@@ -66,23 +109,22 @@ export default async function LeaderboardPage() {
 
             {/* Top 5 */}
             <div className="space-y-3">
-                {!topStudents || topStudents.length === 0 ? (
+                {topStudents.length === 0 ? (
                     <div className="p-8 text-center text-gray-400 border-2 border-dashed rounded-xl">
                         No students yet
                     </div>
                 ) : (
-                    topStudents.map((student: any, index: number) => (
+                    topStudents.map((student, index) => (
                         <Card
                             key={student.id}
                             className={cn(
                                 'transition-all',
                                 index === 0 &&
                                     'border-2 border-yellow-400 shadow-[0_0_15px_rgba(234,179,8,0.15)]',
-                                student.id === user.id && 'ring-2 ring-[#004d40]'
+                                student.id === userId && 'ring-2 ring-[#004d40]'
                             )}
                         >
                             <CardContent className="p-4 flex items-center gap-4">
-                                {/* Rank */}
                                 <div
                                     className={cn(
                                         'w-10 h-10 rounded-full flex items-center justify-center font-black text-lg shrink-0',
@@ -98,25 +140,21 @@ export default async function LeaderboardPage() {
                                     {index < 3 ? medalIcons[index] : index + 1}
                                 </div>
 
-                                {/* Name */}
                                 <div className="flex-1">
                                     <h3 className="font-bold text-gray-800 flex items-center gap-2">
                                         {student.full_name || 'Anonymous'}
-                                        {student.id === user.id && (
+                                        {student.id === userId && (
                                             <span className="text-[10px] bg-[#004d40] text-white px-1.5 py-0.5 rounded">
                                                 YOU
                                             </span>
                                         )}
                                     </h3>
-                                    {index < 5 && (
-                                        <p className="text-xs text-yellow-600 flex items-center gap-1">
-                                            <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                                            Eligible for 3 consecutive bookings
-                                        </p>
-                                    )}
+                                    <p className="text-xs text-yellow-600 flex items-center gap-1">
+                                        <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                                        Priority 90-min booking reward
+                                    </p>
                                 </div>
 
-                                {/* Points */}
                                 <div className="text-right">
                                     <div className="font-black text-lg text-gray-800">
                                         {student.points || 0}
@@ -129,7 +167,7 @@ export default async function LeaderboardPage() {
                 )}
             </div>
 
-            {/* My Rank */}
+            {/* My Rank (if outside top 5) */}
             {userRank >= 5 && (
                 <div className="pt-4 border-t border-dashed">
                     <p className="text-xs text-gray-400 uppercase font-bold mb-2">Your Position</p>

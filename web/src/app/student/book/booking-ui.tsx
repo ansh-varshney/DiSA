@@ -28,22 +28,27 @@ type Court = { id: string; name: string; sport: string }
 type Booking = {
     id: string
     court_id: string
-    start_time: string
-    end_time: string
-    status: string
+    start_time: Date | string
+    end_time: Date | string
+    status: string | null
     user_id: string
-    profiles?: { full_name: string }
-    num_players?: number
+    profiles?: { full_name: string | null } | null
+    num_players?: number | null
 }
-type Equipment = { id: string; name: string; sport: string; condition: string; in_use?: boolean }
-type Player = { id: string; full_name: string; student_id: string }
+type Equipment = {
+    id: string
+    name: string
+    sport: string
+    condition: string | null
+    in_use?: boolean
+}
+type Player = { id: string; full_name: string | null; student_id: string | null }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const generateTimeSlots = () => {
     const slots: string[] = []
-    for (let hour = 6; hour <= 22; hour++) {
+    for (let hour = 0; hour < 24; hour++) {
         for (let minute = 0; minute < 60; minute += 30) {
-            if (hour === 22 && minute > 0) break
             slots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`)
         }
     }
@@ -399,9 +404,19 @@ export default function BookingUI({
                                                             </span>
                                                         ) : booking ? (
                                                             <div>
-                                                                <div className="font-semibold text-blue-700 text-[11px]">
-                                                                    Booked
+                                                                <div className="font-semibold text-blue-700 text-[11px] truncate">
+                                                                    {booking.profiles?.full_name
+                                                                        ? booking.profiles.full_name.split(
+                                                                              ' '
+                                                                          )[0]
+                                                                        : 'Booked'}
                                                                 </div>
+                                                                {booking.num_players && (
+                                                                    <div className="text-[10px] text-blue-500 flex items-center gap-0.5">
+                                                                        <Users className="w-3 h-3" />
+                                                                        {booking.num_players}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         ) : null}
                                                     </div>

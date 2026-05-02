@@ -1,7 +1,34 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
-import { createAdminClient } from '@/utils/supabase/admin'
+import { db } from '@/db'
+import {
+    bookings,
+    profiles,
+    courts,
+    equipment,
+    feedbackComplaints,
+    playRequests,
+    studentViolations,
+    notifications,
+} from '@/db/schema'
+import { getCurrentUser } from '@/lib/session'
+import {
+    eq,
+    ne,
+    and,
+    or,
+    gt,
+    lt,
+    gte,
+    lte,
+    desc,
+    asc,
+    inArray,
+    notInArray,
+    isNull,
+    ilike,
+    sql,
+} from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { addMinutes } from 'date-fns'
 import { getPlayerLimits } from '@/lib/sport-config'
@@ -13,77 +40,90 @@ import {
 } from '@/actions/notifications'
 
 export async function getBookingsForDateRange(courtId: string, startDate: Date, endDate: Date) {
-    const supabase = await createClient()
-
-    const { data, error } = await supabase
-        .from('bookings')
-        .select(
-            `
-            *,
-            profiles:user_id (full_name)
-        `
+    const rows = await db
+        .select({
+            id: bookings.id,
+            user_id: bookings.user_id,
+            court_id: bookings.court_id,
+            start_time: bookings.start_time,
+            end_time: bookings.end_time,
+            status: bookings.status,
+            players_list: bookings.players_list,
+            equipment_ids: bookings.equipment_ids,
+            is_maintenance: bookings.is_maintenance,
+            is_priority: bookings.is_priority,
+            num_players: bookings.num_players,
+            notes: bookings.notes,
+            created_at: bookings.created_at,
+            profiles: { full_name: profiles.full_name },
+        })
+        .from(bookings)
+        .leftJoin(profiles, eq(bookings.user_id, profiles.id))
+        .where(
+            and(
+                eq(bookings.court_id, courtId),
+                gte(bookings.start_time, startDate),
+                lte(bookings.end_time, endDate),
+                ne(bookings.status, 'cancelled'),
+                ne(bookings.status, 'rejected')
+            )
         )
-        .eq('court_id', courtId)
-        .gte('start_time', startDate.toISOString())
-        .lte('end_time', endDate.toISOString())
-        .neq('status', 'cancelled')
-        .neq('status', 'rejected')
 
-    if (error) {
-        console.error('Error fetching bookings:', error)
-        return []
-    }
-
-    return data
+    return rows
 }
 
 export async function getAvailableEquipment(sport: string, startTime?: string, endTime?: string) {
-    const supabase = await createClient()
-
-    // 1. Get all equipment for this sport (not lost)
-    const { data: allEquipment, error } = await supabase
-        .from('equipment')
-        .select('id, name, sport, condition, is_available')
-        .ilike('sport', sport)
-        .neq('condition', 'lost')
-        .order('name')
-
-    if (error) {
-        console.error('Error fetching equipment:', error)
-        return []
-    }
+    const allEquipment = await db
+        .select({
+            id: equipment.id,
+            name: equipment.name,
+            sport: equipment.sport,
+            condition: equipment.condition,
+            is_available: equipment.is_available,
+        })
+        .from(equipment)
+        .where(
+            and(
+                ilike(equipment.sport, sport),
+                ne(equipment.condition, 'lost'),
+                ne(equipment.condition, 'retired'),
+                eq(equipment.is_available, true)
+            )
+        )
+        .orderBy(asc(equipment.name))
 
     if (!allEquipment || allEquipment.length === 0) return []
 
-    // 2. If we have a time range, check which equipment is reserved by overlapping bookings
     const reservedIds = new Set<string>()
 
     if (startTime && endTime) {
-        const { data: overlappingBookings } = await supabase
-            .from('bookings')
-            .select('equipment_ids')
-            .neq('status', 'cancelled')
-            .neq('status', 'rejected')
-            .neq('status', 'completed')
-            .or(`and(start_time.lt.${endTime},end_time.gt.${startTime})`)
+        const start = new Date(startTime)
+        const end = new Date(endTime)
+        const overlapping = await db
+            .select({ equipment_ids: bookings.equipment_ids })
+            .from(bookings)
+            .where(
+                and(
+                    ne(bookings.status, 'cancelled'),
+                    ne(bookings.status, 'rejected'),
+                    ne(bookings.status, 'completed'),
+                    lt(bookings.start_time, end),
+                    gt(bookings.end_time, start)
+                )
+            )
 
-        if (overlappingBookings) {
-            overlappingBookings.forEach((b) => {
-                ;(b.equipment_ids || []).forEach((id: string) => reservedIds.add(id))
-            })
-        }
+        overlapping.forEach((b) => {
+            ;(b.equipment_ids || []).forEach((id) => reservedIds.add(id))
+        })
     }
 
-    // 3. Return equipment with in_use flag
-    return allEquipment.map((eq) => ({
-        ...eq,
-        in_use: reservedIds.has(eq.id) || !eq.is_available,
+    return allEquipment.map((eq_) => ({
+        ...eq_,
+        in_use: reservedIds.has(eq_.id) || !eq_.is_available,
     }))
 }
 
 export async function createBooking(prevState: any, formData: FormData) {
-    const supabase = await createClient()
-
     const courtId = formData.get('courtId') as string
     const startTimeStr = formData.get('startTime') as string
     const durationParam = formData.get('duration') as string
@@ -99,23 +139,21 @@ export async function createBooking(prevState: any, formData: FormData) {
     const duration = parseInt(durationParam)
     const endTime = addMinutes(startTime, duration)
 
-    // 0. Prevent booking in the past
     if (startTime < new Date()) {
         return { error: 'Cannot book a slot in the past' }
     }
 
-    // 1. Check if user is logged in
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getCurrentUser()
     if (!user) return { error: 'Unauthorized' }
 
-    // 2a. Check if student has an active time-ban (3 late arrivals → 14-day ban)
-    const { data: profileData } = await supabase
-        .from('profiles')
-        .select('banned_until, priority_booking_remaining')
-        .eq('id', user.id)
-        .single()
+    // Check ban and priority status
+    const [profileData] = await db
+        .select({
+            banned_until: profiles.banned_until,
+            priority_booking_remaining: profiles.priority_booking_remaining,
+        })
+        .from(profiles)
+        .where(eq(profiles.id, user.id))
 
     if (profileData?.banned_until && new Date(profileData.banned_until) > new Date()) {
         const banDate = new Date(profileData.banned_until).toLocaleDateString('en-IN', {
@@ -128,20 +166,19 @@ export async function createBooking(prevState: any, formData: FormData) {
         }
     }
 
-    // 2b. Check if student is suspended (3+ violations)
-    const { count: violationCount } = await supabase
-        .from('student_violations')
-        .select('id', { count: 'exact', head: true })
-        .eq('student_id', user.id)
+    // Check violation count (suspended if 3+)
+    const [{ count: violationCount }] = await db
+        .select({ count: sql<number>`cast(count(*) as integer)` })
+        .from(studentViolations)
+        .where(eq(studentViolations.student_id, user.id))
 
-    if (violationCount && violationCount >= 3) {
+    if (violationCount >= 3) {
         return {
             error: 'Your account has been suspended due to 3 or more violations. Contact admin.',
         }
     }
 
-    // 2c. Duration validation — only 30 or 60 min allowed normally;
-    //     90 min requires an unused monthly priority booking reward.
+    // Duration validation
     if (duration === 90) {
         if ((profileData?.priority_booking_remaining ?? 0) <= 0) {
             return {
@@ -152,137 +189,139 @@ export async function createBooking(prevState: any, formData: FormData) {
         return { error: 'Invalid booking duration. Please select 30 or 60 minutes.' }
     }
 
-    // 3. Overlap Check — same court
-    const { data: conflictingBookings } = await supabase
-        .from('bookings')
-        .select('id')
-        .eq('court_id', courtId)
-        .neq('status', 'cancelled')
-        .neq('status', 'rejected')
-        .or(`and(start_time.lt.${endTime.toISOString()},end_time.gt.${startTime.toISOString()})`)
+    // Overlap check — same court
+    const conflictingBookings = await db
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(
+            and(
+                eq(bookings.court_id, courtId),
+                ne(bookings.status, 'cancelled'),
+                ne(bookings.status, 'rejected'),
+                lt(bookings.start_time, endTime),
+                gt(bookings.end_time, startTime)
+            )
+        )
 
-    if (conflictingBookings && conflictingBookings.length > 0) {
+    if (conflictingBookings.length > 0) {
         return { error: 'Time slot is already booked' }
     }
 
-    // 3b. Prevent same student from double-booking overlapping time on ANY court
-    const { data: studentConflicts } = await supabase
-        .from('bookings')
-        .select('id')
-        .eq('user_id', user.id)
-        .neq('status', 'cancelled')
-        .neq('status', 'rejected')
-        .or(`and(start_time.lt.${endTime.toISOString()},end_time.gt.${startTime.toISOString()})`)
+    // Prevent double-booking same student on any court
+    const studentConflicts = await db
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(
+            and(
+                eq(bookings.user_id, user.id),
+                ne(bookings.status, 'cancelled'),
+                ne(bookings.status, 'rejected'),
+                lt(bookings.start_time, endTime),
+                gt(bookings.end_time, startTime)
+            )
+        )
 
-    if (studentConflicts && studentConflicts.length > 0) {
+    if (studentConflicts.length > 0) {
         return { error: 'You already have a booking during this time' }
     }
 
-    // 4. Parse optional fields
-    const equipmentIds = equipmentIdsStr ? JSON.parse(equipmentIdsStr) : []
+    // Parse optional fields
+    const equipmentIds: string[] = equipmentIdsStr ? JSON.parse(equipmentIdsStr) : []
     const numPlayers = numPlayersStr ? parseInt(numPlayersStr) : 2
     const rawPlayersList: { id: string; full_name?: string; [key: string]: unknown }[] =
         playersListStr ? JSON.parse(playersListStr) : []
 
-    // Enrich players_list with branch, gender, year from their profiles
-    // so historical analytics don't break when profiles change later.
+    // Enrich players_list with profile snapshot
     let playersList = rawPlayersList
     if (rawPlayersList.length > 0) {
         const playerIds = rawPlayersList.map((p) => p.id).filter(Boolean)
-        const { data: playerProfiles } = await supabase
-            .from('profiles')
-            .select('id, full_name, branch, gender, year')
-            .in('id', playerIds)
+        const playerProfiles = await db
+            .select({
+                id: profiles.id,
+                full_name: profiles.full_name,
+                branch: profiles.branch,
+                gender: profiles.gender,
+                year: profiles.year,
+            })
+            .from(profiles)
+            .where(inArray(profiles.id, playerIds))
 
-        if (playerProfiles) {
-            const profileMap = Object.fromEntries(playerProfiles.map((p) => [p.id, p]))
-            playersList = rawPlayersList.map((p) => ({
-                ...p,
-                branch: profileMap[p.id]?.branch ?? p.branch ?? null,
-                gender: profileMap[p.id]?.gender ?? p.gender ?? null,
-                year: profileMap[p.id]?.year ?? (p.year as string | null) ?? null,
-                full_name: profileMap[p.id]?.full_name ?? p.full_name ?? null,
-                // Players start as 'pending' — confirmed only after they accept play request
-                status: 'pending',
-            }))
-        }
+        const profileMap = Object.fromEntries(playerProfiles.map((p) => [p.id, p]))
+        playersList = rawPlayersList.map((p) => ({
+            ...p,
+            branch: profileMap[p.id]?.branch ?? (p.branch as string | null) ?? null,
+            gender: profileMap[p.id]?.gender ?? (p.gender as string | null) ?? null,
+            year: profileMap[p.id]?.year ?? (p.year as string | null) ?? null,
+            full_name: profileMap[p.id]?.full_name ?? p.full_name ?? undefined,
+            status: 'pending',
+        }))
     }
 
-    // 4b. Validate player count against sport limits
-    const { data: court } = await supabase
-        .from('courts')
-        .select('sport, name')
-        .eq('id', courtId)
-        .single()
+    // Validate player count against sport limits
+    const [courtData] = await db
+        .select({ sport: courts.sport, name: courts.name })
+        .from(courts)
+        .where(eq(courts.id, courtId))
 
-    if (court) {
-        const limits = getPlayerLimits(court.sport)
+    if (courtData) {
+        const limits = getPlayerLimits(courtData.sport)
         if (numPlayers < limits.min) {
-            return { error: `Minimum ${limits.min} players required for ${court.sport}` }
+            return { error: `Minimum ${limits.min} players required for ${courtData.sport}` }
         }
         if (limits.max && numPlayers > limits.max) {
-            return { error: `Maximum ${limits.max} players allowed for ${court.sport}` }
+            return { error: `Maximum ${limits.max} players allowed for ${courtData.sport}` }
         }
     }
 
-    // 5. Mark equipment as unavailable using optimistic locking.
-    //    Only rows still available (is_available = true) are updated.
-    //    If fewer rows come back than requested, another concurrent booking
-    //    grabbed one — abort immediately before the booking is inserted.
+    // Check for time-slot conflicts on requested equipment
     if (equipmentIds.length > 0) {
-        const { data: locked, error: lockError } = await supabase
-            .from('equipment')
-            .update({ is_available: false })
-            .in('id', equipmentIds)
-            .eq('is_available', true)
-            .select('id')
+        const conflicts = await db
+            .select({ equipment_ids: bookings.equipment_ids })
+            .from(bookings)
+            .where(
+                and(
+                    ne(bookings.status, 'cancelled'),
+                    ne(bookings.status, 'rejected'),
+                    ne(bookings.status, 'completed'),
+                    lt(bookings.start_time, endTime),
+                    gt(bookings.end_time, startTime)
+                )
+            )
 
-        if (lockError || !locked || locked.length < equipmentIds.length) {
-            // Free any items that were locked before we found out one was gone
-            if (locked && locked.length > 0) {
-                await supabase
-                    .from('equipment')
-                    .update({ is_available: true })
-                    .in(
-                        'id',
-                        locked.map((e: any) => e.id)
-                    )
-            }
+        const conflictingIds = new Set<string>()
+        conflicts.forEach((b) => (b.equipment_ids || []).forEach((id) => conflictingIds.add(id)))
+
+        const hasConflict = equipmentIds.some((id) => conflictingIds.has(id))
+        if (hasConflict) {
             return {
-                error: 'One or more equipment items are no longer available. Please refresh and try again.',
+                error: 'One or more equipment items are no longer available for this time slot. Please refresh and try again.',
             }
         }
     }
 
-    // 6. Insert Booking — fetch the new id for play requests
-    const { data: newBooking, error } = await supabase
-        .from('bookings')
-        .insert({
+    // Insert booking
+    const [newBooking] = await db
+        .insert(bookings)
+        .values({
             user_id: user.id,
             court_id: courtId,
-            start_time: startTime.toISOString(),
-            end_time: endTime.toISOString(),
+            start_time: startTime,
+            end_time: endTime,
             status: 'confirmed',
             players_list: playersList,
             equipment_ids: equipmentIds,
             num_players: numPlayers,
         })
-        .select('id')
-        .single()
+        .returning({ id: bookings.id })
 
-    if (error) {
-        // If booking insert fails, re-free the equipment
-        if (equipmentIds.length > 0) {
-            await supabase.from('equipment').update({ is_available: true }).in('id', equipmentIds)
-        }
-        return { error: error.message }
+    if (!newBooking) {
+        return { error: 'Failed to create booking' }
     }
 
-    // 7. Send play requests + notifications to each invited player (non-booker)
-    if (rawPlayersList.length > 0 && newBooking?.id) {
-        const adminSupabase = createAdminClient()
-        const courtName = (court as any)?.name || 'Court'
-        const sport = (court as any)?.sport || ''
+    // Send play requests + notifications to invited players
+    if (rawPlayersList.length > 0) {
+        const courtName = courtData?.name || 'Court'
+        const sport = courtData?.sport || ''
         const startDisplay = startTime.toLocaleString('en-IN', {
             weekday: 'short',
             month: 'short',
@@ -291,16 +330,25 @@ export async function createBooking(prevState: any, formData: FormData) {
             minute: '2-digit',
         })
 
-        // Fetch booker name for notification body
-        const { data: bookerProfile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', user.id)
-            .single()
+        const [bookerProfile] = await db
+            .select({ full_name: profiles.full_name })
+            .from(profiles)
+            .where(eq(profiles.id, user.id))
         const bookerName = bookerProfile?.full_name || 'Someone'
 
         for (const player of rawPlayersList) {
-            // Create notification first to get its id
+            // Create play request first to get its ID, then include it in the notification data
+            const [newPR] = await db
+                .insert(playRequests)
+                .values({
+                    booking_id: newBooking.id,
+                    requester_id: user.id,
+                    recipient_id: player.id,
+                    status: 'pending',
+                    notification_id: null,
+                })
+                .returning({ id: playRequests.id })
+
             const notifId = await sendNotification({
                 recipientId: player.id,
                 senderId: user.id,
@@ -309,6 +357,7 @@ export async function createBooking(prevState: any, formData: FormData) {
                 body: `${bookerName} invited you to play ${sport} at ${courtName} on ${startDisplay}. Accept or decline below.`,
                 data: {
                     booking_id: newBooking.id,
+                    play_request_id: newPR.id,
                     court_name: courtName,
                     sport,
                     start_time: startTime.toISOString(),
@@ -317,45 +366,36 @@ export async function createBooking(prevState: any, formData: FormData) {
                 },
             })
 
-            // Create play_request record linked to that notification
-            await adminSupabase.from('play_requests').insert({
-                booking_id: newBooking.id,
-                requester_id: user.id,
-                recipient_id: player.id,
-                status: 'pending',
-                notification_id: notifId,
-            })
+            if (notifId) {
+                await db
+                    .update(playRequests)
+                    .set({ notification_id: notifId })
+                    .where(eq(playRequests.id, newPR.id))
+            }
         }
 
-        // 8. Notify managers of new booking — N19
-        const { data: bookerFull } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', user.id)
-            .single()
-
+        // Notify managers of new booking
         await notifyManagers({
             senderId: user.id,
             type: 'new_booking',
             title: 'New Booking',
-            body: `${bookerFull?.full_name || 'A student'} booked ${courtName} (${sport}) for ${startDisplay}.`,
+            body: `${bookerName} booked ${courtName} (${sport}) for ${startDisplay}.`,
             data: {
                 booking_id: newBooking.id,
                 court_name: courtName,
                 sport,
                 start_time: startTime.toISOString(),
-                booker_name: bookerFull?.full_name,
+                booker_name: bookerName,
             },
         })
     }
 
-    // If this was a 90-min priority booking, consume the one-time slot and notify the student
-    if (duration === 90 && newBooking?.id) {
-        const adminSupabasePriority = createAdminClient()
-        await adminSupabasePriority
-            .from('profiles')
-            .update({ priority_booking_remaining: 0 })
-            .eq('id', user.id)
+    // Consume priority booking slot if 90-min
+    if (duration === 90) {
+        await db
+            .update(profiles)
+            .set({ priority_booking_remaining: 0 })
+            .where(eq(profiles.id, user.id))
 
         await sendNotification({
             recipientId: user.id,
@@ -372,52 +412,67 @@ export async function createBooking(prevState: any, formData: FormData) {
     return { success: true }
 }
 
-export async function cancelBooking(bookingId: string) {
-    const supabase = await createClient()
+async function cancelPendingPlayRequests(bookingId: string): Promise<void> {
+    const pending = await db
+        .select({ id: playRequests.id, notification_id: playRequests.notification_id })
+        .from(playRequests)
+        .where(and(eq(playRequests.booking_id, bookingId), eq(playRequests.status, 'pending')))
 
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
+    if (pending.length === 0) return
+
+    await db
+        .update(playRequests)
+        .set({ status: 'expired', responded_at: new Date() })
+        .where(and(eq(playRequests.booking_id, bookingId), eq(playRequests.status, 'pending')))
+
+    const notifIds = pending.map((r) => r.notification_id).filter((id): id is string => id !== null)
+    if (notifIds.length > 0) {
+        await db
+            .update(notifications)
+            .set({ is_read: true })
+            .where(inArray(notifications.id, notifIds))
+    }
+
+    revalidatePath('/student/play-requests')
+}
+
+export async function cancelBooking(bookingId: string) {
+    const user = await getCurrentUser()
     if (!user) return { error: 'Unauthorized' }
 
-    // Fetch booking to verify ownership and get equipment
-    const { data: booking } = await supabase
-        .from('bookings')
-        .select('user_id, status, equipment_ids, start_time, players_list, courts(name, sport)')
-        .eq('id', bookingId)
-        .single()
+    const [booking] = await db
+        .select({
+            user_id: bookings.user_id,
+            status: bookings.status,
+            equipment_ids: bookings.equipment_ids,
+            start_time: bookings.start_time,
+            players_list: bookings.players_list,
+            courts: { name: courts.name, sport: courts.sport },
+        })
+        .from(bookings)
+        .leftJoin(courts, eq(bookings.court_id, courts.id))
+        .where(eq(bookings.id, bookingId))
 
     if (!booking) return { error: 'Booking not found' }
     if (booking.user_id !== user.id) return { error: 'Not your booking' }
-    if (!['pending_confirmation', 'confirmed', 'waiting_manager'].includes(booking.status)) {
+    if (!['pending_confirmation', 'confirmed', 'waiting_manager'].includes(booking.status ?? '')) {
         return { error: 'Cannot cancel this booking' }
     }
 
-    // Free equipment first (match manager's behaviour)
-    const equipmentIds: string[] = booking.equipment_ids || []
-    if (equipmentIds.length > 0) {
-        await supabase.from('equipment').update({ is_available: true }).in('id', equipmentIds)
-    }
-
-    // Deduct -3 points if cancellation is less than 3 hours before start
+    // Deduct -3 points if cancellation < 3 hours before start
     const threeHoursFromNow = new Date(Date.now() + 3 * 60 * 60 * 1000)
     if (new Date(booking.start_time) < threeHoursFromNow) {
-        const adminSupabase = createAdminClient()
-        await adminSupabase.rpc('update_student_points', { p_student_id: user.id, p_delta: -3 })
+        await db
+            .update(profiles)
+            .set({ points: sql`COALESCE(${profiles.points}, 0) + ${-3}` })
+            .where(and(eq(profiles.id, user.id), eq(profiles.role, 'student')))
     }
 
-    const { error } = await supabase
-        .from('bookings')
-        .update({ status: 'cancelled' })
-        .eq('id', bookingId)
+    await db.update(bookings).set({ status: 'cancelled' }).where(eq(bookings.id, bookingId))
+    await cancelPendingPlayRequests(bookingId)
 
-    if (error) return { error: error.message }
-
-    // N8 — notify confirmed players only (pending players have not committed, do not notify)
-    const courtInfo = (booking as any).courts
-    const playersList = Array.isArray((booking as any).players_list)
-        ? (booking as any).players_list
-        : []
+    const courtInfo = booking.courts
+    const playersList = Array.isArray(booking.players_list) ? booking.players_list : []
     const confirmedPlayerIds = playersList
         .filter((p: any) => p.status === 'confirmed')
         .map((p: any) => (typeof p === 'string' ? p : p.id))
@@ -450,35 +505,33 @@ export async function cancelBooking(bookingId: string) {
 }
 
 export async function withdrawFromBooking(bookingId: string) {
-    const supabase = await createClient()
-
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getCurrentUser()
     if (!user) return { error: 'Unauthorized' }
 
-    // Fetch the booking with court sport info
-    const { data: booking } = await supabase
-        .from('bookings')
-        .select(
-            'user_id, status, players_list, num_players, equipment_ids, start_time, courts(sport, name)'
-        )
-        .eq('id', bookingId)
-        .single()
+    const [booking] = await db
+        .select({
+            user_id: bookings.user_id,
+            status: bookings.status,
+            players_list: bookings.players_list,
+            num_players: bookings.num_players,
+            equipment_ids: bookings.equipment_ids,
+            start_time: bookings.start_time,
+            courts: { sport: courts.sport, name: courts.name },
+        })
+        .from(bookings)
+        .leftJoin(courts, eq(bookings.court_id, courts.id))
+        .where(eq(bookings.id, bookingId))
 
     if (!booking) return { error: 'Booking not found' }
 
-    // Can't withdraw if you're the booker — use cancel instead
     if (booking.user_id === user.id) {
         return { error: 'You are the booker. Use cancel instead.' }
     }
 
-    // Can only withdraw from active/confirmed bookings
-    if (!['pending_confirmation', 'confirmed'].includes(booking.status)) {
+    if (!['pending_confirmation', 'confirmed'].includes(booking.status ?? '')) {
         return { error: 'Cannot withdraw from this booking' }
     }
 
-    // Remove user from players_list
     const playersList = Array.isArray(booking.players_list) ? booking.players_list : []
     const updatedPlayersList = playersList.filter((p: any) => {
         const playerId = typeof p === 'string' ? p : p?.id
@@ -486,23 +539,15 @@ export async function withdrawFromBooking(bookingId: string) {
     })
 
     const newNumPlayers = Math.max(1, (booking.num_players || 2) - 1)
-
-    // Check if withdrawal drops below minimum players
-    const sport = (booking as any).courts?.sport || ''
+    const sport = booking.courts?.sport || ''
     const limits = getPlayerLimits(sport)
 
     if (newNumPlayers < limits.min) {
-        // Auto-cancel the booking since it no longer meets minimum
-        const equipmentIds: string[] = booking.equipment_ids || []
-        if (equipmentIds.length > 0) {
-            await supabase.from('equipment').update({ is_available: true }).in('id', equipmentIds)
-        }
+        await db.update(bookings).set({ status: 'cancelled' }).where(eq(bookings.id, bookingId))
+        await cancelPendingPlayRequests(bookingId)
 
-        await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', bookingId)
-
-        // Notify the booker and any remaining confirmed players about the auto-cancellation
-        const courtInfo = (booking as any).courts
-        const startDisplay = new Date((booking as any).start_time).toLocaleString('en-IN', {
+        const courtInfo = booking.courts
+        const startDisplay = new Date(booking.start_time).toLocaleString('en-IN', {
             weekday: 'short',
             month: 'short',
             day: 'numeric',
@@ -515,12 +560,12 @@ export async function withdrawFromBooking(bookingId: string) {
         notifyIds.add(booking.user_id)
         for (const p of updatedPlayersList) {
             const pid = typeof p === 'string' ? p : p.id
-            const status = typeof p === 'string' ? undefined : p.status
-            if (!status || status === 'confirmed') notifyIds.add(pid)
+            const pStatus = typeof p === 'string' ? undefined : p.status
+            if (!pStatus || pStatus === 'confirmed') notifyIds.add(pid)
         }
-        notifyIds.delete(user.id) // withdrawing player already knows
+        notifyIds.delete(user.id)
 
-        const notifications = Array.from(notifyIds).map((pid) => ({
+        const notifBatch = Array.from(notifyIds).map((pid) => ({
             recipientId: pid,
             senderId: user.id,
             type: 'booking_auto_cancelled',
@@ -529,8 +574,8 @@ export async function withdrawFromBooking(bookingId: string) {
             data: { booking_id: bookingId },
         }))
 
-        if (notifications.length > 0) {
-            await sendNotifications(notifications)
+        if (notifBatch.length > 0) {
+            await sendNotifications(notifBatch)
         }
 
         revalidatePath('/student/reservations')
@@ -545,25 +590,18 @@ export async function withdrawFromBooking(bookingId: string) {
         }
     }
 
-    const { error } = await supabase
-        .from('bookings')
-        .update({
-            players_list: updatedPlayersList,
-            num_players: newNumPlayers,
-        })
-        .eq('id', bookingId)
+    await db
+        .update(bookings)
+        .set({ players_list: updatedPlayersList, num_players: newNumPlayers })
+        .where(eq(bookings.id, bookingId))
 
-    if (error) return { error: error.message }
+    const [withdrawerProfile] = await db
+        .select({ full_name: profiles.full_name })
+        .from(profiles)
+        .where(eq(profiles.id, user.id))
 
-    // N9 — notify the booker that a player withdrew
-    const { data: withdrawerProfile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single()
-
-    const courtInfo = (booking as any).courts
-    const startDisplay = new Date((booking as any).start_time).toLocaleString('en-IN', {
+    const courtInfo = booking.courts
+    const startDisplay = new Date(booking.start_time).toLocaleString('en-IN', {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
@@ -588,40 +626,61 @@ export async function withdrawFromBooking(bookingId: string) {
 }
 
 export async function getStudentBookings(userId: string) {
-    const supabase = await createClient()
+    const user = await getCurrentUser()
+    if (!user || user.id !== userId) return { current: [], upcoming: [], past: [] }
     const now = new Date()
 
-    // 1. Bookings the student created
-    const { data: ownBookings, error: ownError } = await supabase
-        .from('bookings')
-        .select(
-            `
-            *,
-            courts (name, sport)
-        `
+    const ownBookings = await db
+        .select({
+            id: bookings.id,
+            user_id: bookings.user_id,
+            court_id: bookings.court_id,
+            start_time: bookings.start_time,
+            end_time: bookings.end_time,
+            status: bookings.status,
+            players_list: bookings.players_list,
+            equipment_ids: bookings.equipment_ids,
+            is_maintenance: bookings.is_maintenance,
+            is_priority: bookings.is_priority,
+            num_players: bookings.num_players,
+            notes: bookings.notes,
+            created_at: bookings.created_at,
+            courts: { name: courts.name, sport: courts.sport },
+        })
+        .from(bookings)
+        .leftJoin(courts, eq(bookings.court_id, courts.id))
+        .where(eq(bookings.user_id, userId))
+        .orderBy(desc(bookings.start_time))
+
+    // Bookings where student is in players_list (JSONB containment)
+    const playerBookings = await db
+        .select({
+            id: bookings.id,
+            user_id: bookings.user_id,
+            court_id: bookings.court_id,
+            start_time: bookings.start_time,
+            end_time: bookings.end_time,
+            status: bookings.status,
+            players_list: bookings.players_list,
+            equipment_ids: bookings.equipment_ids,
+            is_maintenance: bookings.is_maintenance,
+            is_priority: bookings.is_priority,
+            num_players: bookings.num_players,
+            notes: bookings.notes,
+            created_at: bookings.created_at,
+            courts: { name: courts.name, sport: courts.sport },
+        })
+        .from(bookings)
+        .leftJoin(courts, eq(bookings.court_id, courts.id))
+        .where(
+            and(
+                ne(bookings.user_id, userId),
+                sql`${bookings.players_list} @> ${JSON.stringify([{ id: userId }])}::jsonb`
+            )
         )
-        .eq('user_id', userId)
-        .order('start_time', { ascending: false })
+        .orderBy(desc(bookings.start_time))
 
-    // 2. Bookings where the student was added as a player
-    //    players_list is JSONB array of objects: [{id, full_name, ...}]
-    const { data: playerBookings, error: playerError } = await supabase
-        .from('bookings')
-        .select(
-            `
-            *,
-            courts (name, sport)
-        `
-        )
-        .neq('user_id', userId)
-        .contains('players_list', JSON.stringify([{ id: userId }]))
-        .order('start_time', { ascending: false })
-
-    if (ownError) console.error('Error fetching own bookings:', ownError)
-    if (playerError) console.error('Error fetching player bookings:', playerError)
-
-    // 3. Merge and deduplicate
-    const allBookings = [...(ownBookings || []), ...(playerBookings || [])]
+    const allBookings = [...ownBookings, ...playerBookings]
     const seen = new Set<string>()
     const data = allBookings.filter((b) => {
         if (seen.has(b.id)) return false
@@ -630,44 +689,40 @@ export async function getStudentBookings(userId: string) {
     })
 
     const current = data.filter(
-        (b: any) =>
-            b.status === 'active' && new Date(b.start_time) <= now && new Date(b.end_time) >= now
+        (b) => b.status === 'active' && new Date(b.start_time) <= now && new Date(b.end_time) >= now
     )
 
     const upcoming = data.filter(
-        (b: any) =>
-            ['pending_confirmation', 'confirmed', 'waiting_manager'].includes(b.status) &&
+        (b) =>
+            ['pending_confirmation', 'confirmed', 'waiting_manager'].includes(b.status ?? '') &&
             new Date(b.end_time) > now
     )
 
     const past = data.filter(
-        (b: any) =>
+        (b) =>
             b.status === 'completed' ||
             b.status === 'cancelled' ||
             b.status === 'rejected' ||
-            (new Date(b.end_time) < now && !['active'].includes(b.status))
+            (new Date(b.end_time) < now && b.status !== 'active')
     )
 
     return { current, upcoming, past }
 }
 
-// ─── Student Start Play ───────────────────────────────────────────────────────
-// Called when a student arrives at the court and taps "Start Play".
-// Transitions the booking from 'confirmed' → 'waiting_manager' and notifies
-// all managers so they can head over and approve the session.
 export async function studentStartPlay(bookingId: string) {
-    const supabase = await createClient()
-
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getCurrentUser()
     if (!user) return { error: 'Unauthorized' }
 
-    const { data: booking } = await supabase
-        .from('bookings')
-        .select('user_id, status, start_time, courts(name, sport)')
-        .eq('id', bookingId)
-        .single()
+    const [booking] = await db
+        .select({
+            user_id: bookings.user_id,
+            status: bookings.status,
+            start_time: bookings.start_time,
+            courts: { name: courts.name, sport: courts.sport },
+        })
+        .from(bookings)
+        .leftJoin(courts, eq(bookings.court_id, courts.id))
+        .where(eq(bookings.id, bookingId))
 
     if (!booking) return { error: 'Booking not found' }
     if (booking.user_id !== user.id) return { error: 'Not your booking' }
@@ -675,15 +730,10 @@ export async function studentStartPlay(bookingId: string) {
         return { error: 'Booking cannot be started in its current state' }
     }
 
-    const { error } = await supabase
-        .from('bookings')
-        .update({ status: 'waiting_manager' })
-        .eq('id', bookingId)
+    await db.update(bookings).set({ status: 'waiting_manager' }).where(eq(bookings.id, bookingId))
 
-    if (error) return { error: error.message }
-
-    const courtInfo = (booking as any).courts
-    const startDisplay = new Date((booking as any).start_time).toLocaleString('en-IN', {
+    const courtInfo = booking.courts
+    const startDisplay = new Date(booking.start_time).toLocaleString('en-IN', {
         weekday: 'short',
         month: 'short',
         day: 'numeric',
@@ -704,16 +754,11 @@ export async function studentStartPlay(bookingId: string) {
     return { success: true }
 }
 
-// ─── Student Emergency Alert ──────────────────────────────────────────────────
-// Called from active-session.tsx. Writes to feedback_complaints so admin can see it.
 export async function studentEmergencyAlert(bookingId: string, reason: string) {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getCurrentUser()
     if (!user) return { error: 'Unauthorized' }
 
-    const { error } = await supabase.from('feedback_complaints').insert({
+    await db.insert(feedbackComplaints).values({
         student_id: user.id,
         booking_id: bookingId,
         title: 'Emergency Alert (Student)',
@@ -721,8 +766,6 @@ export async function studentEmergencyAlert(bookingId: string, reason: string) {
         category: 'emergency_by_student',
         status: 'open',
     })
-
-    if (error) return { error: error.message }
 
     await notifyAdminsAndManagers({
         senderId: user.id,
@@ -736,19 +779,15 @@ export async function studentEmergencyAlert(bookingId: string, reason: string) {
     return { success: true }
 }
 
-// ─── Submit Feedback / Complaint ──────────────────────────────────────────────
 export async function submitFeedback(title: string, description: string, category: string) {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getCurrentUser()
     if (!user) return { error: 'Unauthorized' }
 
     if (!title.trim() || !description.trim()) {
         return { error: 'Title and description are required' }
     }
 
-    const { error } = await supabase.from('feedback_complaints').insert({
+    await db.insert(feedbackComplaints).values({
         student_id: user.id,
         title: title.trim(),
         description: description.trim(),
@@ -756,36 +795,37 @@ export async function submitFeedback(title: string, description: string, categor
         status: 'open',
     })
 
-    if (error) return { error: error.message }
-
     revalidatePath('/admin/feedback')
     return { success: true }
 }
 
-// ─── Search Students (for Player Picker) ──────────────────────────────────────
 export async function searchStudents(query: string) {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getCurrentUser()
     if (!user) return []
 
     if (!query || query.trim().length < 2) return []
 
-    const now = new Date().toISOString()
-    const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, student_id, branch, gender, year, banned_until')
-        .eq('role', 'student')
-        .neq('id', user.id)
-        .ilike('full_name', `%${query.trim()}%`)
-        .or(`banned_until.is.null,banned_until.lt.${now}`)
+    const now = new Date()
+    const data = await db
+        .select({
+            id: profiles.id,
+            full_name: profiles.full_name,
+            student_id: profiles.student_id,
+            branch: profiles.branch,
+            gender: profiles.gender,
+            year: profiles.year,
+            banned_until: profiles.banned_until,
+        })
+        .from(profiles)
+        .where(
+            and(
+                eq(profiles.role, 'student'),
+                ne(profiles.id, user.id),
+                ilike(profiles.full_name, `%${query.trim()}%`),
+                or(isNull(profiles.banned_until), lt(profiles.banned_until, now))
+            )
+        )
         .limit(10)
 
-    if (error) {
-        console.error('Error searching students:', error)
-        return []
-    }
-
-    return data || []
+    return data
 }

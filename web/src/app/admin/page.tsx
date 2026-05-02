@@ -1,4 +1,7 @@
-import { createClient } from '@/utils/supabase/server'
+import { auth } from '@/auth'
+import { db } from '@/db'
+import { profiles } from '@/db/schema'
+import { eq } from 'drizzle-orm'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 import {
@@ -16,18 +19,18 @@ import {
 } from 'lucide-react'
 
 export default async function AdminHome() {
-    const supabase = await createClient()
+    const session = await auth()
+    const userId = session?.user?.id
 
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user?.id)
-        .single()
-
-    const adminName = profile?.full_name?.split(' ')[0] || 'Admin'
+    let adminName = 'Admin'
+    if (userId) {
+        const [profile] = await db
+            .select({ full_name: profiles.full_name })
+            .from(profiles)
+            .where(eq(profiles.id, userId))
+            .limit(1)
+        adminName = profile?.full_name?.split(' ')[0] || 'Admin'
+    }
 
     return (
         <div className="p-6 space-y-6">

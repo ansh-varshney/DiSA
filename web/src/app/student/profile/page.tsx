@@ -1,6 +1,9 @@
-import { createClient } from '@/utils/supabase/server'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
+import { db } from '@/db'
+import { profiles, bookings, studentViolations, feedbackComplaints } from '@/db/schema'
+import { eq, and, gte, desc, count } from 'drizzle-orm'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { format, formatDistanceToNow } from 'date-fns'
 import {
     AlertTriangle,
@@ -18,7 +21,6 @@ import { cn } from '@/lib/utils'
 import { FeedbackForm } from '@/components/feedback-form'
 import { ProfileEditForm } from '@/components/profile-edit-form'
 
-// Helper: turn snake_case violation_type into readable label
 function readableViolationType(type: string) {
     return type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
@@ -30,50 +32,45 @@ const statusColors: Record<string, string> = {
 }
 
 export default async function ProfilePage() {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) redirect('/login')
+    const session = await auth()
+    if (!session?.user?.id) redirect('/login')
+    const userId = session.user.id
 
-    const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+    const [profile] = await db.select().from(profiles).where(eq(profiles.id, userId)).limit(1)
 
-    // Fetch violations — only past 2 months
     const twoMonthsAgo = new Date()
     twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2)
 
-    const { data: violations } = await supabase
-        .from('student_violations')
-        .select('*')
-        .eq('student_id', user.id)
-        .gte('created_at', twoMonthsAgo.toISOString())
-        .order('created_at', { ascending: false })
+    const violations = await db
+        .select()
+        .from(studentViolations)
+        .where(
+            and(
+                eq(studentViolations.student_id, userId),
+                gte(studentViolations.created_at, twoMonthsAgo)
+            )
+        )
+        .orderBy(desc(studentViolations.created_at))
         .limit(10)
 
-    // Count total completed sessions
-    const { count: totalSessions } = await supabase
-        .from('bookings')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('status', 'completed')
+    const [sessionResult] = await db
+        .select({ count: count() })
+        .from(bookings)
+        .where(and(eq(bookings.user_id, userId), eq(bookings.status, 'completed')))
 
-    // Fetch past feedbacks/complaints
-    const { data: feedbacks } = await supabase
-        .from('feedback_complaints')
-        .select('*')
-        .eq('student_id', user.id)
-        .order('created_at', { ascending: false })
+    const totalSessions = sessionResult?.count ?? 0
+
+    const feedbacks = await db
+        .select()
+        .from(feedbackComplaints)
+        .where(eq(feedbackComplaints.student_id, userId))
+        .orderBy(desc(feedbackComplaints.created_at))
         .limit(20)
 
-    const violationCount = violations?.length || 0
-    // Active time-ban (3 late arrivals → 14 days)
+    const violationCount = violations.length
     const isBanned = profile?.banned_until && new Date(profile.banned_until) > new Date()
-    // Suspension from 3+ total violations
     const isSuspended = violationCount >= 3
-    // Late arrival strike count (from the last 2-month window already fetched)
-    const lateArrivalCount = (violations || []).filter(
-        (v: any) => v.violation_type === 'students_late'
-    ).length
+    const lateArrivalCount = violations.filter((v) => v.violation_type === 'students_late').length
 
     return (
         <div className="p-4 md:p-8 space-y-6">
@@ -102,7 +99,6 @@ export default async function ProfilePage() {
                         </div>
                     </div>
 
-                    {/* Stats Grid */}
                     <div className="grid grid-cols-3 gap-3 mt-4">
                         <div className="bg-[#004d40]/5 p-4 rounded-xl text-center">
                             <Star className="w-5 h-5 text-yellow-500 mx-auto mb-1" />
@@ -113,9 +109,7 @@ export default async function ProfilePage() {
                         </div>
                         <div className="bg-gray-50 p-4 rounded-xl text-center">
                             <Calendar className="w-5 h-5 text-blue-500 mx-auto mb-1" />
-                            <p className="text-2xl font-black text-gray-800">
-                                {totalSessions || 0}
-                            </p>
+                            <p className="text-2xl font-black text-gray-800">{totalSessions}</p>
                             <p className="text-xs text-gray-500 font-medium">Sessions</p>
                         </div>
                         <div className="bg-gray-50 p-4 rounded-xl text-center">
@@ -129,7 +123,6 @@ export default async function ProfilePage() {
                 </CardContent>
             </Card>
 
-            {/* Monthly leaderboard reward — top-5 priority booking */}
             {(profile?.priority_booking_remaining ?? 0) > 0 && (
                 <Card className="border-2 border-yellow-400 bg-yellow-50">
                     <CardContent className="p-4 flex items-start gap-3">
@@ -151,7 +144,7 @@ export default async function ProfilePage() {
                 </Card>
             )}
 
-            {/* Academic Profile (editable) */}
+            {/* Academic Profile */}
             <Card>
                 <CardHeader className="py-3">
                     <CardTitle className="text-lg flex items-center gap-2 text-gray-800">
@@ -165,13 +158,14 @@ export default async function ProfilePage() {
                             branch: profile?.branch ?? null,
                             year: profile?.year ?? null,
                             gender: profile?.gender ?? null,
+                            phone_number: profile?.phone_number ?? null,
                         }}
                     />
                 </CardContent>
             </Card>
 
-            {/* Active 14-day ban (repeated late arrivals) */}
-            {isBanned && (
+            {/* Active 14-day ban */}
+            {isBanned && profile?.banned_until && (
                 <Card className="border-2 border-orange-500 bg-orange-50">
                     <CardContent className="p-4 flex items-center gap-3">
                         <Ban className="w-6 h-6 text-orange-600 shrink-0" />
@@ -183,10 +177,10 @@ export default async function ProfilePage() {
                                 You have accumulated 3 late-arrival strikes. Booking is disabled
                                 until{' '}
                                 <span className="font-semibold">
-                                    {format(new Date(profile!.banned_until), 'MMMM d, yyyy')}
+                                    {format(new Date(profile.banned_until), 'MMMM d, yyyy')}
                                 </span>{' '}
                                 (
-                                {formatDistanceToNow(new Date(profile!.banned_until), {
+                                {formatDistanceToNow(new Date(profile.banned_until), {
                                     addSuffix: true,
                                 })}
                                 ). Contact admin for early clearance.
@@ -196,7 +190,7 @@ export default async function ProfilePage() {
                 </Card>
             )}
 
-            {/* Suspension warning (3+ total violations) */}
+            {/* Suspension warning */}
             {!isBanned && isSuspended && (
                 <Card className="border-2 border-red-500 bg-red-50">
                     <CardContent className="p-4 flex items-center gap-3">
@@ -212,7 +206,7 @@ export default async function ProfilePage() {
                 </Card>
             )}
 
-            {/* Late arrival strike tracker (show if any strikes but not yet banned) */}
+            {/* Late arrival strike tracker */}
             {!isBanned && lateArrivalCount > 0 && (
                 <Card
                     className={cn(
@@ -247,7 +241,7 @@ export default async function ProfilePage() {
                 </Card>
             )}
 
-            {/* Warnings & Violations */}
+            {/* Violations */}
             <Card className={cn(violationCount > 0 ? 'border-red-200' : 'border-green-200')}>
                 <CardHeader className="py-3">
                     <CardTitle
@@ -270,15 +264,11 @@ export default async function ProfilePage() {
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {violations?.map((v: any) => {
-                                const message =
-                                    v.reason ||
-                                    v.description ||
-                                    readableViolationType(v.violation_type || 'Unknown')
+                            {violations.map((v) => {
+                                const message = v.reason || readableViolationType(v.violation_type)
                                 const severityColors: Record<string, string> = {
-                                    critical: 'bg-red-200 text-red-800',
                                     severe: 'bg-red-200 text-red-800',
-                                    major: 'bg-orange-200 text-orange-800',
+                                    moderate: 'bg-orange-200 text-orange-800',
                                     minor: 'bg-yellow-200 text-yellow-800',
                                 }
                                 return (
@@ -291,14 +281,14 @@ export default async function ProfilePage() {
                                                 <span
                                                     className={cn(
                                                         'text-xs font-bold uppercase px-2 py-0.5 rounded-full',
-                                                        severityColors[v.severity] ||
+                                                        severityColors[v.severity ?? 'minor'] ??
                                                             'bg-yellow-200 text-yellow-800'
                                                     )}
                                                 >
                                                     {v.severity || 'minor'}
                                                 </span>
                                                 <span className="text-xs text-gray-500 font-medium">
-                                                    {readableViolationType(v.violation_type || '')}
+                                                    {readableViolationType(v.violation_type)}
                                                 </span>
                                             </div>
                                             <span className="text-xs text-gray-400">
@@ -327,8 +317,7 @@ export default async function ProfilePage() {
                 </CardContent>
             </Card>
 
-            {/* Past Feedback History */}
-            {feedbacks && feedbacks.length > 0 && (
+            {feedbacks.length > 0 && (
                 <Card>
                     <CardHeader className="py-3">
                         <CardTitle className="text-lg flex items-center gap-2 text-gray-800">
@@ -338,7 +327,7 @@ export default async function ProfilePage() {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-3">
-                            {feedbacks.map((fb: any) => (
+                            {feedbacks.map((fb) => (
                                 <div
                                     key={fb.id}
                                     className="p-3 bg-gray-50 rounded-lg border border-gray-100"
@@ -348,7 +337,7 @@ export default async function ProfilePage() {
                                             <span
                                                 className={cn(
                                                     'text-xs font-bold uppercase px-2 py-0.5 rounded-full',
-                                                    statusColors[fb.status] ||
+                                                    statusColors[fb.status ?? 'open'] ??
                                                         'bg-gray-100 text-gray-600'
                                                 )}
                                             >
@@ -366,16 +355,6 @@ export default async function ProfilePage() {
                                         {fb.title}
                                     </p>
                                     <p className="text-sm text-gray-600 mt-0.5">{fb.description}</p>
-                                    {fb.admin_notes && (
-                                        <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-100">
-                                            <p className="text-xs font-semibold text-blue-700">
-                                                Admin Response:
-                                            </p>
-                                            <p className="text-sm text-blue-800">
-                                                {fb.admin_notes}
-                                            </p>
-                                        </div>
-                                    )}
                                 </div>
                             ))}
                         </div>

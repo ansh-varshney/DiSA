@@ -30,21 +30,21 @@ import { getPlayerLimits } from '@/lib/sport-config'
 interface Equipment {
     id: string
     name: string
-    equipment_id: string
+    equipment_id: string | null
     sport: string
-    condition: string
+    condition: string | null
 }
 
 interface Reservation {
     id: string
-    is_priority: boolean
-    is_maintenance?: boolean
-    num_players?: number
+    is_priority: boolean | null
+    is_maintenance?: boolean | null
+    num_players?: number | null
     equipment_ids?: string[] | null
     profiles?: {
-        full_name: string
-        student_id: string
-    }
+        full_name: string | null
+        student_id: string | null
+    } | null
 }
 
 interface ReservationSlotDialogProps {

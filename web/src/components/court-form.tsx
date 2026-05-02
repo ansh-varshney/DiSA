@@ -17,15 +17,15 @@ import { Upload, X } from 'lucide-react'
 
 interface Court {
     id: string
-    court_id?: string
+    court_id?: string | null
     name: string
     sport: string
-    condition: string
-    usage_count?: number
-    pictures?: string[]
-    last_maintenance_date?: string
-    next_check_date?: string
-    notes?: string
+    condition: string | null
+    usage_count?: number | null
+    pictures?: string[] | null
+    last_maintenance_date?: string | null
+    next_check_date?: string | null
+    notes?: string | null
 }
 
 interface CourtFormProps {
@@ -249,7 +249,7 @@ export function CourtForm({ mode, court, sport, children }: CourtFormProps) {
                                             id="last_maintenance_date"
                                             name="last_maintenance_date"
                                             max={new Date().toISOString().split('T')[0]}
-                                            defaultValue={court?.last_maintenance_date}
+                                            defaultValue={court?.last_maintenance_date ?? undefined}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40] text-gray-900 font-medium"
                                         />
                                     </div>
@@ -266,7 +266,7 @@ export function CourtForm({ mode, court, sport, children }: CourtFormProps) {
                                             id="next_check_date"
                                             name="next_check_date"
                                             max={new Date().toISOString().split('T')[0]}
-                                            defaultValue={court?.next_check_date}
+                                            defaultValue={court?.next_check_date ?? undefined}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40] text-gray-900 font-medium"
                                         />
                                     </div>
@@ -335,7 +335,7 @@ export function CourtForm({ mode, court, sport, children }: CourtFormProps) {
                                         id="notes"
                                         name="notes"
                                         rows={4}
-                                        defaultValue={court?.notes}
+                                        defaultValue={court?.notes ?? undefined}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#004d40] resize-none text-gray-900 font-medium"
                                         placeholder="Additional notes about this court..."
                                     />

@@ -7,31 +7,31 @@ import { ReservationSlotDialog } from './reservation-slot-dialog'
 interface Court {
     id: string
     name: string
-    court_id: string
+    court_id: string | null
 }
 
 interface Equipment {
     id: string
     name: string
-    equipment_id: string
+    equipment_id: string | null
     sport: string
-    condition: string
+    condition: string | null
 }
 
 interface Reservation {
     id: string
     court_id: string
-    start_time: string
-    end_time: string
+    start_time: Date | string
+    end_time: Date | string
     user_id: string
-    is_priority: boolean
-    is_maintenance?: boolean
-    num_players?: number
+    is_priority: boolean | null
+    is_maintenance?: boolean | null
+    num_players?: number | null
     equipment_ids?: string[] | null
     profiles?: {
-        full_name: string
-        student_id: string
-    }
+        full_name: string | null
+        student_id: string | null
+    } | null
 }
 
 interface ReservationCalendarProps {

@@ -1,29 +1,23 @@
-import { createClient } from '@/utils/supabase/server'
+import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
+import { db } from '@/db'
+import { profiles } from '@/db/schema'
+import { eq } from 'drizzle-orm'
 import { AdminNav } from '@/components/admin-nav'
 import { NotificationPopup } from '@/components/notification-popup'
 import { getMyNotifications } from '@/actions/notifications'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-    const supabase = await createClient()
+    const session = await auth()
+    if (!session?.user?.id) redirect('/login?role=admin')
 
-    // Auth Check
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-        redirect('/login?role=admin')
-    }
-
-    // Role Check - Strictly admin only
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
+    const [profile] = await db
+        .select({ role: profiles.role })
+        .from(profiles)
+        .where(eq(profiles.id, session.user.id))
+        .limit(1)
 
     if (profile && profile.role !== 'admin' && profile.role !== 'superuser') {
-        console.log('Unauthorized access to admin area by:', profile.role)
         redirect('/')
     }
 
