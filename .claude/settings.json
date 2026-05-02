@@ -14,7 +14,18 @@
       "Read(//c/Users/Ansh Varshney/.claude/projects/c--Users-Ansh-Varshney-Desktop-IIITD-Semester-8-DiSA/memory/**)",
       "Bash(npm ci *)",
       "Bash(grep -E \"\\\\.ts$|\\\\.tsx$|\\\\.js$\")",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(grep -r \"DiSA\\\\|disa\\\\|DISA\" --include=\"*.tsx\" --include=\"*.ts\" --include=\"*.jsx\" --include=\"*.js\" --include=\"*.html\" --include=\"*.json\" --include=\"*.md\" --include=\"*.sql\" --include=\"*.env*\" --include=\"*.config.*\" ! -path \"*/node_modules/*\" ! -path \"*/.next/*\" ! -path \"*/coverage/*\")",
+      "Bash(grep -r \"DiSA\" --include=\"*.tsx\" --include=\"*.ts\" --include=\"*.jsx\" --include=\"*.js\" ! -path \"*/node_modules/*\" ! -path \"*/.next/*\" ! -path \"*/coverage/*\")",
+      "Bash(grep -r \"DiSA\\\\|disa\\\\|DISA\" . --include=\"*.md\" --include=\"*.sql\" --include=\"*.json\" --include=\"*.env*\" --include=\"*.config.*\" --include=\"*.mjs\" ! -path \"*/node_modules/*\" ! -path \"*/.next/*\" ! -path \"*/coverage/*\")",
+      "Bash(Remove-Item \"c:\\\\Users\\\\Ansh Varshney\\\\Desktop\\\\IIITD\\\\Semester 8\\\\DiSA\\\\.claude\\\\agents\\\\disa-booking-assessor.md\" -Force)",
+      "Bash(Remove-Item \"c:\\\\Users\\\\Ansh Varshney\\\\Desktop\\\\IIITD\\\\Semester 8\\\\DiSA\\\\.claude\\\\agents\\\\disa-session-assessor.md\" -Force)",
+      "Bash(Remove-Item \"c:\\\\Users\\\\Ansh Varshney\\\\Desktop\\\\IIITD\\\\Semester 8\\\\DiSA\\\\.claude\\\\agents\\\\disa-manager-assessor.md\" -Force)",
+      "Bash(Remove-Item \"c:\\\\Users\\\\Ansh Varshney\\\\Desktop\\\\IIITD\\\\Semester 8\\\\DiSA\\\\.claude\\\\agents\\\\disa-points-assessor.md\" -Force)",
+      "Bash(Remove-Item \"c:\\\\Users\\\\Ansh Varshney\\\\Desktop\\\\IIITD\\\\Semester 8\\\\DiSA\\\\.claude\\\\agents\\\\disa-notifications-assessor.md\" -Force)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Ansh Varshney\\Desktop\\IIITD\\Semester 8\\DiSA\\.claude\\agents"
     ]
   }
 }

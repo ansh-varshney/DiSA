@@ -1,4 +1,4 @@
-# DiSA — Sports Court Management System
+# CampusPlay — Sports Court Management System
 
 A sports facility management web application for IIITD, built with **Next.js 15**, **Supabase**, and **Tailwind CSS / shadcn/ui**.
 
@@ -22,7 +22,7 @@ A sports facility management web application for IIITD, built with **Next.js 15*
 
 ## Overview
 
-DiSA manages court bookings, equipment issuance, session approvals, and post-session reporting for a college sports facility. It has three portals — **Student**, **Manager**, and **Admin** — each with role-gated access enforced at both the Next.js middleware and Supabase RLS layers.
+CampusPlay manages court bookings, equipment issuance, session approvals, and post-session reporting for a college sports facility. It has three portals — **Student**, **Manager**, and **Admin** — each with role-gated access enforced at both the Next.js middleware and Supabase RLS layers.
 
 ---
 
@@ -42,7 +42,7 @@ DiSA manages court bookings, equipment issuance, session approvals, and post-ses
 ## Project Structure
 
 ```
-DiSA/
+CampusPlay/
 ├── design_brief.md          # Full feature specification
 ├── README.md
 └── web/
@@ -92,7 +92,7 @@ Role is stored in `profiles.role` (enum: `student`, `manager`, `admin`, `superus
 ```bash
 # 1. Clone the repo
 git clone <repo-url>
-cd DiSA/web
+cd CampusPlay/web
 
 # 2. Install dependencies
 npm install

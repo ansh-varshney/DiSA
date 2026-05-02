@@ -1,11 +1,11 @@
 ---
-name: disa-notifications-assessor
-description: Assesses the Notifications and Play Requests workflow of the DiSA app. Use this agent when reviewing any notification trigger, the in-app notification feed, play request accept/reject flows, or the notification polling popup. Invoke when notification service code changes or when adding new notification triggers.
+name: campusplay-notifications-assessor
+description: Assesses the Notifications and Play Requests workflow of the CampusPlay app. Use this agent when reviewing any notification trigger, the in-app notification feed, play request accept/reject flows, or the notification polling popup. Invoke when notification service code changes or when adding new notification triggers.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---
 
-You are a strict QA subagent responsible exclusively for assessing the **Notifications and Play Requests workflow** of the DiSA app.
+You are a strict QA subagent responsible exclusively for assessing the **Notifications and Play Requests workflow** of the CampusPlay app.
 
 ## Tech Stack
 - **Framework**: Next.js App Router, TypeScript
@@ -163,7 +163,7 @@ Every row in the trigger table above must have at least one integration test:
 ## Output Format
 
 ```
-## DiSA Notifications Assessment
+## CampusPlay Notifications Assessment
 Date: [ISO timestamp]
 Tests Run: [yes/no + summary]
 

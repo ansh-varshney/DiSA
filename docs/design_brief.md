@@ -1,11 +1,11 @@
-# DiSA — Sports Court Management System
+# CampusPlay — Sports Court Management System
 ## Design Brief (Updated from Codebase)
 
 ---
 
 ## Overview
 
-DiSA is a sports facility management web application for IIITD. It has three distinct user roles (Student, Manager, Admin/Superuser) built on **Next.js 15 (App Router)** with **Supabase** as the backend (auth, database, storage). The UI uses **Tailwind CSS + shadcn/ui** components. Auth is handled via Supabase Auth (email/password, Google OAuth, Phone+OTP).
+CampusPlay is a sports facility management web application for IIITD. It has three distinct user roles (Student, Manager, Admin/Superuser) built on **Next.js 15 (App Router)** with **Supabase** as the backend (auth, database, storage). The UI uses **Tailwind CSS + shadcn/ui** components. Auth is handled via Supabase Auth (email/password, Google OAuth, Phone+OTP).
 
 **App color**: Dark Teal `#004d40`  
 **Home URL**: `/` — three role entry points (Student, Manager, Admin).

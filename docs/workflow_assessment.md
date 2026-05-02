@@ -1,4 +1,4 @@
-# DiSA — Manual Testing Workflow Assessment
+# CampusPlay — Manual Testing Workflow Assessment
 
 ---
 

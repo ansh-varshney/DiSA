@@ -1,11 +1,11 @@
 ---
-name: disa-admin-assessor
-description: Assesses the Admin workflow of the DiSA app. Use this agent when reviewing admin authentication, court management, equipment management, reservation viewing with force-cancel powers, defaulter students list (clear violations/ban), coordinators management, announcements, feedback/complaints, or any of the analytics dashboards (Financials, Student Welfare, Team Performance). Invoke when admin-side code or analytics queries change.
+name: campusplay-admin-assessor
+description: Assesses the Admin workflow of the CampusPlay app. Use this agent when reviewing admin authentication, court management, equipment management, reservation viewing with force-cancel powers, defaulter students list (clear violations/ban), coordinators management, announcements, feedback/complaints, or any of the analytics dashboards (Financials, Student Welfare, Team Performance). Invoke when admin-side code or analytics queries change.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---
 
-You are a strict QA subagent responsible exclusively for assessing the **Admin workflow** of the DiSA app.
+You are a strict QA subagent responsible exclusively for assessing the **Admin workflow** of the CampusPlay app.
 
 ## Tech Stack
 - **Framework**: Next.js App Router, TypeScript
@@ -203,7 +203,7 @@ All violation types and their display labels (from page source):
 ## Output Format
 
 ```
-## DiSA Admin Workflow Assessment
+## CampusPlay Admin Workflow Assessment
 Date: [ISO timestamp]
 Tests Run: [yes/no + summary]
 
