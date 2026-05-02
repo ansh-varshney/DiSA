@@ -13,19 +13,20 @@ import { FeedbackActions } from '@/components/feedback-actions'
 import { StatusFilter } from '@/components/status-filter'
 import { format } from 'date-fns'
 
-const CATEGORY_LABELS: Record<string, { label: string; emoji: string; color: string }> = {
-    general: { label: 'General', emoji: '💬', color: 'bg-gray-100 text-gray-700' },
-    emergency_by_manager: {
-        label: 'Emergency (Manager)',
-        emoji: '🚨',
-        color: 'bg-red-100 text-red-700',
-    },
-    emergency_by_student: {
-        label: 'Emergency (Student)',
-        emoji: '🆘',
-        color: 'bg-orange-100 text-orange-700',
-    },
+const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
+    complaint: { label: 'Complaints', color: 'bg-gray-100 text-gray-700' },
+    feedback: { label: 'Feedback', color: 'bg-blue-100 text-blue-700' },
+    emergency_by_manager: { label: 'Emergency', color: 'bg-red-100 text-red-700' },
+    // fallback mappings for legacy data
+    general: { label: 'Complaints', color: 'bg-gray-100 text-gray-700' },
+    emergency_by_student: { label: 'Emergency', color: 'bg-red-100 text-red-700' },
 }
+
+const CATEGORY_PILLS = [
+    { key: 'complaint', label: 'Complaints', color: 'bg-gray-100 text-gray-700' },
+    { key: 'feedback', label: 'Feedback', color: 'bg-blue-100 text-blue-700' },
+    { key: 'emergency_by_manager', label: 'Emergency', color: 'bg-red-100 text-red-700' },
+]
 
 export default async function FeedbackManagement({
     searchParams,
@@ -62,13 +63,13 @@ export default async function FeedbackManagement({
 
             {/* Summary Pills */}
             <div className="flex flex-wrap gap-3">
-                {Object.entries(CATEGORY_LABELS).map(([key, { label, emoji, color }]) => (
+                {CATEGORY_PILLS.map(({ key, label, color }) => (
                     <a
                         key={key}
                         href={`/admin/feedback?category=${key}`}
                         className={`px-3 py-1.5 rounded-full text-xs font-semibold ${color} hover:opacity-80 transition`}
                     >
-                        {emoji} {label}
+                        {label}
                     </a>
                 ))}
             </div>
@@ -121,7 +122,7 @@ export default async function FeedbackManagement({
                                                 <span
                                                     className={`px-2 py-1 rounded-full text-[11px] font-bold whitespace-nowrap ${cat.color}`}
                                                 >
-                                                    {cat.emoji} {cat.label}
+                                                    {cat.label}
                                                 </span>
                                             </TableCell>
                                             <TableCell>
@@ -144,9 +145,12 @@ export default async function FeedbackManagement({
                                             </TableCell>
                                             <TableCell>
                                                 <Badge
-                                                    variant={statusVariants[item.status] || 'info'}
+                                                    variant={
+                                                        statusVariants[item.status ?? 'open'] ||
+                                                        'info'
+                                                    }
                                                 >
-                                                    {item.status.replace('_', ' ')}
+                                                    {(item.status ?? '').replace('_', ' ')}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-gray-800 text-sm">
@@ -155,7 +159,7 @@ export default async function FeedbackManagement({
                                             <TableCell className="text-right">
                                                 <FeedbackActions
                                                     feedbackId={item.id}
-                                                    currentStatus={item.status}
+                                                    currentStatus={item.status ?? 'open'}
                                                 />
                                             </TableCell>
                                         </TableRow>

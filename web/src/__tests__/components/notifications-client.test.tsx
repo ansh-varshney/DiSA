@@ -23,7 +23,7 @@ function makeNotif(overrides: Partial<AppNotification> = {}): AppNotification {
         body: 'Head to the court!',
         data: {},
         is_read: false,
-        created_at: new Date().toISOString(),
+        created_at: new Date(),
         ...overrides,
     }
 }
@@ -130,7 +130,7 @@ describe('NotificationsClient', () => {
     })
 
     it('shows relative time for each notification', () => {
-        const notif = makeNotif({ created_at: new Date().toISOString() })
+        const notif = makeNotif({ created_at: new Date() })
         render(<NotificationsClient notifications={[notif]} />)
         // date-fns formatDistanceToNow should render something like "less than a minute ago"
         expect(screen.getByText(/ago/i)).toBeInTheDocument()

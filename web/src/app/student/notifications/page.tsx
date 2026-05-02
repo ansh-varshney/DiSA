@@ -1,14 +1,11 @@
-import { createClient } from '@/utils/supabase/server'
+import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { getMyNotifications } from '@/actions/notifications'
 import { NotificationsClient } from './notifications-client'
 
 export default async function StudentNotificationsPage() {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) redirect('/login')
+    const session = await auth()
+    if (!session?.user?.id) redirect('/login')
 
     const notifications = await getMyNotifications(false, 60)
 

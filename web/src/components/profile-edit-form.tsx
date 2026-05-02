@@ -7,7 +7,12 @@ import { updateStudentProfile } from '@/actions/profile'
 import { BRANCHES, YEARS, GENDERS } from '@/lib/profile-options'
 
 interface Props {
-    current: { branch: string | null; year: string | null; gender: string | null }
+    current: {
+        branch: string | null
+        year: string | null
+        gender: string | null
+        phone_number: string | null
+    }
 }
 
 export function ProfileEditForm({ current }: Props) {
@@ -35,7 +40,7 @@ export function ProfileEditForm({ current }: Props) {
     if (!editing) {
         return (
             <div className="space-y-3">
-                <div className="grid grid-cols-3 gap-3 text-sm">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                     <div className="bg-gray-50 rounded-lg p-3">
                         <p className="text-xs text-gray-400 mb-0.5">Branch</p>
                         <p className="font-semibold text-gray-900">{current.branch || '—'}</p>
@@ -47,6 +52,10 @@ export function ProfileEditForm({ current }: Props) {
                     <div className="bg-gray-50 rounded-lg p-3">
                         <p className="text-xs text-gray-400 mb-0.5">Gender</p>
                         <p className="font-semibold text-gray-900">{current.gender || '—'}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-xs text-gray-400 mb-0.5">Phone</p>
+                        <p className="font-semibold text-gray-900">{current.phone_number || '—'}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -71,7 +80,7 @@ export function ProfileEditForm({ current }: Props) {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-gray-600">Branch</label>
                     <select
@@ -125,6 +134,16 @@ export function ProfileEditForm({ current }: Props) {
                             </option>
                         ))}
                     </select>
+                </div>
+                <div className="space-y-1">
+                    <label className="text-xs font-medium text-gray-600">Phone Number</label>
+                    <input
+                        type="tel"
+                        name="phone_number"
+                        defaultValue={current.phone_number || ''}
+                        placeholder="+91 98765 43210"
+                        className="w-full h-10 border border-gray-300 rounded-lg px-3 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#004d40]"
+                    />
                 </div>
             </div>
 

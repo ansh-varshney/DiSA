@@ -3,11 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { X, Bell, CheckCircle, AlertTriangle, Info, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import {
-    getNewNotifications,
-    markNotificationRead,
-    type AppNotification,
-} from '@/actions/notifications'
+import { markNotificationRead, type AppNotification } from '@/actions/notifications'
 import { acceptPlayRequest, rejectPlayRequest } from '@/actions/notifications'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -62,20 +58,48 @@ function Toast({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: string
     const { border, icon } = toastStyle(n.type)
     const isPlayRequest = n.type === 'play_request_received'
     const playRequestId = n.data?.play_request_id as string | undefined
+    const bookingId = n.data?.booking_id as string | undefined
 
     const [responding, setResponding] = useState(false)
+    const [error, setError] = useState<string | null>(null)
 
     async function handleAccept() {
-        if (!playRequestId) return
         setResponding(true)
-        await acceptPlayRequest(playRequestId)
+        setError(null)
+        let prId = playRequestId
+        if (!prId && bookingId) {
+            const res = await fetch(`/api/play-request-id?booking_id=${bookingId}`)
+            if (res.ok) {
+                const json = await res.json()
+                prId = json.play_request_id
+            }
+        }
+        if (!prId) {
+            setResponding(false)
+            setError('Could not find play request')
+            return
+        }
+        await acceptPlayRequest(prId)
         onDismiss(n.id)
     }
 
     async function handleReject() {
-        if (!playRequestId) return
         setResponding(true)
-        await rejectPlayRequest(playRequestId)
+        setError(null)
+        let prId = playRequestId
+        if (!prId && bookingId) {
+            const res = await fetch(`/api/play-request-id?booking_id=${bookingId}`)
+            if (res.ok) {
+                const json = await res.json()
+                prId = json.play_request_id
+            }
+        }
+        if (!prId) {
+            setResponding(false)
+            setError('Could not find play request')
+            return
+        }
+        await rejectPlayRequest(prId)
         onDismiss(n.id)
     }
 
@@ -94,21 +118,24 @@ function Toast({ entry, onDismiss }: { entry: ToastEntry; onDismiss: (id: string
                     <p className="text-xs text-gray-600 mt-0.5 leading-snug">{n.body}</p>
 
                     {isPlayRequest && (
-                        <div className="flex gap-2 mt-3">
-                            <button
-                                onClick={handleAccept}
-                                disabled={responding}
-                                className="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-[#004d40] text-white hover:bg-[#003d32] disabled:opacity-50 transition-colors"
-                            >
-                                Accept
-                            </button>
-                            <button
-                                onClick={handleReject}
-                                disabled={responding}
-                                className="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
-                            >
-                                Decline
-                            </button>
+                        <div className="mt-3 space-y-1.5">
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleAccept}
+                                    disabled={responding}
+                                    className="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-[#004d40] text-white hover:bg-[#003d32] disabled:opacity-50 transition-colors"
+                                >
+                                    {responding ? '...' : 'Accept'}
+                                </button>
+                                <button
+                                    onClick={handleReject}
+                                    disabled={responding}
+                                    className="flex-1 py-1.5 text-xs font-semibold rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
+                                >
+                                    {responding ? '...' : 'Decline'}
+                                </button>
+                            </div>
+                            {error && <p className="text-xs text-red-500">{error}</p>}
                         </div>
                     )}
                 </div>
@@ -137,7 +164,9 @@ export function NotificationPopup({ initial = [] }: NotificationPopupProps) {
     )
     // Track the latest created_at we've seen so we only fetch newer ones
     const lastSeenRef = useRef<string>(
-        initial.length > 0 ? initial[0].created_at : new Date().toISOString()
+        initial.length > 0
+            ? new Date(initial[0].created_at).toISOString()
+            : new Date().toISOString()
     )
     const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
@@ -172,14 +201,38 @@ export function NotificationPopup({ initial = [] }: NotificationPopupProps) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
-    // Polling every 20 seconds
+    // Polling every 8 seconds
     useEffect(() => {
         const interval = setInterval(async () => {
-            const fresh = await getNewNotifications(lastSeenRef.current)
+            // Check if any displayed play-request toasts were dismissed server-side
+            // (happens when manager cancels/rejects the booking)
+            setToasts((current) => {
+                const playRequestIds = current
+                    .filter((e) => !e.removing && e.notification.type === 'play_request_received')
+                    .map((e) => e.notification.id)
+
+                if (playRequestIds.length > 0) {
+                    fetch(`/api/notifications/status?ids=${playRequestIds.join(',')}`)
+                        .then((r) => (r.ok ? r.json() : []))
+                        .then((statuses: { id: string; is_read: boolean }[]) => {
+                            for (const { id, is_read } of statuses) {
+                                if (is_read) dismiss(id)
+                            }
+                        })
+                        .catch(() => {})
+                }
+                return current
+            })
+
+            const res = await fetch(
+                `/api/notifications?since=${encodeURIComponent(lastSeenRef.current)}`
+            )
+            if (!res.ok) return
+            const fresh: AppNotification[] = await res.json()
             if (fresh.length === 0) return
 
             // Update watermark
-            lastSeenRef.current = fresh[0].created_at
+            lastSeenRef.current = new Date(fresh[0].created_at).toISOString()
 
             setToasts((prev) => {
                 const existingIds = new Set(prev.map((e) => e.notification.id))
@@ -193,7 +246,7 @@ export function NotificationPopup({ initial = [] }: NotificationPopupProps) {
             for (const n of fresh) {
                 scheduleAutoDismiss(n.id, n.type)
             }
-        }, 20_000)
+        }, 8_000)
 
         return () => clearInterval(interval)
     }, [scheduleAutoDismiss])

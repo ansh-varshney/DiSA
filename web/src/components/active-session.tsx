@@ -10,11 +10,11 @@ import { useRouter } from 'next/navigation'
 
 interface Booking {
     id: string
-    start_time: string
-    end_time: string
-    status: string
-    num_players: number
-    courts: { name: string; sport: string }
+    start_time: Date | string
+    end_time: Date | string
+    status: string | null
+    num_players: number | null
+    courts: { name: string; sport: string } | null
 }
 
 export function ActiveSessionView({ booking }: { booking: Booking }) {
@@ -120,10 +120,10 @@ export function ActiveSessionView({ booking }: { booking: Booking }) {
                     <div className="flex justify-between items-center">
                         <div>
                             <h3 className="font-bold text-gray-800 text-lg">
-                                {booking.courts.name}
+                                {booking.courts?.name}
                             </h3>
                             <span className="text-xs uppercase tracking-wider font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                                {booking.courts.sport}
+                                {booking.courts?.sport}
                             </span>
                         </div>
                         <div className="text-right text-sm text-gray-500">

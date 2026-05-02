@@ -57,12 +57,13 @@ jobs:
     name: Tests + Coverage
     runs-on: ubuntu-latest
 
-    # Supabase clients are fully mocked in vitest.setup.ts, so these only need
-    # to be non-empty strings for any import-time validation to pass.
+    # The entire DB and auth stack is mocked in vitest.setup.ts.
+    # No real credentials are needed for tests to pass.
     env:
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key' }}
+      DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/disa
+      AUTH_SECRET: ci-placeholder-secret-32-chars-long!!
+      AUTH_GOOGLE_ID: placeholder.apps.googleusercontent.com
+      AUTH_GOOGLE_SECRET: placeholder-google-secret
 
     steps:
       - name: Checkout
@@ -80,6 +81,7 @@ jobs:
 
       # Vitest with coverage — thresholds enforced in vitest.config.ts:
       #   lines: 70 · functions: 70 · branches: 60
+      # Coverage scope: src/actions/** · src/lib/** · src/app/api/**
       - name: Run tests with coverage
         run: npm run test:coverage
 
@@ -94,16 +96,17 @@ jobs:
 
   # ─── 3. Next.js production build ─────────────────────────────────────────────
   # Only runs after quality + tests both pass, so broken builds don't mask
-  # lint/type errors, and failed tests don't trigger an unnecessary build.
+  # lint/type errors and failed tests don't trigger an unnecessary build.
   build:
     name: Build (Next.js)
     runs-on: ubuntu-latest
     needs: [quality, test]
 
     env:
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+      AUTH_GOOGLE_ID: ${{ secrets.AUTH_GOOGLE_ID }}
+      AUTH_GOOGLE_SECRET: ${{ secrets.AUTH_GOOGLE_SECRET }}
 
     steps:
       - name: Checkout

@@ -37,8 +37,9 @@ export function StatusFilter() {
                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#004d40] text-gray-900"
                 >
                     <option value="all">All Categories</option>
-                    <option value="general">General</option>
-                    <option value="emergency_by_manager">🚨 Emergency (Manager)</option>
+                    <option value="complaint">Complaints</option>
+                    <option value="feedback">Feedback</option>
+                    <option value="emergency_by_manager">Emergency</option>
                 </select>
             </div>
         </div>

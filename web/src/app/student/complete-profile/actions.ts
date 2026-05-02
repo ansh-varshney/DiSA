@@ -1,21 +1,21 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { auth } from '@/auth'
+import { db } from '@/db'
+import { profiles } from '@/db/schema'
+import { eq } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 export async function completeStudentProfile(formData: FormData) {
-    const supabase = await createClient()
-
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) return { error: 'Not authenticated' }
+    const session = await auth()
+    if (!session?.user?.id) return { error: 'Not authenticated' }
 
     const branch = formData.get('branch') as string
     const year = formData.get('year') as string
     const gender = formData.get('gender') as string
     const studentId = formData.get('studentId') as string | null
+    const phone_number = (formData.get('phone_number') as string)?.trim() || null
 
     if (!branch || !year || !gender) {
         return { error: 'Branch, year, and gender are required' }
@@ -23,10 +23,9 @@ export async function completeStudentProfile(formData: FormData) {
 
     const updateData: Record<string, string> = { branch, year, gender }
     if (studentId?.trim()) updateData.student_id = studentId.trim()
+    if (phone_number) updateData.phone_number = phone_number
 
-    const { error } = await supabase.from('profiles').update(updateData).eq('id', user.id)
-
-    if (error) return { error: error.message }
+    await db.update(profiles).set(updateData).where(eq(profiles.id, session.user.id))
 
     revalidatePath('/student', 'layout')
     redirect('/student')

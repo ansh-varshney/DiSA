@@ -1,54 +1,42 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { db } from '@/db'
+import { courts } from '@/db/schema'
+import { eq, asc } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
+import { requireAdmin } from '@/lib/auth-guards'
 
 export async function getCourts() {
-    const supabase = await createClient()
-    const { data, error } = await supabase.from('courts').select('*').order('name')
-
-    if (error) {
-        console.error('Error fetching courts:', error)
+    try {
+        return await db.select().from(courts).orderBy(asc(courts.name))
+    } catch {
         return []
     }
-
-    return data
 }
 
 export async function getActiveCourts() {
-    const supabase = await createClient()
-    const { data, error } = await supabase
-        .from('courts')
-        .select('*')
-        .eq('is_active', true)
-        .order('name')
-
-    if (error) {
-        console.error('Error fetching active courts:', error)
+    try {
+        return await db
+            .select()
+            .from(courts)
+            .where(eq(courts.is_active, true))
+            .orderBy(asc(courts.name))
+    } catch {
         return []
     }
-
-    return data
 }
 
 export async function createCourt(formData: FormData) {
-    const supabase = await createClient()
-
-    // Basic validation would go here
+    await requireAdmin()
     const name = formData.get('name') as string
     const sport = formData.get('sport') as string
     const type = formData.get('type') as string
     const capacity = Number(formData.get('capacity')) || 4
 
-    const { error } = await supabase.from('courts').insert({
-        name,
-        sport,
-        type,
-        capacity,
-    })
-
-    if (error) {
-        return { error: error.message }
+    try {
+        await db.insert(courts).values({ name, sport, type, capacity })
+    } catch (e: any) {
+        return { error: e?.message ?? 'Failed to create court' }
     }
 
     revalidatePath('/admin/courts')

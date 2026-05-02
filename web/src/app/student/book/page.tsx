@@ -1,5 +1,8 @@
-import { createClient } from '@/utils/supabase/server'
+import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
+import { db } from '@/db'
+import { profiles, studentViolations } from '@/db/schema'
+import { eq, count } from 'drizzle-orm'
 import BookingUI from './booking-ui'
 import { getActiveCourts } from '@/actions/courts'
 import { AlertTriangle } from 'lucide-react'
@@ -7,26 +10,22 @@ import { Card, CardContent } from '@/components/ui/card'
 import Link from 'next/link'
 
 export default async function BookingPage() {
-    const supabase = await createClient()
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) redirect('/login')
+    const session = await auth()
+    if (!session?.user?.id) redirect('/login')
+    const userId = session.user.id
 
-    // Check ban status: 3+ violations = suspended
-    const { count: violationCount } = await supabase
-        .from('student_violations')
-        .select('id', { count: 'exact', head: true })
-        .eq('student_id', user.id)
+    const [violationResult] = await db
+        .select({ count: count() })
+        .from(studentViolations)
+        .where(eq(studentViolations.student_id, userId))
 
-    const isBanned = (violationCount ?? 0) >= 3
+    const isBanned = (violationResult?.count ?? 0) >= 3
 
-    // Check if the student has an unused monthly priority booking (top-5 leaderboard reward)
-    const { data: profileData } = await supabase
-        .from('profiles')
-        .select('priority_booking_remaining')
-        .eq('id', user.id)
-        .single()
+    const [profileData] = await db
+        .select({ priority_booking_remaining: profiles.priority_booking_remaining })
+        .from(profiles)
+        .where(eq(profiles.id, userId))
+        .limit(1)
 
     const hasPriorityBooking = (profileData?.priority_booking_remaining ?? 0) > 0
 

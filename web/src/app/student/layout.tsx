@@ -1,37 +1,36 @@
-import { createClient } from '@/utils/supabase/server'
+import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
+import { db } from '@/db'
+import { profiles } from '@/db/schema'
+import { eq } from 'drizzle-orm'
 import { StudentNav } from '@/components/student-nav'
 import { ProfileCompletionModal } from '@/components/profile-completion-modal'
 import { NotificationPopup } from '@/components/notification-popup'
 import { getMyNotifications } from '@/actions/notifications'
 
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
-    const supabase = await createClient()
+    const session = await auth()
+    if (!session?.user?.id) redirect('/login')
 
-    // 1. Auth Check
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-        redirect('/login')
-    }
-
-    // 2. Role check
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role, branch, gender')
-        .eq('id', user.id)
-        .single()
+    const [profile] = await db
+        .select({
+            role: profiles.role,
+            branch: profiles.branch,
+            gender: profiles.gender,
+            phone_number: profiles.phone_number,
+        })
+        .from(profiles)
+        .where(eq(profiles.id, session.user.id))
+        .limit(1)
 
     if (profile && profile.role !== 'student' && profile.role !== 'superuser') {
         redirect('/')
     }
 
-    // 3. If student is missing branch or gender, show the completion modal overlay.
-    //    The modal is rendered on top of children — no redirect loop possible.
-    const needsCompletion = profile?.role === 'student' && (!profile?.branch || !profile?.gender)
+    const needsCompletion =
+        profile?.role === 'student' &&
+        (!profile?.branch || !profile?.gender || !profile?.phone_number)
 
-    // Fetch unread notifications to seed the popup (play requests excluded — they have their own page)
     const initialNotifications = await getMyNotifications(true, 10)
 
     return (

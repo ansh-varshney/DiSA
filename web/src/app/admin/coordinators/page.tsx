@@ -65,7 +65,9 @@ export default async function CoordinatorsManagement({
                                         <CardTitle className="text-lg">
                                             {coordinator.name}
                                         </CardTitle>
-                                        <p className="text-sm text-gray-500">{coordinator.role}</p>
+                                        <p className="text-sm font-medium text-gray-700">
+                                            {coordinator.role}
+                                        </p>
                                     </div>
                                     <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-[#004d40]/10 text-[#004d40] capitalize">
                                         {coordinator.sport}
