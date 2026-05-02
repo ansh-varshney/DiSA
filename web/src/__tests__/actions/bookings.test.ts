@@ -230,7 +230,8 @@ describe('createBooking', () => {
         mockDrizzleDb.enqueue([COURT_BADMINTON]) // 6: courts
         mockDrizzleDb.enqueue([{ id: 'booking-new' }]) // 7: insert booking
         mockDrizzleDb.enqueue([{ full_name: 'Alice' }]) // 8: booker profile
-        mockDrizzleDb.enqueueEmpty() // 9: insert playRequests
+        mockDrizzleDb.enqueue([{ id: 'pr-new' }]) // 9: insert playRequests returning
+        mockDrizzleDb.enqueueEmpty() // 10: update playRequests notification_id
 
         const fd = makeFormData({ numPlayers: '2', playersList: JSON.stringify(players) })
         await createBooking(null, fd)
@@ -303,13 +304,14 @@ describe('cancelBooking', () => {
         const soonStart = new Date(Date.now() + 1 * 60 * 60 * 1000).toISOString()
         mockDrizzleDb.enqueue([{ ...BOOKING_ROW, start_time: soonStart }]) // booking
         // no equipment → skip equipment update
-        mockDrizzleDb.enqueueEmpty() // db.execute (points penalty)
+        mockDrizzleDb.enqueueEmpty() // update profiles (points penalty)
         mockDrizzleDb.enqueueEmpty() // update bookings (cancel)
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         // no confirmed players → skip sendNotifications
 
         const result = await cancelBooking('b-1')
         expect(result).toEqual({ success: true })
-        expect(mockDrizzleDb.execute).toHaveBeenCalled()
+        expect(mockDrizzleDb.update).toHaveBeenCalled()
     })
 
     it('does NOT apply penalty for cancellation with plenty of notice (> 3 hours)', async () => {
@@ -325,12 +327,12 @@ describe('cancelBooking', () => {
     it('frees equipment before cancelling', async () => {
         const farStart = new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString()
         mockDrizzleDb.enqueue([{ ...BOOKING_ROW, start_time: farStart, equipment_ids: ['eq-1'] }])
-        mockDrizzleDb.enqueueEmpty() // update equipment (free)
         mockDrizzleDb.enqueueEmpty() // update bookings (cancel)
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
 
         const result = await cancelBooking('b-1')
         expect(result).toEqual({ success: true })
-        expect(mockDrizzleDb.update).toHaveBeenCalledTimes(2)
+        expect(mockDrizzleDb.update).toHaveBeenCalledTimes(1)
     })
 
     it('notifies confirmed players (N8) when booking is cancelled', async () => {

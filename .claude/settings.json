@@ -24,7 +24,9 @@
       "Bash(pg_isready -h localhost -p 5432)",
       "Bash(psql -h localhost -U postgres -c \"\\\\l\")",
       "PowerShell(psql -h localhost -U postgres -c \"\\\\l\" 2>&1)",
-      "Bash(npm uninstall *)"
+      "Bash(npm uninstall *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\Ansh Varshney\\Desktop\\IIITD\\Semester 8\\DiSA\\web\\src",

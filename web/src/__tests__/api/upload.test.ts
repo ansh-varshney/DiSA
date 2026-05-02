@@ -57,7 +57,7 @@ function authedSession(userId = 'admin-1') {
 
 describe('POST /api/upload', () => {
     beforeEach(() => {
-        vi.mocked(auth).mockResolvedValue(null)
+        vi.mocked(auth).mockResolvedValue(null as any)
         vi.mocked(uploadFile).mockResolvedValue(null)
         vi.mocked(validateImageFile).mockReturnValue(null)
     })
@@ -65,7 +65,7 @@ describe('POST /api/upload', () => {
     // ── Auth gating ──────────────────────────────────────────────────────────
 
     it('returns 401 when unauthenticated', async () => {
-        vi.mocked(auth).mockResolvedValue(null)
+        vi.mocked(auth).mockResolvedValue(null as any)
 
         const res = await POST(makeRequest(makeFile()))
 

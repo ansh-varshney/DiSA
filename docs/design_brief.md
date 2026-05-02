@@ -41,11 +41,13 @@ DiSA is a sports facility management web application for IIITD. It has three dis
 - **notifications** — `recipient_id`, `sender_id`, `type`, `title`, `body`, `data` (JSONB), `is_read`
 - **play_requests** — `booking_id`, `requester_id`, `recipient_id`, `status` (pending/accepted/rejected/expired), `notification_id`
 
-### Key Database RPCs
-- `update_student_points(p_student_id, p_delta)` — atomic point update
-- `reset_monthly_points()` — resets all student points, awards `priority_booking_remaining = 1` to top 5; returns `{reset_count, top5_ids}`
-- `check_and_apply_late_ban(p_student_id)` — if ≥ 3 `students_late` violations → 14-day ban; returns `banned_until` timestamp or null
-- `clear_student_defaulter(p_student_id)` — wipes all violations + lifts ban
+### Key Database RPCs (stored-procedures.sql)
+- `reset_monthly_points()` — resets all student points to 0, awards `priority_booking_remaining = 1` to top 5; returns `{reset_count, top5_ids}`
+- `clear_student_defaulter(p_student_id)` — wipes all violations + lifts ban for a student
+
+> **Inlined as Drizzle queries (no longer RPCs):**
+> - Point updates — `applyPoints()` in `manager.ts` uses `db.update(profiles).set({ points: sql\`COALESCE(points, 0) + ${delta}\` })` per student, executed in parallel via `Promise.all`.
+> - Late-arrival ban check — inline `db.select(count())` from `student_violations` + conditional `db.update(profiles, { banned_until })` in `rejectWithReason()`, replacing the former `check_and_apply_late_ban` RPC.
 
 ---
 
@@ -83,6 +85,7 @@ After first Google sign-in, if profile is incomplete (missing branch/year/gender
   - **Play Requests** → `/student/play-requests`
 - Maintenance flashcard (if any courts are under maintenance today)
 - Notification popup (polls `GET /api/notifications` every 8 s for new unread notifications; shows toast overlays)
+- Play request toasts resolve `GET /api/play-request-id?booking_id=` to find the pending `play_request_id` for Accept/Decline actions
 
 ### 3. Book Courts (`/student/book`)
 
@@ -108,7 +111,7 @@ After first Google sign-in, if profile is incomplete (missing branch/year/gender
 - 90-min requires `priority_booking_remaining > 0`; consumes it on success
 - Overlap check: same court, same time → rejected
 - Student double-booking check: same student, any court, overlapping time → rejected
-- Equipment optimistic lock: if another booking grabs equipment concurrently → roll back
+- Equipment conflict detection: SELECT all overlapping bookings' `equipment_ids`, check for overlap with requested IDs; if conflict found → return error (optimistic, no pessimistic lock)
 
 #### After Booking Creation
 - Invited players receive a **play request** notification
@@ -417,6 +420,18 @@ Hub page showing current-month successful bookings, linking to:
 ## Supported Sports
 
 Badminton, Tennis, Table Tennis, Squash, Cricket, Football, Volleyball, Basketball, Pool, Snooker
+
+---
+
+## API Routes
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET/POST | `/api/auth/[...nextauth]` | — | NextAuth route handlers (OAuth callback, session, CSRF) |
+| GET | `/api/notifications` | Required | Poll new unread notifications since a given timestamp (limit 10) |
+| GET | `/api/notifications/status` | Required | Check `is_read` status for up to 20 notification IDs |
+| GET | `/api/play-request-id` | Required | Look up the pending `play_request_id` for a booking the user was invited to |
+| POST | `/api/upload` | Required | Upload an image file; returns the public URL |
 
 ---
 

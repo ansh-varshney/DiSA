@@ -110,10 +110,10 @@ Schema is managed with **Drizzle ORM**:
 
 1. `npm run db:migrate` — applies pending migrations from `web/drizzle/`
 2. Apply `web/src/db/stored-procedures.sql` once to register PL/pgSQL functions:
-   - `update_student_points(id, delta)` — atomic point update
    - `reset_monthly_points()` — monthly reset + top-5 priority booking awards
-   - `check_and_apply_late_ban(id)` — 14-day ban at 3rd late arrival
    - `clear_student_defaulter(id)` — wipes violations + lifts ban
+
+> Point updates (`applyPoints`) and the late-arrival ban check are implemented as inline Drizzle queries using `sql` templates — they do not require stored procedures.
 
 > The `web/supabase_premigration/sql/` directory contains the original Supabase schema and patch files for historical reference. They are not used in the current stack.
 
@@ -136,6 +136,23 @@ Google OAuth setup:
 
 ---
 
+## CI/CD Pipeline
+
+GitHub Actions runs on every push / pull request to `main`:
+
+| Step | Command | Notes |
+|---|---|---|
+| Format | `npm run format:check` | Prettier — fails on any unformatted file |
+| Lint | `npm run lint` | ESLint — all rules are `warn`, not `error` |
+| Type-check (app) | `npm run type-check` | `tsconfig.json`, excludes tests |
+| Type-check (tests) | `npm run type-check:test` | `tsconfig.test.json` |
+| Tests + coverage | `npm run test:coverage` | Thresholds: lines/functions ≥ 70 %, branches ≥ 60 % |
+| Build | `npm run build` | Runs only after quality + test jobs pass |
+
+Coverage reports are uploaded as a GitHub Actions artifact (retained 14 days).
+
+---
+
 ## Running Tests
 
 ```bash
@@ -145,7 +162,7 @@ npm run test:watch    # watch mode
 npm run test:coverage # coverage report
 ```
 
-374 tests across unit, component, integration, and concurrency suites.
+~390 tests across unit, component, API, integration, and concurrency suites.
 
 ---
 

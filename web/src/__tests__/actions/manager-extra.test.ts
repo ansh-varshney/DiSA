@@ -204,6 +204,8 @@ describe('emergencyEndSession', () => {
         mockDrizzleDb.enqueue([{ equipment_ids: [] }])
         // update booking status=completed
         mockDrizzleDb.enqueueEmpty()
+        // cancelPendingPlayRequests: select playRequests
+        mockDrizzleDb.enqueueEmpty()
         // insert feedbackComplaints
         mockDrizzleDb.enqueueEmpty()
         // getBookingStudentIds → select booking for user_id + players_list
@@ -273,8 +275,8 @@ describe('reportLostEquipment — future booking cleanup', () => {
         const result = await reportLostEquipment('b-1', ['eq-lost'], ['s-1'])
 
         expect(result).toEqual(expect.objectContaining({ success: true, impactedBookingsCount: 1 }))
-        // equipment update + impacted booking update = 2 calls
-        expect(mockDrizzleDb.update).toHaveBeenCalledTimes(2)
+        // equipment update + impacted booking update + applyPoints update = 3 calls
+        expect(mockDrizzleDb.update).toHaveBeenCalledTimes(3)
     })
 
     it('does not update any future booking when none are impacted', async () => {

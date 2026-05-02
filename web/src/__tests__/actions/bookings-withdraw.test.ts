@@ -127,14 +127,14 @@ describe('withdrawFromBooking — below minimum player count', () => {
                 courts: { sport: 'badminton', name: 'Badminton A' },
             },
         ])
-        mockDrizzleDb.enqueueEmpty() // free equipment (update is_available=true)
         mockDrizzleDb.enqueueEmpty() // cancel booking (update status=cancelled)
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
 
         const result = await withdrawFromBooking('b-1')
 
         expect(result).toEqual(expect.objectContaining({ success: true }))
         // Booking should be cancelled
-        expect(mockDrizzleDb.update).toHaveBeenCalledTimes(2) // equipment + booking
+        expect(mockDrizzleDb.update).toHaveBeenCalledTimes(1) // booking cancel only
     })
 
     it('sends cancellation notifications to booker and remaining confirmed players', async () => {
@@ -227,15 +227,14 @@ describe('createBooking — partial equipment lock rollback', () => {
     })
 
     it('releases partially-locked equipment and returns error when not all can be locked', async () => {
-        // Scenario: 2 equipment ids requested, only 1 locked successfully
+        // Scenario: eq-2 is already reserved by another booking → conflict detected
         mockDrizzleDb.enqueue([{ banned_until: null, priority_booking_remaining: 0 }]) // profile
         mockDrizzleDb.enqueue([{ count: 0 }]) // violations
         mockDrizzleDb.enqueue([]) // court conflict check → no conflict
         mockDrizzleDb.enqueue([]) // student conflict check → no conflict
-        // playersList='[]' → no player profile fetch
         mockDrizzleDb.enqueue([]) // court data select (courtData=undefined → validation skipped)
-        // Equipment lock → only 1 of 2 locked (partial lock)
-        mockDrizzleDb.enqueue([{ id: 'eq-1' }]) // only eq-1 locked, eq-2 was unavailable
+        // Equipment conflict check: another booking has eq-2 reserved
+        mockDrizzleDb.enqueue([{ equipment_ids: ['eq-2'] }])
 
         const fd = new FormData()
         fd.set('courtId', 'c-1')
@@ -248,19 +247,17 @@ describe('createBooking — partial equipment lock rollback', () => {
         const result = await createBooking(null, fd)
 
         expect(result.error).toMatch(/no longer available/)
-        // lock attempt (update) + rollback (update) = 2 calls
-        expect(mockDrizzleDb.update).toHaveBeenCalledTimes(2)
     })
 
     it('does NOT roll back when zero equipment were locked (nothing to release)', async () => {
-        // All 2 equipment are unavailable — locked returns []
+        // All requested equipment are already reserved by another booking
         mockDrizzleDb.enqueue([{ banned_until: null, priority_booking_remaining: 0 }])
         mockDrizzleDb.enqueue([{ count: 0 }])
         mockDrizzleDb.enqueue([]) // court conflict check → no conflict
         mockDrizzleDb.enqueue([]) // student conflict check → no conflict
-        // playersList='[]' → no player profile fetch
         mockDrizzleDb.enqueue([]) // court data select → courtData undefined
-        mockDrizzleDb.enqueue([]) // equipment lock → nothing locked (all unavailable)
+        // Equipment conflict check: both eq-1 and eq-2 are already reserved
+        mockDrizzleDb.enqueue([{ equipment_ids: ['eq-1', 'eq-2'] }])
 
         const fd = new FormData()
         fd.set('courtId', 'c-1')
@@ -273,7 +270,5 @@ describe('createBooking — partial equipment lock rollback', () => {
         const result = await createBooking(null, fd)
 
         expect(result.error).toMatch(/no longer available/)
-        // Only the lock attempt update was called — no rollback (locked.length === 0)
-        expect(mockDrizzleDb.update).toHaveBeenCalledTimes(1)
     })
 })

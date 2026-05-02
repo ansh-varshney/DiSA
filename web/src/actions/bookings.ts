@@ -119,7 +119,7 @@ export async function getAvailableEquipment(sport: string, startTime?: string, e
 
     return allEquipment.map((eq_) => ({
         ...eq_,
-        in_use: reservedIds.has(eq_.id),
+        in_use: reservedIds.has(eq_.id) || !eq_.is_available,
     }))
 }
 
@@ -294,7 +294,7 @@ export async function createBooking(prevState: any, formData: FormData) {
         const hasConflict = equipmentIds.some((id) => conflictingIds.has(id))
         if (hasConflict) {
             return {
-                error: 'One or more equipment items are already booked for this time slot. Please refresh and try again.',
+                error: 'One or more equipment items are no longer available for this time slot. Please refresh and try again.',
             }
         }
     }

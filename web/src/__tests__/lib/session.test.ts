@@ -26,7 +26,7 @@ describe('getCurrentUser', () => {
     })
 
     it('returns null when auth() returns null (no active session)', async () => {
-        vi.mocked(auth).mockResolvedValue(null)
+        vi.mocked(auth).mockResolvedValue(null as any)
 
         const result = await getCurrentUser()
 
@@ -64,7 +64,7 @@ describe('getCurrentUser', () => {
     })
 
     it('calls auth() exactly once per invocation', async () => {
-        vi.mocked(auth).mockResolvedValue(null)
+        vi.mocked(auth).mockResolvedValue(null as any)
 
         await getCurrentUser()
 

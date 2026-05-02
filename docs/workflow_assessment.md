@@ -440,7 +440,7 @@
 - [ ] Click Edit Profile → form opens with current values
 - [ ] Update name / phone / student ID / branch / year / gender → save
 - [ ] Profile card reflects new values immediately
-- [ ] Violations list shows last 2 months onlx  y (max 10)
+- [ ] Violations list shows last 2 months only (max 10)
 - [ ] Feedbacks/complaints section shows submitted items with status badges
 
 ---
@@ -456,13 +456,13 @@
 - [ ] The other student receives the error "Time slot is already booked"
 - [ ] The slot in the calendar grid shows as booked (only one booking in the DB for that court + time)
 
-**25b. Same equipment — simultaneous booking (equipment lock race)**
+**25b. Same equipment — simultaneous booking (equipment conflict detection)**
 - [ ] Student A and Student B both open booking dialogs for different courts but select the **same equipment item** at the same overlapping time slot
 - [ ] Both click Confirm at the same time
 - [ ] Exactly **one** booking succeeds with that equipment assigned
-- [ ] The other student receives the error "One or more equipment items are no longer available. Please refresh and try again."
-- [ ] `equipment.is_available` in the DB is `false` (locked by the winner)
-- [ ] No booking is left in a broken state (partial insert cleaned up)
+- [ ] The other student receives the error "One or more equipment items are no longer available for this time slot. Please refresh and try again."
+- [ ] The winning booking's `equipment_ids` array contains the equipment; the losing request returns an error before any insert
+- [ ] No booking is left in a broken state (conflict is detected via SELECT before insert, no partial state)
 
 **25c. Double-tap "End Session" (idempotency)**
 - [ ] Manager has an active session open; clicks "End Session" twice rapidly (or opens the booking in two tabs and clicks in both)

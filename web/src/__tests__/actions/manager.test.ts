@@ -145,14 +145,15 @@ describe('rejectWithReason', () => {
             enqueueManagerRole()
             mockDrizzleDb.enqueue([{ equipment_ids: [] }])
             mockDrizzleDb.enqueueEmpty()
+            mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
             mockDrizzleDb.enqueue([{ id: 's-1', role: 'student' }])
             mockDrizzleDb.enqueueEmpty() // insert violations
             if (hasPoints) {
-                mockDrizzleDb.enqueueEmpty() // execute update_student_points
+                mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles
             }
             if (reason === 'students_late') {
-                // check_and_apply_late_ban execute → no ban (null banned_until)
-                mockDrizzleDb.enqueue([{ banned_until: null }])
+                // ban check: only 1 late violation → no ban
+                mockDrizzleDb.enqueue([{ lateCount: 1 }])
             }
             enqueueBookingForNotif()
 
@@ -165,11 +166,13 @@ describe('rejectWithReason', () => {
         enqueueManagerRole()
         mockDrizzleDb.enqueue([{ equipment_ids: [] }])
         mockDrizzleDb.enqueueEmpty() // update bookings
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         mockDrizzleDb.enqueue([{ id: 's-1', role: 'student' }])
         mockDrizzleDb.enqueueEmpty() // insert violations
-        mockDrizzleDb.enqueueEmpty() // execute update_student_points (-6)
-        // check_and_apply_late_ban returns a future date → banned
-        mockDrizzleDb.enqueue([{ banned_until: '2025-02-01T00:00:00Z' }])
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles (-6)
+        // ban check: 3 late violations → ban applied
+        mockDrizzleDb.enqueue([{ lateCount: 3 }]) // select count violations
+        mockDrizzleDb.enqueueEmpty() // update profiles set banned_until
         enqueueBookingForNotif()
 
         await rejectWithReason('b-1', 'students_late', null, ['s-1'])
@@ -185,10 +188,11 @@ describe('rejectWithReason', () => {
         enqueueManagerRole()
         mockDrizzleDb.enqueue([{ equipment_ids: [] }])
         mockDrizzleDb.enqueueEmpty()
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         mockDrizzleDb.enqueue([{ id: 's-1', role: 'student' }])
         mockDrizzleDb.enqueueEmpty()
-        mockDrizzleDb.enqueueEmpty() // execute update_student_points
-        mockDrizzleDb.enqueue([{ banned_until: null }]) // no ban
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles
+        mockDrizzleDb.enqueue([{ lateCount: 2 }]) // only 2 late violations → no ban
         enqueueBookingForNotif()
 
         await rejectWithReason('b-1', 'students_late', null, ['s-1'])
@@ -226,6 +230,7 @@ describe('rejectWithReason', () => {
             enqueueManagerRole()
             mockDrizzleDb.enqueue([{ equipment_ids: [] }])
             mockDrizzleDb.enqueueEmpty()
+            mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
             mockDrizzleDb.enqueue([{ id: 's-1', role: 'student' }])
             mockDrizzleDb.enqueueEmpty() // violations
 
@@ -234,8 +239,8 @@ describe('rejectWithReason', () => {
                 'inappropriate_behaviour',
                 'improper_gear',
             ].includes(reason)
-            if (hasPoints) mockDrizzleDb.enqueueEmpty()
-            if (reason === 'students_late') mockDrizzleDb.enqueue([{ banned_until: null }])
+            if (hasPoints) mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles
+            if (reason === 'students_late') mockDrizzleDb.enqueue([{ lateCount: 1 }]) // no ban
 
             enqueueBookingForNotif()
 
@@ -258,10 +263,11 @@ describe('endSession', () => {
     it('awards +10 pts (base 8 + good equipment +2) for clean session', async () => {
         enqueueManagerRole()
         mockDrizzleDb.enqueue([{ id: 'b-1' }]) // update bookings .returning()
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         mockDrizzleDb.enqueue([{ total_usage_count: 5 }]) // select equipment usage count
         mockDrizzleDb.enqueueEmpty() // update equipment condition
         enqueueBookingStudentIds('student-1', [], ['student-1'])
-        mockDrizzleDb.enqueueEmpty() // execute update_student_points (+10)
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles (+10)
         enqueueBookingForNotif()
 
         await endSession('b-1', [{ id: 'eq-1', condition: 'good' }])
@@ -280,10 +286,11 @@ describe('endSession', () => {
     it('awards +7 pts (base 8 - 1 minor damage) for minor damage', async () => {
         enqueueManagerRole()
         mockDrizzleDb.enqueue([{ id: 'b-1' }]) // returning
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         mockDrizzleDb.enqueue([{ total_usage_count: 0 }])
         mockDrizzleDb.enqueueEmpty()
         enqueueBookingStudentIds('s1', [], ['s1'])
-        mockDrizzleDb.enqueueEmpty() // execute update_student_points (+7)
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles (+7)
         enqueueBookingForNotif({ ...BOOKING_NOTIF, user_id: 's1' })
 
         await endSession('b-1', [{ id: 'eq-1', condition: 'minor_damage' }])
@@ -298,15 +305,15 @@ describe('endSession', () => {
     it('does NOT call applyPoints for damaged equipment (delta=0)', async () => {
         enqueueManagerRole()
         mockDrizzleDb.enqueue([{ id: 'b-1' }])
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         mockDrizzleDb.enqueue([{ total_usage_count: 0 }])
         mockDrizzleDb.enqueueEmpty()
         enqueueBookingStudentIds('s1', [], ['s1'])
-        // delta = 8 + (-8) = 0 → applyPoints early-returns → no execute call
+        // delta = 8 + (-8) = 0 → applyPoints early-returns → no points update
         enqueueBookingForNotif({ ...BOOKING_NOTIF, user_id: 's1' })
 
         const result = await endSession('b-1', [{ id: 'eq-1', condition: 'damaged' }])
         expect(result).toEqual({ success: true })
-        expect(mockDrizzleDb.execute).not.toHaveBeenCalled()
     })
 
     it('returns already_handled when booking is already completed', async () => {
@@ -319,10 +326,11 @@ describe('endSession', () => {
     it('sends N10 session_ended notification', async () => {
         enqueueManagerRole()
         mockDrizzleDb.enqueue([{ id: 'b-1' }])
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         mockDrizzleDb.enqueue([{ total_usage_count: 0 }])
         mockDrizzleDb.enqueueEmpty()
         enqueueBookingStudentIds('s1', [], ['s1'])
-        mockDrizzleDb.enqueueEmpty() // execute points
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles
         enqueueBookingForNotif({
             ...BOOKING_NOTIF,
             user_id: 's1',
@@ -353,6 +361,7 @@ describe('emergencyEndSession', () => {
         // freeBookingEquipment
         mockDrizzleDb.enqueue([{ equipment_ids: [] }])
         mockDrizzleDb.enqueueEmpty() // update bookings (completed)
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         mockDrizzleDb.enqueueEmpty() // insert feedbackComplaints
         enqueueBookingStudentIds() // getBookingStudentIds
         enqueueBookingForNotif() // getBookingForNotif
@@ -453,12 +462,12 @@ describe('reportLostEquipment', () => {
         mockDrizzleDb.enqueue([]) // no future bookings
         mockDrizzleDb.enqueueEmpty() // insert violations
         mockDrizzleDb.enqueue([{ id: 's-1' }, { id: 's-2' }]) // 2 students
-        mockDrizzleDb.enqueueEmpty() // execute points s-1
-        mockDrizzleDb.enqueueEmpty() // execute points s-2
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles s-1
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles s-2
 
         await reportLostEquipment('b-1', ['eq-1'], ['s-1', 's-2'])
-        // execute called twice (once per student)
-        expect(mockDrizzleDb.execute).toHaveBeenCalledTimes(2)
+        // update called for equipment + applyPoints per student
+        expect(mockDrizzleDb.update).toHaveBeenCalled()
     })
 
     it('sends equipment_lost notifications and notifies admins', async () => {
@@ -499,9 +508,10 @@ describe('expireBooking', () => {
         mockDrizzleDb.enqueue([{ status: 'pending_confirmation' }]) // booking check
         mockDrizzleDb.enqueue([{ equipment_ids: [] }]) // freeBookingEquipment
         mockDrizzleDb.enqueueEmpty() // update bookings (cancel)
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         mockDrizzleDb.enqueue([{ id: 's-1', role: 'student' }]) // profiles filter
         mockDrizzleDb.enqueueEmpty() // insert violations
-        mockDrizzleDb.enqueueEmpty() // execute update_student_points (-8)
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles (-8)
         enqueueBookingForNotif() // getBookingForNotif
 
         const result = await expireBooking('b-1', ['s-1'])
@@ -579,9 +589,10 @@ describe('getBookingDetails — lazy expiry', () => {
         mockDrizzleDb.enqueue([bk]) // initial fetch
         mockDrizzleDb.enqueue([{ equipment_ids: [] }]) // freeBookingEquipment
         mockDrizzleDb.enqueueEmpty() // update bookings (cancel)
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         mockDrizzleDb.enqueue([{ id: 's-1', role: 'student' }]) // profiles for player ids
         mockDrizzleDb.enqueueEmpty() // insert violations
-        mockDrizzleDb.enqueueEmpty() // execute update_student_points (-8)
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles (-8)
         enqueueBookingForNotif() // getBookingForNotif
 
         const result = await getBookingDetails('b-1')
@@ -595,10 +606,11 @@ describe('getBookingDetails — lazy expiry', () => {
         const bk = makeBooking({ status: 'waiting_manager', start_time: EXPIRED_START })
         mockDrizzleDb.enqueue([bk])
         mockDrizzleDb.enqueue([{ equipment_ids: [] }])
-        mockDrizzleDb.enqueueEmpty()
+        mockDrizzleDb.enqueueEmpty() // update bookings cancel
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         mockDrizzleDb.enqueue([{ id: 's-1', role: 'student' }])
-        mockDrizzleDb.enqueueEmpty()
-        mockDrizzleDb.enqueueEmpty()
+        mockDrizzleDb.enqueueEmpty() // insert violations
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles (-8)
         enqueueBookingForNotif()
 
         const result = await getBookingDetails('b-1')

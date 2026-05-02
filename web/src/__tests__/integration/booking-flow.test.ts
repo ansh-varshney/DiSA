@@ -72,11 +72,12 @@ describe('Flow A: Booking approval → session active → session end', () => {
 
         mockDrizzleDb.enqueue([{ role: 'manager' }]) // requireManagerRole
         mockDrizzleDb.enqueue([{ id: 'b-1' }]) // update.returning() idempotency guard
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         mockDrizzleDb.enqueue([{ total_usage_count: 0 }]) // select equipment
         mockDrizzleDb.enqueueEmpty() // update equipment
         mockDrizzleDb.enqueue([{ user_id: 's1', players_list: [] }]) // getBookingStudentIds: booking
         mockDrizzleDb.enqueue([{ id: 's1' }]) // getBookingStudentIds: profiles
-        mockDrizzleDb.enqueueEmpty() // applyPoints execute (delta=10)
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles (delta=10)
         mockDrizzleDb.enqueue([
             {
                 id: 'b-1',
@@ -88,7 +89,8 @@ describe('Flow A: Booking approval → session active → session end', () => {
 
         await endSession('b-1', [{ id: 'eq-1', condition: 'good' }])
 
-        expect(mockDrizzleDb.execute).toHaveBeenCalled()
+        // bookings update + equipment update + applyPoints update = 3
+        expect(mockDrizzleDb.update).toHaveBeenCalledTimes(3)
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
             expect.arrayContaining([
                 expect.objectContaining({
@@ -112,13 +114,14 @@ describe('Flow B: Play request accepted → session ends → both players awarde
     it('endSession awards points to both booker and confirmed invited player', async () => {
         mockDrizzleDb.enqueue([{ role: 'manager' }]) // requireManagerRole
         mockDrizzleDb.enqueue([{ id: 'b-2' }]) // update.returning()
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         mockDrizzleDb.enqueue([{ equipment_ids: [] }]) // freeBookingEquipment: select
         mockDrizzleDb.enqueue([
             { user_id: 'booker-1', players_list: [{ id: 'invitee-1', status: 'confirmed' }] },
         ]) // getBookingStudentIds: booking
         mockDrizzleDb.enqueue([{ id: 'booker-1' }, { id: 'invitee-1' }]) // getBookingStudentIds: profiles
-        mockDrizzleDb.enqueueEmpty() // applyPoints execute for booker-1
-        mockDrizzleDb.enqueueEmpty() // applyPoints execute for invitee-1
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles for booker-1
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles for invitee-1
         mockDrizzleDb.enqueue([
             {
                 id: 'b-2',
@@ -130,7 +133,8 @@ describe('Flow B: Play request accepted → session ends → both players awarde
 
         await endSession('b-2', [])
 
-        expect(mockDrizzleDb.execute).toHaveBeenCalledTimes(2)
+        // bookings update + applyPoints for booker + applyPoints for invitee = 3
+        expect(mockDrizzleDb.update).toHaveBeenCalledTimes(3)
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
             expect.arrayContaining([
                 expect.objectContaining({ type: 'session_ended', recipientId: 'booker-1' }),
@@ -142,13 +146,14 @@ describe('Flow B: Play request accepted → session ends → both players awarde
     it('pending players (not yet confirmed) are NOT awarded points', async () => {
         mockDrizzleDb.enqueue([{ role: 'manager' }]) // requireManagerRole
         mockDrizzleDb.enqueue([{ id: 'b-3' }]) // update.returning()
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         mockDrizzleDb.enqueue([{ equipment_ids: [] }]) // freeBookingEquipment: select
         // pending player excluded: extraIds filtered by status !== 'confirmed'
         mockDrizzleDb.enqueue([
             { user_id: 'booker-1', players_list: [{ id: 'pending-player', status: 'pending' }] },
         ]) // getBookingStudentIds: booking
         mockDrizzleDb.enqueue([{ id: 'booker-1' }]) // getBookingStudentIds: profiles (booker only)
-        mockDrizzleDb.enqueueEmpty() // applyPoints execute for booker only
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles for booker only
         mockDrizzleDb.enqueue([
             {
                 id: 'b-3',
@@ -160,7 +165,8 @@ describe('Flow B: Play request accepted → session ends → both players awarde
 
         await endSession('b-3', [])
 
-        expect(mockDrizzleDb.execute).toHaveBeenCalledTimes(1)
+        // bookings update + applyPoints for booker = 2
+        expect(mockDrizzleDb.update).toHaveBeenCalledTimes(2)
     })
 })
 
@@ -176,10 +182,12 @@ describe('Flow D: 3rd late-arrival strike triggers 14-day ban', () => {
         mockDrizzleDb.enqueue([{ role: 'manager' }]) // requireManagerRole
         mockDrizzleDb.enqueue([{ equipment_ids: [] }]) // select booking equipment_ids
         mockDrizzleDb.enqueueEmpty() // update bookings cancel
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         mockDrizzleDb.enqueue([{ id: 's-late', role: 'student' }]) // select profiles filter
         mockDrizzleDb.enqueueEmpty() // insert studentViolations
-        mockDrizzleDb.enqueueEmpty() // applyPoints execute (delta=-6)
-        mockDrizzleDb.enqueue([{ banned_until: '2026-05-07T00:00:00.000Z' }]) // check_and_apply_late_ban execute
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles (delta=-6)
+        mockDrizzleDb.enqueue([{ lateCount: 3 }]) // select late violations count → 3rd strike
+        mockDrizzleDb.enqueueEmpty() // update profiles (banned_until)
         mockDrizzleDb.enqueue([
             {
                 id: 'b-late',
@@ -191,7 +199,8 @@ describe('Flow D: 3rd late-arrival strike triggers 14-day ban', () => {
 
         await rejectWithReason('b-late', 'students_late', null, ['s-late'])
 
-        expect(mockDrizzleDb.execute).toHaveBeenCalledTimes(2)
+        // bookings cancel + applyPoints + ban profiles = 3 update calls
+        expect(mockDrizzleDb.update).toHaveBeenCalledTimes(3)
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
             expect.arrayContaining([
                 expect.objectContaining({ type: 'ban_applied', recipientId: 's-late' }),
@@ -260,9 +269,10 @@ describe('Flow F: Booking timeout (10-minute no-show)', () => {
         mockDrizzleDb.enqueue([{ status: 'pending_confirmation' }]) // select booking status
         mockDrizzleDb.enqueue([{ equipment_ids: [] }]) // freeBookingEquipment: select
         mockDrizzleDb.enqueueEmpty() // update bookings cancel
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         mockDrizzleDb.enqueue([{ id: 'student-1', role: 'student' }]) // select profiles filter
         mockDrizzleDb.enqueueEmpty() // insert studentViolations
-        mockDrizzleDb.enqueueEmpty() // applyPoints execute (delta=-8)
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles (delta=-8)
         mockDrizzleDb.enqueue([
             {
                 id: 'b-timeout',
@@ -309,12 +319,13 @@ describe('Flow G: Equipment reported lost', () => {
         mockDrizzleDb.enqueue([]) // select future bookings (empty → no impacted)
         mockDrizzleDb.enqueueEmpty() // insert studentViolations
         mockDrizzleDb.enqueue([{ id: 's1' }, { id: 's2' }]) // select student profiles
-        mockDrizzleDb.enqueueEmpty() // applyPoints execute for s1
-        mockDrizzleDb.enqueueEmpty() // applyPoints execute for s2
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles for s1
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles for s2
 
         await reportLostEquipment('b-1', ['eq-lost'], ['s1', 's2'])
 
-        expect(mockDrizzleDb.execute).toHaveBeenCalledTimes(2)
+        // equipment update + applyPoints for s1 + applyPoints for s2 = 3
+        expect(mockDrizzleDb.update).toHaveBeenCalledTimes(3)
         expect(vi.mocked(sendNotifications)).toHaveBeenCalledWith(
             expect.arrayContaining([
                 expect.objectContaining({ type: 'equipment_lost', recipientId: 's1' }),

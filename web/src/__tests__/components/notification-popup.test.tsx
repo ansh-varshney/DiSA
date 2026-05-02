@@ -30,7 +30,7 @@ function makeNotification(overrides: Partial<AppNotification> = {}): AppNotifica
         body: 'Head to the court!',
         data: {},
         is_read: false,
-        created_at: new Date().toISOString(),
+        created_at: new Date(),
         ...overrides,
     }
 }
@@ -266,8 +266,8 @@ describe('NotificationPopup', () => {
         // Flush setResponding(true) state update without waiting for the pending promise
         await act(async () => {})
 
-        // Should be disabled while pending
-        expect(screen.getByRole('button', { name: /accept/i })).toBeDisabled()
+        // Should be disabled while pending (use element ref since text may change to "...")
+        expect(acceptBtn).toBeDisabled()
 
         // Cleanup: resolve inside act so the resulting state update is handled
         await act(async () => {

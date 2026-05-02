@@ -39,13 +39,13 @@ function authedSession(userId = 'student-1') {
 describe('GET /api/notifications', () => {
     beforeEach(() => {
         mockDrizzleDb.reset()
-        vi.mocked(auth).mockResolvedValue(null)
+        vi.mocked(auth).mockResolvedValue(null as any)
     })
 
     // ── Auth gating ──────────────────────────────────────────────────────────
 
     it('returns 401 with empty array when unauthenticated', async () => {
-        vi.mocked(auth).mockResolvedValue(null)
+        vi.mocked(auth).mockResolvedValue(null as any)
 
         const res = await GET(makeRequest())
 

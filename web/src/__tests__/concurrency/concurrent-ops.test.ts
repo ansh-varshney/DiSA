@@ -55,11 +55,12 @@ describe('endSession — points must use db.execute not manual read-modify-write
         // First endSession (student-A, good equipment → delta=10)
         mockDrizzleDb.enqueue([{ role: 'manager' }])
         mockDrizzleDb.enqueue([{ id: 'booking-A' }]) // returning()
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         mockDrizzleDb.enqueue([{ total_usage_count: 0 }]) // select equipment
         mockDrizzleDb.enqueueEmpty() // update equipment
         mockDrizzleDb.enqueue([{ user_id: 'student-A', players_list: [] }])
         mockDrizzleDb.enqueue([{ id: 'student-A' }])
-        mockDrizzleDb.enqueueEmpty() // applyPoints execute
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles
         mockDrizzleDb.enqueue([
             {
                 id: 'booking-A',
@@ -71,7 +72,8 @@ describe('endSession — points must use db.execute not manual read-modify-write
 
         const r1 = await endSession('booking-A', [{ id: 'eq-1', condition: 'good' }])
         expect(r1).toEqual({ success: true })
-        expect(mockDrizzleDb.execute).toHaveBeenCalledTimes(1)
+        // bookings update + equipment update + applyPoints update = 3
+        expect(mockDrizzleDb.update).toHaveBeenCalledTimes(3)
 
         mockDrizzleDb.reset()
         vi.mocked(sendNotifications).mockResolvedValue(undefined)
@@ -79,11 +81,12 @@ describe('endSession — points must use db.execute not manual read-modify-write
         // Second endSession (student-B, good equipment → delta=10)
         mockDrizzleDb.enqueue([{ role: 'manager' }])
         mockDrizzleDb.enqueue([{ id: 'booking-B' }]) // returning()
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         mockDrizzleDb.enqueue([{ total_usage_count: 0 }])
         mockDrizzleDb.enqueueEmpty()
         mockDrizzleDb.enqueue([{ user_id: 'student-B', players_list: [] }])
         mockDrizzleDb.enqueue([{ id: 'student-B' }])
-        mockDrizzleDb.enqueueEmpty() // applyPoints execute
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles
         mockDrizzleDb.enqueue([
             {
                 id: 'booking-B',
@@ -95,18 +98,20 @@ describe('endSession — points must use db.execute not manual read-modify-write
 
         const r2 = await endSession('booking-B', [{ id: 'eq-2', condition: 'good' }])
         expect(r2).toEqual({ success: true })
-        expect(mockDrizzleDb.execute).toHaveBeenCalledTimes(1)
+        // bookings update + equipment update + applyPoints update = 3
+        expect(mockDrizzleDb.update).toHaveBeenCalledTimes(3)
     })
 
     it('second endSession for same booking returns already_handled — points not double-awarded', async () => {
         // First call succeeds
         mockDrizzleDb.enqueue([{ role: 'manager' }])
         mockDrizzleDb.enqueue([{ id: 'b-1' }]) // returning() → non-empty → guard passes
+        mockDrizzleDb.enqueueEmpty() // cancelPendingPlayRequests: select playRequests
         mockDrizzleDb.enqueue([{ total_usage_count: 0 }])
         mockDrizzleDb.enqueueEmpty()
         mockDrizzleDb.enqueue([{ user_id: 's1', players_list: [] }])
         mockDrizzleDb.enqueue([{ id: 's1' }])
-        mockDrizzleDb.enqueueEmpty() // applyPoints execute
+        mockDrizzleDb.enqueueEmpty() // applyPoints: update profiles
         mockDrizzleDb.enqueue([
             {
                 id: 'b-1',
@@ -118,7 +123,8 @@ describe('endSession — points must use db.execute not manual read-modify-write
 
         const r1 = await endSession('b-1', [{ id: 'eq-1', condition: 'good' }])
         expect(r1).toEqual({ success: true })
-        expect(mockDrizzleDb.execute).toHaveBeenCalledTimes(1)
+        // bookings update + equipment update + applyPoints update = 3
+        expect(mockDrizzleDb.update).toHaveBeenCalledTimes(3)
 
         mockDrizzleDb.reset()
 
@@ -128,7 +134,8 @@ describe('endSession — points must use db.execute not manual read-modify-write
 
         const r2 = await endSession('b-1', [{ id: 'eq-1', condition: 'good' }])
         expect(r2).toEqual({ already_handled: true })
-        expect(mockDrizzleDb.execute).not.toHaveBeenCalled()
+        // Only the bookings update.returning() call on the 2nd attempt
+        expect(mockDrizzleDb.update).toHaveBeenCalledTimes(1)
     })
 })
 
@@ -310,13 +317,13 @@ describe('createBooking — equipment reservation collision', () => {
             return fd
         }
 
-        // Request A: equipment lock succeeds → booking created
+        // Request A: no equipment conflict → booking created
         mockDrizzleDb.enqueue([{ banned_until: null, priority_booking_remaining: 0 }])
         mockDrizzleDb.enqueue([{ count: 0 }])
         mockDrizzleDb.enqueue([]) // court overlap
         mockDrizzleDb.enqueue([]) // student overlap
         mockDrizzleDb.enqueue([{ sport: 'badminton', name: 'Court A' }])
-        mockDrizzleDb.enqueue([{ id: 'eq-1' }]) // equipment lock returning() → 1 row = success
+        mockDrizzleDb.enqueue([]) // equipment conflict check → no conflicts
         mockDrizzleDb.enqueue([{ id: 'new-booking' }]) // insert.returning()
 
         const resultA = await createBooking(null, makeFormData(['eq-1']))
@@ -324,13 +331,13 @@ describe('createBooking — equipment reservation collision', () => {
 
         mockDrizzleDb.reset()
 
-        // Request B: equipment lock returns 0 rows → already taken
+        // Request B: equipment conflict check finds eq-1 already reserved
         mockDrizzleDb.enqueue([{ banned_until: null, priority_booking_remaining: 0 }])
         mockDrizzleDb.enqueue([{ count: 0 }])
         mockDrizzleDb.enqueue([]) // court overlap
         mockDrizzleDb.enqueue([]) // student overlap
         mockDrizzleDb.enqueue([{ sport: 'badminton', name: 'Court A' }])
-        mockDrizzleDb.enqueue([]) // equipment lock returning() → 0 rows = fail
+        mockDrizzleDb.enqueue([{ equipment_ids: ['eq-1'] }]) // conflict: eq-1 already reserved
 
         const resultB = await createBooking(null, makeFormData(['eq-1']))
         expect(resultB.error).toMatch(/no longer available/i)

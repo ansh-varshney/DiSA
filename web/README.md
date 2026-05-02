@@ -45,8 +45,10 @@ web/
 │   │   ├── manager/            # Manager portal (approvals, active sessions)
 │   │   ├── student/            # Student portal (booking, reservations, profile, leaderboard)
 │   │   ├── api/
-│   │   │   ├── auth/[...nextauth]/  # NextAuth route handlers
-│   │   │   ├── notifications/       # GET polling endpoint (8 s interval)
+│   │   │   ├── auth/[...nextauth]/  # NextAuth route handlers (GET, POST)
+│   │   │   ├── notifications/       # GET — poll new unread notifications (8 s interval)
+│   │   │   ├── notifications/status/# GET — read-status check for specific notification IDs
+│   │   │   ├── play-request-id/     # GET — look up pending play_request id by booking_id
 │   │   │   └── upload/              # POST image upload endpoint
 │   │   ├── complete-profile/   # First-login profile completion
 │   │   └── dashboard/          # Role-based redirect hub
@@ -137,6 +139,23 @@ Migrations live in `drizzle/`. Schema is defined in `src/db/schema.ts`.
 
 ---
 
+## CI/CD Pipeline
+
+GitHub Actions (`/.github/workflows/ci.yml`) runs on every push / PR to `main`:
+
+| Step | Command | Notes |
+| ---- | ------- | ----- |
+| Format | `npm run format:check` | Prettier |
+| Lint | `npm run lint` | ESLint — rules are `warn`, not `error` |
+| Type-check app | `npm run type-check` | Excludes tests |
+| Type-check tests | `npm run type-check:test` | Covers `src/__tests__/**` |
+| Tests + coverage | `npm run test:coverage` | Thresholds: lines/functions ≥ 70 %, branches ≥ 60 % |
+| Build | `npm run build` | After quality + test jobs pass |
+
+No real DB or credentials are needed — the test suite mocks the Drizzle connection and Auth.js session entirely.
+
+---
+
 ## Running Tests
 
 ```bash
@@ -148,13 +167,14 @@ npm run test:ui       # Vitest UI
 
 Test files live in `src/__tests__/`:
 
-| Directory      | Contents                                            |
-| -------------- | --------------------------------------------------- |
-| `actions/`     | Unit tests for all server actions                   |
-| `components/`  | Component tests (notification popup, play requests) |
-| `integration/` | Booking flow end-to-end                             |
-| `concurrency/` | Concurrent operation stress tests                   |
-| `lib/`         | Utility tests (upload validation, sport config)     |
+| Directory      | Contents                                                    |
+| -------------- | ----------------------------------------------------------- |
+| `actions/`     | Unit tests for all server actions                           |
+| `api/`         | Route handler tests (auth, notifications, upload, play-req) |
+| `components/`  | Component tests (notification popup, notifications client)  |
+| `integration/` | Booking flow end-to-end                                     |
+| `concurrency/` | Concurrent operation stress tests                           |
+| `lib/`         | Utility tests (upload validation, sport config)             |
 
 ---
 
